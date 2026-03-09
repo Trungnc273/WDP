@@ -1,0 +1,316 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import walletService from '../../services/wallet.service';
+import './Wallet.css';
+
+const Wallet = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [balance, setBalance] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [filters, setFilters] = useState({
+    type: '',
+    startDate: '',
+    endDate: ''
+  });
+
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    fetchWalletData();
+  }, [user, navigate]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [filters, pagination.page]);
+
+  const fetchWalletData = async () => {
+    try {
+      setLoading(true);
+      const balanceData = await walletService.getBalance();
+      setBalance(balanceData);
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể tải thông tin ví');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      setTransactionsLoading(true);
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+        ...filters
+      };
+
+      const data = await walletService.getTransactions(params);
+      setTransactions(data.transactions || []);
+      setPagination(prev => ({
+        ...prev,
+        total: data.total || 0,
+        totalPages: data.totalPages || 0
+      }));
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  const formatPrice = (amount) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(Math.abs(amount));
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getTransactionTypeText = (type) => {
+    const types = {
+      'deposit': 'Nạp tiền',
+      'withdrawal': 'Rút tiền',
+      'payment': 'Thanh toán',
+      'refund': 'Hoàn tiền',
+      'earning': 'Thu nhập'
+    };
+    return types[type] || type;
+  };
+
+  const getTransactionIcon = (type) => {
+    const icons = {
+      'deposit': '↗️',
+      'withdrawal': '↙️',
+      'payment': '💳',
+      'refund': '↩️',
+      'earning': '💰'
+    };
+    return icons[type] || '💱';
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      'completed': { text: 'Hoàn thành', class: 'status-completed' },
+      'pending': { text: 'Đang xử lý', class: 'status-pending' },
+      'failed': { text: 'Thất bại', class: 'status-failed' },
+      'cancelled': { text: 'Đã hủy', class: 'status-cancelled' }
+    };
+    
+    const badge = badges[status] || { text: status, class: '' };
+    
+    return (
+      <span className={`status-badge ${badge.class}`}>
+        {badge.text}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="wallet-container">
+        <div className="loading">Đang tải...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="wallet-container">
+        <div className="error-message">{error}</div>
+        <button onClick={fetchWalletData} className="btn btn-primary">
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wallet-container">
+      <div className="wallet-header">
+        <h1>Ví của tôi</h1>
+        <div className="wallet-actions">
+          <Link to="/wallet/topup" className="btn btn-primary">
+            Nạp tiền
+          </Link>
+          <Link to="/wallet/withdraw" className="btn btn-secondary">
+            Rút tiền
+          </Link>
+        </div>
+      </div>
+
+      {/* Balance Card */}
+      <div className="balance-card">
+        <div className="balance-main">
+          <h2>Số dư khả dụng</h2>
+          <div className="balance-amount">
+            {formatPrice(balance?.balance || 0)}
+          </div>
+        </div>
+        
+        <div className="balance-stats">
+          <div className="stat-item">
+            <span className="stat-label">Tổng nạp</span>
+            <span className="stat-value">{formatPrice(balance?.totalDeposited || 0)}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Tổng rút</span>
+            <span className="stat-value">{formatPrice(balance?.totalWithdrawn || 0)}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Tổng chi</span>
+            <span className="stat-value">{formatPrice(balance?.totalSpent || 0)}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Tổng thu</span>
+            <span className="stat-value">{formatPrice(balance?.totalEarned || 0)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction History */}
+      <div className="transactions-section">
+        <div className="section-header">
+          <h2>Lịch sử giao dịch</h2>
+          
+          {/* Filters */}
+          <div className="transaction-filters">
+            <select
+              name="type"
+              value={filters.type}
+              onChange={handleFilterChange}
+              className="filter-select"
+            >
+              <option value="">Tất cả loại</option>
+              <option value="deposit">Nạp tiền</option>
+              <option value="withdrawal">Rút tiền</option>
+              <option value="payment">Thanh toán</option>
+              <option value="refund">Hoàn tiền</option>
+              <option value="earning">Thu nhập</option>
+            </select>
+
+            <input
+              type="date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleFilterChange}
+              className="filter-input"
+              placeholder="Từ ngày"
+            />
+
+            <input
+              type="date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleFilterChange}
+              className="filter-input"
+              placeholder="Đến ngày"
+            />
+          </div>
+        </div>
+
+        {/* Transaction List */}
+        {transactionsLoading ? (
+          <div className="loading">Đang tải giao dịch...</div>
+        ) : transactions.length === 0 ? (
+          <div className="empty-state">
+            <p>Chưa có giao dịch nào</p>
+          </div>
+        ) : (
+          <>
+            <div className="transactions-list">
+              {transactions.map(transaction => (
+                <div key={transaction._id} className="transaction-item">
+                  <div className="transaction-icon">
+                    {getTransactionIcon(transaction.type)}
+                  </div>
+                  
+                  <div className="transaction-info">
+                    <div className="transaction-type">
+                      {getTransactionTypeText(transaction.type)}
+                    </div>
+                    <div className="transaction-description">
+                      {transaction.description}
+                    </div>
+                    <div className="transaction-date">
+                      {formatDate(transaction.createdAt)}
+                    </div>
+                  </div>
+
+                  <div className="transaction-amount">
+                    <div className={`amount ${transaction.amount >= 0 ? 'positive' : 'negative'}`}>
+                      {transaction.amount >= 0 ? '+' : ''}{formatPrice(transaction.amount)}
+                    </div>
+                    {getStatusBadge(transaction.status)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="pagination-btn"
+                >
+                  ← Trước
+                </button>
+                
+                <span className="pagination-info">
+                  Trang {pagination.page} / {pagination.totalPages}
+                </span>
+                
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="pagination-btn"
+                >
+                  Sau →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Wallet;

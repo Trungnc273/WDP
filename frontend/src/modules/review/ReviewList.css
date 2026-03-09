@@ -1,0 +1,286 @@
+.review-list {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.rating-summary {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.overall-rating {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.rating-score {
+  text-align: center;
+  min-width: 150px;
+}
+
+.score {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #333;
+  display: block;
+}
+
+.stars {
+  margin: 8px 0;
+}
+
+.star {
+  font-size: 20px;
+  color: #ddd;
+  margin: 0 2px;
+}
+
+.star.filled {
+  color: #ffc107;
+}
+
+.total-reviews {
+  color: #666;
+  font-size: 14px;
+}
+
+.rating-distribution {
+  flex: 1;
+  max-width: 300px;
+}
+
+.rating-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.rating-label {
+  min-width: 50px;
+  font-size: 14px;
+  color: #666;
+}
+
+.bar-container {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #ffc107;
+  transition: width 0.3s ease;
+}
+
+.rating-count {
+  min-width: 30px;
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+}
+
+.review-filters {
+  margin-bottom: 20px;
+}
+
+.rating-filter {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.reviews {
+  space-y: 16px;
+}
+
+.review-item {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f0f0f0;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.reviewer-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.reviewer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #f0f0f0;
+}
+
+.reviewer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reviewer-name {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.review-rating .star {
+  font-size: 16px;
+}
+
+.review-date {
+  color: #666;
+  font-size: 12px;
+}
+
+.review-comment {
+  color: #333;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.reviewed-product {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.product-title {
+  font-size: 13px;
+  color: #666;
+  flex: 1;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+}
+
+.page-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #007bff;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  color: #666;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .review-list {
+    padding: 0 16px;
+  }
+  
+  .rating-summary {
+    padding: 16px;
+  }
+  
+  .overall-rating {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .rating-distribution {
+    max-width: none;
+  }
+  
+  .review-item {
+    padding: 16px;
+  }
+  
+  .review-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .reviewed-product {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

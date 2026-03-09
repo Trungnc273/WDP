@@ -1,0 +1,204 @@
+/* Footer Styles - Chợ Tốt style */
+
+.footer {
+  background-color: transparent;
+  color: var(--gray-900);
+  margin-top: auto;
+  border-top: 1px solid var(--border-color);
+}
+
+.footer__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.footer__section {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer__title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--gray-900);
+}
+
+.footer__links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer__links a {
+  color: var(--gray-600);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+  display: inline-block;
+}
+
+.footer__links a:hover {
+  color: var(--primary-blue);
+  transform: translateX(4px);
+}
+
+/* App Download Section */
+.footer__app-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer__app-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--gray-50);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--gray-900);
+  transition: all var(--transition-base);
+}
+
+.footer__app-btn:hover {
+  background-color: var(--gray-100);
+  border-color: var(--primary-blue);
+  transform: translateY(-2px);
+}
+
+.footer__app-icon {
+  font-size: 32px;
+}
+
+.footer__app-label {
+  font-size: var(--font-size-xs);
+  color: var(--gray-600);
+  margin-bottom: 2px;
+}
+
+.footer__app-name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+/* Bottom Bar */
+.footer__bottom {
+  background-color: transparent;
+  border-top: 1px solid var(--border-color);
+}
+
+.footer__bottom .footer__container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  grid-template-columns: 1fr;
+}
+
+.footer__copyright {
+  color: var(--gray-600);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.footer__payment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--gray-600);
+  font-size: var(--font-size-sm);
+}
+
+.footer__payment-icons {
+  display: flex;
+  gap: 8px;
+  font-size: 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .footer__container {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    padding: 40px 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer__container {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 32px 20px;
+  }
+
+  .footer__bottom .footer__container {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .footer__payment {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer__container {
+    padding: 24px 16px;
+    gap: 24px;
+  }
+
+  .footer__title {
+    font-size: var(--font-size-base);
+    margin-bottom: 16px;
+  }
+
+  .footer__links {
+    gap: 10px;
+  }
+
+  .footer__links a {
+    font-size: var(--font-size-xs);
+  }
+
+  .footer__app-btn {
+    padding: 10px 12px;
+  }
+
+  .footer__app-icon {
+    font-size: 28px;
+  }
+
+  .footer__app-label {
+    font-size: 10px;
+  }
+
+  .footer__app-name {
+    font-size: var(--font-size-sm);
+  }
+
+  .footer__bottom .footer__container {
+    padding: 16px;
+  }
+
+  .footer__copyright,
+  .footer__payment {
+    font-size: var(--font-size-xs);
+  }
+
+  .footer__payment-icons {
+    font-size: 18px;
+  }
+}
