@@ -67,14 +67,21 @@ const reportSchema = new mongoose.Schema({
     ref: 'User'
   },
   
-  // Moderator's decision
+  // Quyết định xử lý của moderator (đã loại bỏ lựa chọn "không hành động")
   moderatorDecision: {
     type: String,
-    enum: ['remove_content', 'warn_user', 'ban_user', 'no_action'],
+    enum: ['remove_content', 'warn_user', 'ban_user', 'reply_feedback'],
   },
   
   // Moderator's notes
   moderatorNotes: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
+
+  // Nội dung phản hồi lại cho người dùng đã gửi báo cáo
+  moderatorReply: {
     type: String,
     trim: true,
     maxlength: 500

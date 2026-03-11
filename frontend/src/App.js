@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import AppRoutes from './routes';
 import MobileMenu from './components/MobileMenu';
 import Footer from './components/Footer';
 
-function App() {
+function AppShell() {
   const { isAuthenticated, user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+
+  const isModeratorRoute = location.pathname.startsWith('/moderator');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,8 +32,8 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="App">
+    <div className="App">
+      {!isModeratorRoute && (
         <nav className={`navbar ${isScrolled ? 'navbar--scrolled' : 'navbar--transparent'}`}>
           <div className="navbar__container">
             {/* Left: Logo + Mobile Menu */}
@@ -172,11 +175,19 @@ function App() {
             </div>
           </div>
         </nav>
+      )}
 
-        <AppRoutes />
+      <AppRoutes />
         
-        <Footer />
-      </div>
+      {!isModeratorRoute && <Footer />}
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppShell />
     </Router>
   );
 }

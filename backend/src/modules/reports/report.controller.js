@@ -252,6 +252,40 @@ async function getMyDisputes(req, res) {
   }
 }
 
+/**
+ * Xử lý báo cáo (Dành riêng cho Moderator/Admin)
+ * PUT /api/reports/:reportId/resolve
+ */
+async function resolveReport(req, res) {
+  try {
+    const { reportId } = req.params;
+    // Lấy các quyết định từ body của request do Moderator gửi lên
+    const { status, moderatorDecision, moderatorNotes, moderatorReply } = req.body;
+    // Lấy ID của Moderator đang thao tác
+    const moderatorId = req.user.userId;
+
+    // Kiểm tra xem Moderator đã gửi đủ thông tin bắt buộc chưa
+    if (!status || !moderatorDecision) {
+      return sendError(res, 400, 'Thiếu thông tin xử lý (status, hoặc moderatorDecision)');
+    }
+
+    // Gọi service để thực hiện việc cập nhật Database
+    const report = await reportService.resolveReport(
+      reportId, 
+      moderatorId, 
+      status, 
+      moderatorDecision, 
+      moderatorNotes,
+      moderatorReply
+    );
+
+    sendSuccess(res, 200, report, 'Đã xử lý báo cáo thành công');
+  } catch (error) {
+    console.error('Resolve report error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
 module.exports = {
   createProductReport,
   createUserReport,
@@ -262,5 +296,6 @@ module.exports = {
   getDisputeById,
   addSellerResponse,
   getMyReports,
-  getMyDisputes
+  getMyDisputes,
+  resolveReport
 };

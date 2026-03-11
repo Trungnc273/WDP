@@ -20,7 +20,7 @@ const reportRoutes = require('./modules/reports/report.route');
 const userRoutes = require('./modules/users/user.route');
 const deliveryRoutes = require('./modules/delivery/delivery.route');
 const favoriteRoutes = require('./modules/users/favorite.route');
-
+const moderatorRoutes = require("./modules/moderator/moderator.route");
 // Register routes
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
@@ -30,12 +30,12 @@ router.use('/wallets', walletRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/orders', orderRoutes);
 router.use('/chat', chatRoutes);
-router.use('/', reviewRoutes);
-router.use('/', reportRoutes);
+router.use('/reviews', reviewRoutes);
+router.use('/reports', reportRoutes);
 router.use('/users', userRoutes);
 router.use('/delivery', deliveryRoutes);
 router.use('/favorites', favoriteRoutes);
-
+router.use("/moderator", moderatorRoutes);
 // API info endpoint
 router.get('/', (req, res) => {
   res.json({

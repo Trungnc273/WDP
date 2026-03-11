@@ -11,20 +11,22 @@ function Login() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // Lấy hàm login và biến user từ AuthContext thông qua hook useAuth
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Hàm kiểm tra lỗi nhập liệu
   const validateForm = () => {
     const newErrors = {};
 
-    // Email validation
+    // Kiểm tra định dạng Email
     if (!formData.email) {
       newErrors.email = 'Email không được để trống';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email không hợp lệ';
     }
 
-    // Password validation
+    // Kiểm tra độ dài mật khẩu
     if (!formData.password) {
       newErrors.password = 'Mật khẩu không được để trống';
     } else if (formData.password.length < 6) {
@@ -35,13 +37,15 @@ function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Cập nhật giá trị khi người dùng gõ vào ô input
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    // Clear error for this field when user starts typing
+    
+    // Xóa thông báo lỗi của ô đó ngay khi người dùng bắt đầu sửa lại
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -53,14 +57,32 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 1. Chặn nếu form không hợp lệ
     if (!validateForm()) return;
 
     setLoading(true);
     try {
-      await login(formData.email, formData.password);
-      navigate('/');
+      // 2. Gọi hàm login từ AuthContext
+      // Thường hàm login này sẽ lưu user vào localStorage và cập nhật State trong Context
+      const result = await login(formData.email, formData.password);
+      
+      // 3. Logic điều hướng dựa trên Role (Quyền)
+      // Lấy thông tin user vừa đăng nhập thành công
+      // Nếu login() của bạn không trả về user, ta có thể lấy từ localStorage
+      const currentUser = result || JSON.parse(localStorage.getItem('user'));
+
+      if (currentUser) {
+        if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
+          // Nếu là Mod/Admin thì đưa vào trang quản trị
+          navigate('/moderator/reports');
+        } else {
+          // Nếu là khách hàng bình thường thì về trang chủ
+          navigate('/');
+        }
+      }
     } catch (error) {
-      setErrors({ submit: error.message });
+      // Hiển thị lỗi từ phía Server (ví dụ: Sai mật khẩu, tài khoản bị khóa)
+      setErrors({ submit: error.message || 'Đăng nhập thất bại. Vui lòng thử lại.' });
     } finally {
       setLoading(false);
     }
@@ -71,6 +93,7 @@ function Login() {
       <div className="auth-card">
         <h2>Đăng nhập</h2>
         <form onSubmit={handleSubmit}>
+          {/* Ô nhập Email */}
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -80,11 +103,13 @@ function Login() {
               value={formData.email}
               onChange={handleChange}
               placeholder="Nhập email"
-              disabled={loading}
+              disabled={loading} // Khóa input khi đang load để tránh nhấn lung tung
+              className={errors.email ? 'input-error' : ''}
             />
-            {errors.email && <span className="error">{errors.email}</span>}
+            {errors.email && <span className="error-text">{errors.email}</span>}
           </div>
 
+          {/* Ô nhập Mật khẩu */}
           <div className="form-group">
             <label htmlFor="password">Mật khẩu</label>
             <input
@@ -95,14 +120,25 @@ function Login() {
               onChange={handleChange}
               placeholder="Nhập mật khẩu"
               disabled={loading}
+              className={errors.password ? 'input-error' : ''}
             />
-            {errors.password && <span className="error">{errors.password}</span>}
+            {errors.password && <span className="error-text">{errors.password}</span>}
           </div>
 
-          {errors.submit && <div className="error-message">{errors.submit}</div>}
+          {/* Thông báo lỗi tổng quát từ Server */}
+          {errors.submit && (
+            <div className="error-banner">
+              <i className="fas fa-exclamation-circle"></i> {errors.submit}
+            </div>
+          )}
 
+          {/* Nút đăng nhập */}
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+            {loading ? (
+              <span className="spinner">Đang xử lý...</span>
+            ) : (
+              'Đăng nhập'
+            )}
           </button>
         </form>
 
