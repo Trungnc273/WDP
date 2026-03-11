@@ -72,8 +72,11 @@ function Login() {
       const currentUser = result || JSON.parse(localStorage.getItem('user'));
 
       if (currentUser) {
-        if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
-          // Nếu là Mod/Admin thì đưa vào trang quản trị
+        if (currentUser.role === 'admin') {
+          // Nếu là Admin thì đưa vào trang admin
+          navigate('/admin');
+        } else if (currentUser.role === 'moderator') {
+          // Nếu là Moderator thì đưa vào trang moderator
           navigate('/moderator/reports');
         } else {
           // Nếu là khách hàng bình thường thì về trang chủ

@@ -12,6 +12,7 @@ function AppShell() {
   const location = useLocation();
 
   const isModeratorRoute = location.pathname.startsWith('/moderator');
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,7 +34,7 @@ function AppShell() {
 
   return (
     <div className="App">
-      {!isModeratorRoute && (
+      {!isModeratorRoute && !isAdminRoute && (
         <nav className={`navbar ${isScrolled ? 'navbar--scrolled' : 'navbar--transparent'}`}>
           <div className="navbar__container">
             {/* Left: Logo + Mobile Menu */}
@@ -179,7 +180,7 @@ function AppShell() {
 
       <AppRoutes />
         
-      {!isModeratorRoute && <Footer />}
+      {!isModeratorRoute && !isAdminRoute && <Footer />}
     </div>
   );
 }

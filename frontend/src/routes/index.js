@@ -31,6 +31,7 @@ import Chat from '../modules/chat/Chat';
 
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
+import AdminRoute from './AdminRoute';
 
 
 // ================= MODERATOR IMPORT =================
@@ -54,6 +55,12 @@ import ModWithdrawalList from "../modules/moderator/withdrawals/ModWithdrawalLis
 import ModDisputeList from "../modules/moderator/disputes/ModDisputeList";
 import ModDisputeDetail from "../modules/moderator/disputes/ModDisputeDetail";
 // ====================================================
+
+// ================= ADMIN IMPORT =================
+import AdminLayout from "../modules/admin/layout/AdminLayout";
+import AdminDashboard from "../modules/admin/Dashboard";
+import UserManagement from "../modules/admin/UserManagement";
+// ================================================
 
 
 function AppRoutes() {
@@ -134,6 +141,14 @@ function AppRoutes() {
         <Route path="disputes" element={<ModDisputeList />} />
         <Route path="disputes/:id" element={<ModDisputeDetail />} />
 
+      </Route>
+
+
+      {/* Admin routes */}
+      <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<UserManagement />} />
       </Route>
 
 
