@@ -37,6 +37,7 @@ import PublicRoute from './PublicRoute';
 // Layout
 import ModeratorLayout from "../modules/moderator/layout/ModeratorLayout";
 import ModeratorDashboard from "../modules/moderator/dashboard/ModeratorDashboard";
+import ModProfile from "../modules/moderator/profile/ModProfile";
 
 // Reports
 import ModReportList from "../modules/moderator/reports/ModReportList";
@@ -115,6 +116,7 @@ function AppRoutes() {
         {/* Mặc định khi truy cập /moderator sẽ hiển thị dashboard */}
         <Route index element={<ModeratorDashboard />} />
         <Route path="dashboard" element={<ModeratorDashboard />} />
+        <Route path="profile" element={<ModProfile />} />
 
         {/* 1. Module Quản lý Báo cáo (Report) */}
         <Route path="reports" element={<ModReportList />} />

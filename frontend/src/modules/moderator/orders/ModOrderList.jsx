@@ -1,5 +1,5 @@
 import { Card, Table, Tag, Button, Typography, Space, Select, Input, message } from "antd";
-import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
+import { EyeOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getModeratorOrders } from "../../../services/moderator.service";
@@ -12,15 +12,28 @@ const ModOrderList = () => {
   const [orders, setOrders] = useState([]);
   const [filters, setFilters] = useState({ status: "", keyword: "" });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+
+  // Chuẩn hóa và validate từ khóa để tránh gửi input lỗi lên backend.
+  const sanitizeKeyword = (keyword) => String(keyword || "").trim();
+
+  const validateKeyword = (keyword) => {
+    if (keyword.length > 100) {
+      throw new Error("Từ khóa tìm kiếm không được vượt quá 100 ký tự");
+    }
+  };
+
   // Một điểm gọi API duy nhất giúp trạng thái bảng ổn định sau khi lọc/phân trang.
   const fetchOrders = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
+      const keyword = sanitizeKeyword(filters.keyword);
+      validateKeyword(keyword);
+
       const result = await getModeratorOrders({
         page,
         limit: pageSize,
         status: filters.status || undefined,
-        keyword: filters.keyword || undefined
+        keyword: keyword || undefined
       });
       setOrders(result.items);
       setPagination({
@@ -33,6 +46,12 @@ const ModOrderList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetFilters = () => {
+    // Reset toàn bộ điều kiện lọc về trạng thái ban đầu.
+    setFilters({ status: "", keyword: "" });
+    fetchOrders(1, pagination.pageSize);
   };
 
   useEffect(() => {
@@ -100,7 +119,7 @@ const ModOrderList = () => {
     <Card className="mod-panel">
       <div className="mod-toolbar">
         <Title level={4} style={{ margin: 0 }}>Danh sách Đơn hàng cần kiểm duyệt</Title>
-        <Space wrap>
+        <div className="mod-filter-row">
           <Input
             placeholder="Tìm đơn hàng..."
             prefix={<SearchOutlined />}
@@ -123,8 +142,11 @@ const ModOrderList = () => {
               { value: "disputed", label: "Đang tranh chấp" }
             ]}
           />
-          <Button type="primary" onClick={() => fetchOrders(1, pagination.pageSize)}>Lọc</Button>
-        </Space>
+          <div className="mod-filter-actions">
+            <Button type="primary" onClick={() => fetchOrders(1, pagination.pageSize)}>Lọc</Button>
+            <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilters}>Reset</Button>
+          </div>
+        </div>
       </div>
       <Table
         className="mod-table"

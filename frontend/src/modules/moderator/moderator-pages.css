@@ -34,6 +34,29 @@
   margin-bottom: 10px;
 }
 
+.mod-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mod-filter-actions {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: 2px;
+}
+
+.mod-reset-btn {
+  border-color: #d4ddec;
+  color: #3b4a67;
+}
+
+.mod-reset-btn:hover {
+  border-color: #98b2df;
+  color: #1f3f7a;
+}
+
 .mod-table :where(.ant-table-thead > tr > th) {
   background: #f7f9ff;
   font-weight: 700;
@@ -68,6 +91,32 @@
   flex-wrap: wrap;
   margin-top: 16px;
   align-items: flex-end;
+}
+
+.mod-action-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(260px, 1fr) minmax(260px, 1fr);
+  gap: 12px;
+}
+
+.mod-action-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mod-action-label {
+  font-size: 12px;
+  color: #6d7891;
+  font-weight: 600;
+}
+
+.mod-action-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 /* ─── Dashboard ─── */
@@ -121,6 +170,23 @@
   .mod-panel {
     border-radius: 10px;
   }
+
+  .mod-filter-row {
+    width: 100%;
+  }
+
+  .mod-filter-actions {
+    margin-left: 0;
+  }
+
+  .mod-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mod-action-buttons {
+    justify-content: flex-start;
+  }
+
   .mod-stat-row {
     grid-template-columns: repeat(2, 1fr);
   }

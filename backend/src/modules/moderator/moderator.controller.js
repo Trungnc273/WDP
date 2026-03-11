@@ -28,6 +28,34 @@ function ensureInList(value, list, fieldName) {
   return null;
 }
 
+function ensureValidPageLimit(page, limit) {
+  // Validate phân trang để tránh truy vấn không hợp lệ hoặc quá tải.
+  if (page !== undefined) {
+    const pageNum = Number(page);
+    if (!Number.isInteger(pageNum) || pageNum < 1) {
+      return "page phải là số nguyên >= 1";
+    }
+  }
+
+  if (limit !== undefined) {
+    const limitNum = Number(limit);
+    if (!Number.isInteger(limitNum) || limitNum < 1 || limitNum > 100) {
+      return "limit phải là số nguyên trong khoảng 1-100";
+    }
+  }
+
+  return null;
+}
+
+function ensureValidKeyword(keyword) {
+  // Validate độ dài keyword để đồng bộ rule với frontend.
+  if (keyword === undefined) return null;
+  if (String(keyword).trim().length > 100) {
+    return "keyword không được vượt quá 100 ký tự";
+  }
+  return null;
+}
+
 async function getDashboardStats(req, res) {
   try {
     const stats = await moderatorService.getDashboardStats();
@@ -70,6 +98,12 @@ async function getReports(req, res) {
     const typeError = ensureInList(reportType, REPORT_TYPE, "Loại báo cáo");
     if (typeError) return sendError(res, 400, typeError);
 
+    const pageLimitError = ensureValidPageLimit(page, limit);
+    if (pageLimitError) return sendError(res, 400, pageLimitError);
+
+    const keywordError = ensureValidKeyword(keyword);
+    if (keywordError) return sendError(res, 400, keywordError);
+
     const result = await moderatorService.getReports(
       { status, reportType, keyword },
       { page, limit }
@@ -96,7 +130,7 @@ async function getReportById(req, res) {
 async function resolveReport(req, res) {
   try {
     const { reportId } = req.params;
-    const { status, moderatorDecision, moderatorNotes, moderatorReply } = req.body;
+    const { status, moderatorDecision, moderatorNotes, moderatorReply, moderatorReplyToReportedUser } = req.body;
 
     const idError = ensureObjectId(reportId, "Mã báo cáo");
     if (idError) return sendError(res, 400, idError);
@@ -116,11 +150,16 @@ async function resolveReport(req, res) {
       return sendError(res, 400, "moderatorReply không được vượt quá 500 ký tự");
     }
 
+    if (moderatorReplyToReportedUser && String(moderatorReplyToReportedUser).trim().length > 500) {
+      return sendError(res, 400, "moderatorReplyToReportedUser không được vượt quá 500 ký tự");
+    }
+
     const report = await moderatorService.resolveReport(reportId, req.user.userId, {
       status,
       moderatorDecision,
       moderatorNotes: moderatorNotes ? String(moderatorNotes).trim() : "",
-      moderatorReply: moderatorReply ? String(moderatorReply).trim() : ""
+      moderatorReply: moderatorReply ? String(moderatorReply).trim() : "",
+      moderatorReplyToReportedUser: moderatorReplyToReportedUser ? String(moderatorReplyToReportedUser).trim() : ""
     });
 
     return sendSuccess(res, 200, report, "Đã xử lý báo cáo thành công");
@@ -135,6 +174,12 @@ async function getOrders(req, res) {
 
     const statusError = ensureInList(status, ORDER_STATUS, "Trạng thái đơn hàng");
     if (statusError) return sendError(res, 400, statusError);
+
+    const pageLimitError = ensureValidPageLimit(page, limit);
+    if (pageLimitError) return sendError(res, 400, pageLimitError);
+
+    const keywordError = ensureValidKeyword(keyword);
+    if (keywordError) return sendError(res, 400, keywordError);
 
     const result = await moderatorService.getOrders({ status, keyword }, { page, limit });
     return sendSuccess(res, 200, result);

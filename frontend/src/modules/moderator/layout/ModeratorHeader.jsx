@@ -21,7 +21,17 @@ const ModeratorHeader = ({ onOpenMenu, isMobile }) => {
     navigate("/login");
   };
 
+  const handleGoProfile = () => {
+    navigate("/moderator/profile");
+  };
+
   const items = [
+    {
+      key: "profile",
+      label: "Profile",
+      icon: <UserOutlined />,
+      onClick: handleGoProfile,
+    },
     {
       key: "logout",
       label: "Đăng xuất",

@@ -4,6 +4,25 @@ const Product = require('../products/product.model');
 const Order = require('../orders/order.model');
 const User = require('../users/user.model');
 
+const PRODUCT_WARN_THRESHOLD = 3;
+
+async function pushReportNotification(userId, title, message, reportId) {
+  if (!userId) return;
+
+  await User.findByIdAndUpdate(userId, {
+    $push: {
+      notifications: {
+        title,
+        message,
+        type: 'report_update',
+        relatedReportId: reportId,
+        isRead: false,
+        createdAt: new Date()
+      }
+    }
+  });
+}
+
 /**
  * Report & Dispute Service
  * Handles product reports and order disputes
@@ -397,7 +416,15 @@ async function getAllReports(filters = {}, pagination = {}) {
 /**
  * Xử lý báo cáo: Khóa user, xóa bài... (Dành cho Moderator/Admin)
  */
-async function resolveReport(reportId, moderatorId, status, decision, notes, reply = '') {
+async function resolveReport(
+  reportId,
+  moderatorId,
+  status,
+  decision,
+  notes,
+  reply = '',
+  replyToReportedUser = ''
+) {
   const report = await Report.findById(reportId);
   
   if (!report) {
@@ -413,6 +440,7 @@ async function resolveReport(reportId, moderatorId, status, decision, notes, rep
   report.moderatorDecision = decision; // 'remove_content', 'warn_user', 'ban_user'
   report.moderatorNotes = notes;
   report.moderatorReply = reply;
+  report.moderatorReplyToReportedUser = replyToReportedUser;
   report.moderatorId = moderatorId;
   report.resolvedAt = new Date();
 
@@ -437,6 +465,23 @@ async function resolveReport(reportId, moderatorId, status, decision, notes, rep
       }
       await user.save();
     }
+
+    // Nếu là báo cáo sản phẩm và đã bị cảnh báo đủ ngưỡng thì tự động gỡ bài.
+    if (report.productId) {
+      const warnResolvedCount = await Report.countDocuments({
+        productId: report.productId,
+        status: 'resolved',
+        moderatorDecision: 'warn_user'
+      });
+
+      if (warnResolvedCount >= PRODUCT_WARN_THRESHOLD) {
+        const product = await Product.findById(report.productId);
+        if (product && !['rejected', 'hidden', 'deleted'].includes(product.status)) {
+          product.status = 'rejected';
+          await product.save();
+        }
+      }
+    }
   } else if (status === 'resolved' && decision === 'ban_user' && report.reportedUserId) {
     // Nếu quyết định là khóa tài khoản người vi phạm
     const user = await User.findById(report.reportedUserId);
@@ -447,6 +492,29 @@ async function resolveReport(reportId, moderatorId, status, decision, notes, rep
   }
 
   await report.save();
+
+  // Gửi thông báo cho người tố cáo.
+  if (report.reporterId) {
+    const reporterMessage = reply || 'Báo cáo của bạn đã được moderator xử lý.';
+    await pushReportNotification(
+      report.reporterId,
+      'Cập nhật báo cáo',
+      reporterMessage,
+      report._id
+    );
+  }
+
+  // Gửi thông báo cho người bị báo cáo.
+  if (report.reportedUserId) {
+    const reportedMessage = replyToReportedUser || 'Bạn có cập nhật mới liên quan đến một báo cáo vi phạm.';
+    await pushReportNotification(
+      report.reportedUserId,
+      'Thông báo xử lý báo cáo',
+      reportedMessage,
+      report._id
+    );
+  }
+
   return report;
 }
 

@@ -1,0 +1,18 @@
+.mod-profile-page {
+  padding-bottom: 4px;
+}
+
+.mod-profile-summary .ant-descriptions-item-label {
+  width: 165px;
+}
+
+.mod-profile-page .ant-input,
+.mod-profile-page .ant-input-affix-wrapper,
+.mod-profile-page .ant-input-textarea {
+  border-radius: 10px;
+}
+
+.mod-profile-page .ant-btn {
+  border-radius: 10px;
+  font-weight: 600;
+}

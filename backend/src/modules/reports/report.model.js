@@ -86,6 +86,13 @@ const reportSchema = new mongoose.Schema({
     trim: true,
     maxlength: 500
   },
+
+  // Nội dung phản hồi gửi cho người bị báo cáo
+  moderatorReplyToReportedUser: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
   
   // Timestamps for status changes
   reviewedAt: {

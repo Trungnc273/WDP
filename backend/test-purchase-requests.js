@@ -55,7 +55,10 @@ async function createTestProduct(token) {
       price: 100000,
       category: 'electronics',
       condition: 'new',
-      location: 'Ho Chi Minh City',
+      location: {
+        city: 'Hồ Chí Minh',
+        district: 'Quận 1'
+      },
       images: ['test-image.jpg']
     }, {
       headers: { Authorization: `Bearer ${token}` }

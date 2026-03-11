@@ -19,13 +19,48 @@ function normalizeListResponse(response, key) {
   };
 }
 
+function normalizePaginationParams(params = {}) {
+  // Chuẩn hóa tham số truy vấn cho toàn bộ màn hình moderator list.
+  const next = { ...params };
+
+  if (next.page !== undefined) {
+    const page = Number(next.page);
+    if (!Number.isInteger(page) || page < 1) {
+      throw new Error('page phải là số nguyên >= 1');
+    }
+    next.page = page;
+  }
+
+  if (next.limit !== undefined) {
+    const limit = Number(next.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('limit phải là số nguyên trong khoảng 1-100');
+    }
+    next.limit = limit;
+  }
+
+  if (next.keyword !== undefined) {
+    const keyword = String(next.keyword || '').trim();
+    if (keyword.length > 100) {
+      throw new Error('keyword không được vượt quá 100 ký tự');
+    }
+    if (!keyword) {
+      delete next.keyword;
+    } else {
+      next.keyword = keyword;
+    }
+  }
+
+  return next;
+}
+
 export async function getModeratorDashboard() {
   const response = await api.get('/moderator/dashboard');
   return response.data?.data || {};
 }
 
 export async function getModeratorReports(params = {}) {
-  const response = await api.get('/moderator/reports', { params });
+  const response = await api.get('/moderator/reports', { params: normalizePaginationParams(params) });
   return normalizeListResponse(response.data, 'reports');
 }
 
@@ -37,7 +72,7 @@ export async function getModeratorReportById(reportId) {
 
 export async function resolveModeratorReport(reportId, payload) {
   ensureObjectId(reportId, 'Mã báo cáo');
-  const { status, moderatorDecision, moderatorReply } = payload || {};
+  const { status, moderatorDecision, moderatorReply, moderatorReplyToReportedUser } = payload || {};
 
   if (!['resolved', 'dismissed'].includes(status)) {
     throw new Error('status phải là resolved hoặc dismissed');
@@ -51,17 +86,22 @@ export async function resolveModeratorReport(reportId, payload) {
     throw new Error('Phản hồi cho người dùng không được vượt quá 500 ký tự');
   }
 
+  if (moderatorReplyToReportedUser && moderatorReplyToReportedUser.trim().length > 500) {
+    throw new Error('Phản hồi cho người bị báo cáo không được vượt quá 500 ký tự');
+  }
+
   const response = await api.put(`/moderator/reports/${reportId}/resolve`, {
     status,
     moderatorDecision,
-    moderatorReply: moderatorReply || ''
+    moderatorReply: moderatorReply || '',
+    moderatorReplyToReportedUser: moderatorReplyToReportedUser || ''
   });
 
   return response.data?.data;
 }
 
 export async function getModeratorOrders(params = {}) {
-  const response = await api.get('/moderator/orders', { params });
+  const response = await api.get('/moderator/orders', { params: normalizePaginationParams(params) });
   return normalizeListResponse(response.data, 'orders');
 }
 

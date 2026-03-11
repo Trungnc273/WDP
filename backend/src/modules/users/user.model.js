@@ -50,6 +50,35 @@ const UserSchema = new Schema({
     type: Number,
     default: 0
   },
+  notifications: [{
+    title: {
+      type: String,
+      trim: true,
+      maxlength: 150
+    },
+    message: {
+      type: String,
+      trim: true,
+      maxlength: 1000
+    },
+    type: {
+      type: String,
+      enum: ['report_update', 'system'],
+      default: 'report_update'
+    },
+    relatedReportId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Report'
+    },
+    isRead: {
+      type: Boolean,
+      default: false
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   // KYC (Know Your Customer) verification
   kycStatus: {
     type: String,
