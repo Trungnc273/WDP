@@ -274,7 +274,49 @@ async function confirmReceipt(req, res) {
     return sendError(res, 400, error.message);
   }
 }
+/**
+ * Lấy danh sách toàn bộ đơn hàng (Dành cho Moderator/Admin)
+ * GET /api/orders/moderator/all
+ */
+async function getAllOrdersForMod(req, res) {
+  try {
+    const { status, page, limit } = req.query;
+    const filters = status ? { status } : {};
+    const pagination = { page, limit };
+    
+    // Gọi service để lấy toàn bộ đơn hàng
+    const result = await orderService.getAllOrders(filters, pagination);
+    
+    return sendSuccess(res, 200, result, 'Lấy danh sách toàn bộ đơn hàng thành công');
+  } catch (error) {
+    console.error('Get all orders for mod error:', error);
+    return sendError(res, 400, error.message);
+  }
+}
 
+/**
+ * Ép hủy đơn hàng (Dành cho Moderator/Admin khi phát hiện lừa đảo)
+ * POST /api/orders/moderator/:id/force-cancel
+ */
+async function forceCancelOrder(req, res) {
+  try {
+    const orderId = req.params.id;
+    const moderatorId = req.user.userId;
+    const { reason } = req.body; // Lý do hủy đơn (bắt buộc)
+
+    if (!reason) {
+      return sendError(res, 400, 'Bắt buộc phải cung cấp lý do hủy đơn');
+    }
+
+    // Gọi service thực hiện hủy đơn và hoàn tiền (nếu có)
+    const order = await orderService.forceCancelOrder(orderId, moderatorId, reason);
+    
+    return sendSuccess(res, 200, order, 'Đã ép hủy đơn hàng thành công');
+  } catch (error) {
+    console.error('Force cancel order error:', error);
+    return sendError(res, 400, error.message);
+  }
+}
 module.exports = {
   createPurchaseRequest,
   getSentPurchaseRequests,
@@ -286,5 +328,7 @@ module.exports = {
   confirmReceipt,
   getOrdersAsBuyer,
   getOrdersAsSeller,
-  getOrderById
+  getOrderById,
+  getAllOrdersForMod, 
+  forceCancelOrder    
 };

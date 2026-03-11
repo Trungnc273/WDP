@@ -362,6 +362,94 @@ async function getUserDisputes(userId, pagination = {}) {
   return getDisputes({ buyerId: userId }, pagination);
 }
 
+/**
+ * Lấy toàn bộ danh sách báo cáo (Dành cho Moderator/Admin)
+ */
+async function getAllReports(filters = {}, pagination = {}) {
+  const page = parseInt(pagination.page) || 1;
+  const limit = parseInt(pagination.limit) || 20;
+  const skip = (page - 1) * limit;
+
+  // Lọc bỏ các filter không có giá trị (undefined)
+  Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
+
+  const reports = await Report.find(filters)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('reporterId', 'fullName email avatar')
+    .populate('reportedUserId', 'fullName email avatar')
+    .populate('productId', 'title images');
+
+  const total = await Report.countDocuments(filters);
+
+  return {
+    reports,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
+}
+
+/**
+ * Xử lý báo cáo: Khóa user, xóa bài... (Dành cho Moderator/Admin)
+ */
+async function resolveReport(reportId, moderatorId, status, decision, notes, reply = '') {
+  const report = await Report.findById(reportId);
+  
+  if (!report) {
+    throw new Error('Báo cáo không tồn tại');
+  }
+
+  if (report.status === 'resolved' || report.status === 'dismissed') {
+    throw new Error('Báo cáo này đã được xử lý trước đó rồi');
+  }
+
+  // Cập nhật thông tin xử lý vào database
+  report.status = status; // 'resolved' hoặc 'dismissed'
+  report.moderatorDecision = decision; // 'remove_content', 'warn_user', 'ban_user'
+  report.moderatorNotes = notes;
+  report.moderatorReply = reply;
+  report.moderatorId = moderatorId;
+  report.resolvedAt = new Date();
+
+  // THỰC THI QUYẾT ĐỊNH CỦA MODERATOR (chỉ khi đánh dấu resolved)
+  if (status === 'resolved' && decision === 'remove_content' && report.productId) {
+    // Nếu quyết định là xóa nội dung vi phạm
+    const product = await Product.findById(report.productId);
+    if (product) {
+      product.status = 'rejected'; // Chuyển trạng thái sản phẩm thành bị từ chối/ẩn
+      await product.save();
+    }
+  } else if (status === 'resolved' && decision === 'warn_user' && report.reportedUserId) {
+    // Cảnh báo người dùng: tăng vi phạm, đủ 3 lần thì khóa tài khoản
+    const user = await User.findById(report.reportedUserId);
+    if (user) {
+      user.violationCount = (user.violationCount || 0) + 1;
+      if (user.violationCount >= 3) {
+        user.isSuspended = true;
+        const suspendUntil = new Date();
+        suspendUntil.setDate(suspendUntil.getDate() + 30);
+        user.suspendedUntil = suspendUntil;
+      }
+      await user.save();
+    }
+  } else if (status === 'resolved' && decision === 'ban_user' && report.reportedUserId) {
+    // Nếu quyết định là khóa tài khoản người vi phạm
+    const user = await User.findById(report.reportedUserId);
+    if (user) {
+      user.isSuspended = true; // Khóa tài khoản
+      await user.save();
+    }
+  }
+
+  await report.save();
+  return report;
+}
+
 module.exports = {
   createProductReport,
   createUserReport,
@@ -372,5 +460,7 @@ module.exports = {
   getDisputeById,
   addSellerResponse,
   getUserReports,
-  getUserDisputes
+  getUserDisputes,
+  getAllReports,   
+  resolveReport   
 };

@@ -23,9 +23,11 @@ export function AuthProvider({ children }) {
       const userData = await authService.getProfile(token);
       setUser(userData);
       setToken(token);
+      localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
       // Token is invalid or expired
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setUser(null);
       setToken(null);
     } finally {
@@ -38,6 +40,8 @@ export function AuthProvider({ children }) {
     setUser(result.user);
     setToken(result.token);
     localStorage.setItem('token', result.token);
+    localStorage.setItem('user', JSON.stringify(result.user)); 
+    return result.user;
   };
 
   const register = async (email, password, fullName) => {
@@ -51,6 +55,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   const value = {

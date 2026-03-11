@@ -400,7 +400,90 @@ async function updateOrderStatus(orderId, newStatus, userId) {
   
   return order;
 }
+/**
+ * Lấy danh sách toàn bộ đơn hàng (Dành cho Moderator/Admin)
+ */
+async function getAllOrders(filters = {}, pagination = {}) {
+  const page = parseInt(pagination.page) || 1;
+  const limit = parseInt(pagination.limit) || 20;
+  const skip = (page - 1) * limit;
 
+  // Lấy danh sách kèm theo thông tin người mua, người bán và sản phẩm
+  const orders = await Order.find(filters)
+    .sort({ createdAt: -1 }) // Đơn mới nhất lên đầu
+    .skip(skip)
+    .limit(limit)
+    .populate('buyerId', 'fullName email avatar')
+    .populate('sellerId', 'fullName email avatar')
+    .populate('productId', 'title price images');
+
+  const total = await Order.countDocuments(filters);
+
+  return {
+    orders,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
+}
+
+/**
+ * Ép hủy đơn hàng (Dành cho Moderator/Admin)
+ * Chú ý: Có sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu tiền bạc
+ */
+async function forceCancelOrder(orderId, moderatorId, reason) {
+  // Bắt đầu một session để đảm bảo nếu lỗi thì rollback lại toàn bộ
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const order = await Order.findById(orderId).session(session);
+
+    if (!order) {
+      throw new Error('Đơn hàng không tồn tại');
+    }
+
+    // Không thể hủy đơn đã hoàn thành hoặc đã hủy
+    if (order.status === 'completed' || order.status === 'cancelled') {
+      throw new Error(`Không thể hủy đơn hàng đang ở trạng thái: ${order.status}`);
+    }
+
+    // QUAN TRỌNG: Nếu đơn hàng ĐÃ THANH TOÁN (Tiền đang nằm trong Escrow)
+    // Thì phải hoàn tiền lại cho người mua (Buyer)
+    if (order.paymentStatus === 'paid') {
+      const escrowService = require('../payments/escrow.service');
+      // Gọi hàm hoàn tiền của Escrow (Giả định bạn đã có hàm refundToBuyer trong escrow.service)
+      await escrowService.refundToBuyer(
+        orderId, 
+        `Hủy bởi Moderator. Lý do: ${reason}`
+      );
+    }
+
+    // Cập nhật trạng thái đơn thành "Đã hủy"
+    order.status = 'cancelled';
+    
+    // Nếu Model Order của bạn có trường ghi chú hủy đơn thì lưu lại
+    if (order.schema.paths.cancelReason !== undefined) {
+      order.cancelReason = reason;
+    }
+
+    await order.save({ session });
+    
+    // Lưu thành công toàn bộ thay đổi
+    await session.commitTransaction();
+
+    return order;
+  } catch (error) {
+    // Nếu có lỗi xảy ra ở bất kỳ đâu (đặc biệt là lúc hoàn tiền), Hủy bỏ toàn bộ thao tác
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+}
 module.exports = {
   createPurchaseRequest,
   getSentPurchaseRequests,
@@ -414,7 +497,9 @@ module.exports = {
   updateOrderStatus,
   payOrder,
   confirmShipment,
-  confirmReceipt
+  confirmReceipt,
+  getAllOrders,     
+  forceCancelOrder  
 };
 /**
  * Pay for an order (simplified version without wallet integration)

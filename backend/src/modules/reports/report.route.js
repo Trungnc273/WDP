@@ -1,7 +1,7 @@
 const express = require('express');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
 const reportController = require('./report.controller');
-
+const { requireRole } = require('../../common/middlewares/role.middleware');
 const router = express.Router();
 
 /**
@@ -19,7 +19,17 @@ router.post('/reports/user', authenticate, reportController.createUserReport);
 router.get('/reports/my-reports', authenticate, reportController.getMyReports);
 
 // Get reports (admin/moderator only - TODO: add role middleware)
-router.get('/reports', authenticate, reportController.getReports);
+// ==========================================
+// CÁC ROUTE DÀNH CHO MODERATOR / ADMIN
+// ==========================================
+
+// Lấy danh sách tất cả các báo cáo (Chỉ admin và moderator mới được xem)
+// GET /api/reports
+router.get('/reports', authenticate, requireRole('admin', 'moderator'), reportController.getReports);
+
+// Moderator xử lý báo cáo (Đưa ra quyết định: xóa bài, ban user, bỏ qua...)
+// PUT /api/reports/:reportId/resolve
+router.put('/reports/:reportId/resolve', authenticate, requireRole('admin', 'moderator'), reportController.resolveReport);
 
 // Get report by ID
 router.get('/reports/:reportId', authenticate, reportController.getReportById);

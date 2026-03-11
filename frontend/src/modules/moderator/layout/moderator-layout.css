@@ -1,0 +1,232 @@
+.moderator-shell {
+  min-height: 100vh;
+  /* Nền phân lớp để khu vực moderator tách biệt trực quan với khu vực người dùng. */
+  background:
+    radial-gradient(circle at top right, #fef1de 0%, rgba(254, 241, 222, 0) 30%),
+    radial-gradient(circle at bottom left, #e9f0ff 0%, rgba(233, 240, 255, 0) 34%),
+    #f4f6fb;
+}
+
+.moderator-sider {
+  border-right: 1px solid #e7e7e7;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7eb 100%);
+}
+
+.moderator-main {
+  min-height: 100vh;
+}
+
+.moderator-header {
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 248, 238, 0.92) 100%);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e7ebf3;
+  padding: 0 20px;
+  box-shadow: 0 3px 12px rgba(16, 24, 40, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.moderator-header::after {
+  content: "";
+  position: absolute;
+  inset: auto -70px -38px auto;
+  width: 130px;
+  height: 64px;
+  border-radius: 100px;
+  background: radial-gradient(circle, rgba(35, 131, 246, 0.17) 0%, rgba(35, 131, 246, 0) 72%);
+  pointer-events: none;
+}
+
+.moderator-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.moderator-menu-trigger {
+  border-radius: 10px;
+}
+
+.moderator-header-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f4fa8;
+  background: linear-gradient(145deg, #e8f2ff, #fff0da);
+  border: 1px solid #dbe8ff;
+}
+
+.moderator-header-title {
+  margin: 0 !important;
+  color: #162543 !important;
+  font-size: 18px !important;
+}
+
+.moderator-header-subtitle {
+  color: #5d6a84 !important;
+  font-size: 13px;
+}
+
+.moderator-role-tag {
+  border-radius: 999px;
+  padding-inline: 9px;
+  font-weight: 600;
+}
+
+.moderator-notify-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #41506e;
+  background: #fff;
+  border: 1px solid #e7ebf3;
+}
+
+.moderator-user-chip {
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 3px 10px 3px 3px;
+  background: #fff;
+  border: 1px solid #e7ebf3;
+}
+
+.moderator-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #df7a1c, #ffaf3b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.moderator-content {
+  padding: 16px;
+}
+
+.moderator-content-inner {
+  min-height: calc(100vh - 170px);
+  max-width: 1240px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.moderator-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #e5ebf5;
+  background: linear-gradient(180deg, #fbfcff 0%, #f6f9ff 100%);
+}
+
+.moderator-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.moderator-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.moderator-footer-icon {
+  color: #1d6fd4;
+  font-size: 14px;
+}
+
+.moderator-footer-text {
+  color: #667792;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.moderator-footer-divider {
+  color: #c0cad9;
+  font-size: 12px;
+}
+
+.moderator-sidebar {
+  height: 100%;
+}
+
+.moderator-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  border-bottom: 1px solid #f0ede8;
+}
+
+.moderator-brand-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.moderator-brand-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.moderator-menu {
+  border-inline-end: 0;
+  background: transparent;
+  font-weight: 600;
+  padding: 10px 8px;
+}
+
+.moderator-menu .ant-menu-item {
+  border-radius: 10px;
+}
+
+.moderator-menu .ant-menu-item-selected {
+  background: #e8f1ff;
+  color: #1153b7;
+}
+
+@media (max-width: 991px) {
+  .moderator-header {
+    padding: 0 12px;
+    height: 66px;
+  }
+
+  .moderator-header-title {
+    font-size: 14px !important;
+  }
+
+  .moderator-header-subtitle {
+    font-size: 11px;
+  }
+
+  .moderator-role-tag {
+    display: none;
+  }
+
+  .moderator-content {
+    padding: 10px;
+  }
+
+  .moderator-content-inner {
+    min-height: calc(100vh - 160px);
+  }
+}

@@ -1,0 +1,127 @@
+:root {
+  --mod-surface: rgba(255, 255, 255, 0.92);
+  --mod-border: #e5e9f3;
+  --mod-shadow: 0 8px 20px rgba(16, 24, 40, 0.05);
+  --mod-text-muted: #64708a;
+}
+
+.mod-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.mod-page-subtitle {
+  color: var(--mod-text-muted);
+}
+
+.mod-panel {
+  border: 1px solid var(--mod-border);
+  box-shadow: var(--mod-shadow);
+  border-radius: 14px;
+  background: var(--mod-surface);
+}
+
+.mod-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.mod-table :where(.ant-table-thead > tr > th) {
+  background: #f7f9ff;
+  font-weight: 700;
+  color: #22324f;
+}
+
+.mod-table :where(.ant-table-tbody > tr > td) {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.mod-status-pill {
+  border-radius: 999px;
+  padding-inline: 9px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.mod-danger-text {
+  color: #cf1322;
+  font-weight: 500;
+}
+
+.mod-money-text {
+  color: #087443;
+  font-weight: 700;
+}
+
+.mod-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  align-items: flex-end;
+}
+
+/* ─── Dashboard ─── */
+.mod-dashboard-title {
+  margin: 0 0 2px 0 !important;
+}
+
+.mod-dashboard-subtitle {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.mod-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.mod-stat-card {
+  border: 1px solid var(--mod-border);
+  border-radius: 14px;
+  background: var(--mod-surface);
+  box-shadow: var(--mod-shadow);
+  text-align: center;
+}
+
+.mod-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.mod-stat-card .ant-statistic-title {
+  font-size: 13px;
+  color: var(--mod-text-muted);
+}
+
+.mod-stat-card .ant-statistic-content-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+@media (max-width: 768px) {
+  .mod-panel {
+    border-radius: 10px;
+  }
+  .mod-stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
