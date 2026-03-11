@@ -31,7 +31,7 @@ router.use('/payments', paymentRoutes);
 router.use('/orders', orderRoutes);
 router.use('/chat', chatRoutes);
 router.use('/reviews', reviewRoutes);
-router.use('/reports', reportRoutes);
+router.use('/', reportRoutes);
 router.use('/users', userRoutes);
 router.use('/delivery', deliveryRoutes);
 router.use('/favorites', favoriteRoutes);

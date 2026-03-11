@@ -7,6 +7,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getModeratorReportById, resolveModeratorReport } from "../../../services/moderator.service";
+import { getImageUrl } from "../../../utils/imageHelper";
 
 const { TextArea } = Input;
 
@@ -118,7 +119,7 @@ const ModReportDetail = () => {
                   {report.evidenceImages.slice(0, 4).map((imageUrl, index) => (
                     <Image
                       key={`${imageUrl}-${index}`}
-                      src={imageUrl}
+                      src={getImageUrl(imageUrl)}
                       width={84}
                       height={84}
                       style={{ objectFit: "cover", borderRadius: 8 }}

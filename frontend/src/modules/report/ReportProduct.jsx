@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { createProductReport } from '../../services/report.service';
+import { createProductReport, uploadEvidenceImages } from '../../services/report.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './ReportProduct.css';
 
 const ReportProduct = ({ product, onSuccess, onCancel }) => {
@@ -7,6 +8,7 @@ const ReportProduct = ({ product, onSuccess, onCancel }) => {
   const [description, setDescription] = useState('');
   const [evidenceImages, setEvidenceImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState('');
 
   const reasonOptions = [
@@ -37,18 +39,30 @@ const ReportProduct = ({ product, onSuccess, onCancel }) => {
       await createProductReport(product._id, reason, description.trim(), evidenceImages);
       onSuccess && onSuccess();
     } catch (error) {
-      setError(error.response?.data?.message || 'Có lỗi xảy ra khi gửi báo cáo');
+      setError(error.message || 'Có lỗi xảy ra khi gửi báo cáo');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    // In a real app, you would upload these files and get URLs
-    // For now, we'll just create placeholder URLs
-    const imageUrls = files.map(file => URL.createObjectURL(file));
-    setEvidenceImages(prev => [...prev, ...imageUrls].slice(0, 5)); // Max 5 images
+    const availableSlots = 5 - evidenceImages.length;
+
+    if (!files.length || availableSlots <= 0) return;
+
+    setUploadingImages(true);
+    setError('');
+
+    try {
+      const uploadedPaths = await uploadEvidenceImages(files.slice(0, availableSlots));
+      setEvidenceImages(prev => [...prev, ...uploadedPaths].slice(0, 5));
+    } catch (uploadError) {
+      setError(uploadError.message || 'Không thể upload ảnh bằng chứng');
+    } finally {
+      setUploadingImages(false);
+      e.target.value = '';
+    }
   };
 
   const removeImage = (index) => {
@@ -116,17 +130,18 @@ const ReportProduct = ({ product, onSuccess, onCancel }) => {
               accept="image/*"
               multiple
               onChange={handleImageUpload}
-              disabled={evidenceImages.length >= 5}
+              disabled={evidenceImages.length >= 5 || loading || uploadingImages}
             />
             <div className="upload-note">
               Tối đa 5 ảnh. Ảnh bằng chứng sẽ giúp chúng tôi xử lý báo cáo nhanh hơn.
             </div>
+            {uploadingImages && <div className="upload-note">Đang upload ảnh...</div>}
             
             {evidenceImages.length > 0 && (
               <div className="evidence-preview">
                 {evidenceImages.map((url, index) => (
                   <div key={index} className="evidence-item">
-                    <img src={url} alt={`Bằng chứng ${index + 1}`} />
+                    <img src={getImageUrl(url)} alt={`Bằng chứng ${index + 1}`} />
                     <button 
                       type="button" 
                       className="remove-image"
@@ -154,7 +169,7 @@ const ReportProduct = ({ product, onSuccess, onCancel }) => {
             <button 
               type="submit" 
               className="submit-btn"
-              disabled={loading || !reason || !description.trim()}
+              disabled={loading || uploadingImages || !reason || !description.trim()}
             >
               {loading ? 'Đang gửi...' : 'Gửi báo cáo'}
             </button>
