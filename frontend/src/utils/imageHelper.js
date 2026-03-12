@@ -1,32 +1,39 @@
 /**
- * Image Helper Utilities
+ * Tiện ích xử lý ảnh
  * Xử lý URL ảnh, placeholder, và fallback
  */
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 /**
- * Get full URL for uploaded image
- * @param {string} path - Relative path from backend (e.g., "/uploads/products/123/image.jpg")
- * @returns {string} Full URL
+ * Lấy URL đầy đủ cho ảnh đã upload
+ * @param {string} path - Đường dẫn tương đối từ backend (ví dụ: "/uploads/products/123/image.jpg")
+ * @returns {string} URL đầy đủ
  */
 export const getImageUrl = (path) => {
   if (!path) return null;
-  
-  // If already full URL, return as is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+
+  // Giữ nguyên data/blob URL để hiển thị preview ảnh cục bộ.
+  if (path.startsWith('data:') || path.startsWith('blob:')) {
     return path;
   }
   
-  // Combine with API URL
-  return `${API_URL}${path}`;
+  // Nếu đã là URL đầy đủ thì trả về luôn.
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // Ghép với API URL để tạo đường dẫn ảnh hoàn chỉnh.
+  return `${API_URL}${normalizedPath}`;
 };
 
 /**
- * Get product image URL with fallback
- * @param {object} product - Product object
- * @param {number} index - Image index (default: 0)
- * @returns {string} Image URL or placeholder
+ * Lấy URL ảnh sản phẩm kèm fallback
+ * @param {object} product - Đối tượng sản phẩm
+ * @param {number} index - Vị trí ảnh (mặc định: 0)
+ * @returns {string} URL ảnh hoặc ảnh placeholder
  */
 export const getProductImageUrl = (product, index = 0) => {
   if (product?.images && product.images.length > index) {
@@ -36,9 +43,9 @@ export const getProductImageUrl = (product, index = 0) => {
 };
 
 /**
- * Get user avatar URL with fallback
- * @param {object} user - User object
- * @returns {string} Avatar URL or placeholder
+ * Lấy URL avatar người dùng kèm fallback
+ * @param {object} user - Đối tượng người dùng
+ * @returns {string} URL avatar hoặc ảnh placeholder
  */
 export const getUserAvatarUrl = (user) => {
   if (user?.avatar) {
@@ -48,18 +55,18 @@ export const getUserAvatarUrl = (user) => {
 };
 
 /**
- * Get category icon URL
- * @param {string} categorySlug - Category slug
- * @returns {string} Icon URL
+ * Lấy URL icon danh mục
+ * @param {string} categorySlug - Slug danh mục
+ * @returns {string} URL icon
  */
 export const getCategoryIconUrl = (categorySlug) => {
   return `/images/icons/category-${categorySlug}.png`;
 };
 
 /**
- * Handle image load error - set placeholder
- * @param {Event} e - Error event
- * @param {string} type - Type of placeholder ('product', 'avatar', 'category')
+ * Xử lý lỗi tải ảnh và gán ảnh placeholder
+ * @param {Event} e - Sự kiện lỗi
+ * @param {string} type - Loại placeholder ('product', 'avatar', 'category')
  */
 export const handleImageError = (e, type = 'product') => {
   const placeholders = {
@@ -69,33 +76,33 @@ export const handleImageError = (e, type = 'product') => {
   };
   
   e.target.src = placeholders[type] || placeholders.product;
-  e.target.onerror = null; // Prevent infinite loop
+  e.target.onerror = null; // Tránh lặp vô hạn khi ảnh fallback cũng lỗi.
 };
 
 /**
- * Validate image file before upload
- * @param {File} file - File object
- * @param {object} options - Validation options
+ * Kiểm tra file ảnh trước khi upload
+ * @param {File} file - Đối tượng file
+ * @param {object} options - Tùy chọn kiểm tra
  * @returns {object} { valid: boolean, error: string }
  */
 export const validateImageFile = (file, options = {}) => {
   const {
-    maxSize = 5 * 1024 * 1024, // 5MB default
+    maxSize = 5 * 1024 * 1024, // Mặc định giới hạn 5MB.
     allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'],
   } = options;
 
-  // Check if file exists
+  // Kiểm tra đã chọn file hay chưa.
   if (!file) {
     return { valid: false, error: 'Vui lòng chọn file' };
   }
 
-  // Check file size
+  // Kiểm tra kích thước file.
   if (file.size > maxSize) {
     const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
     return { valid: false, error: `Kích thước file không được vượt quá ${maxSizeMB}MB` };
   }
 
-  // Check file type
+  // Kiểm tra định dạng file.
   if (!allowedTypes.includes(file.type)) {
     return { valid: false, error: 'Chỉ chấp nhận file ảnh (JPG, PNG, GIF)' };
   }
@@ -104,16 +111,16 @@ export const validateImageFile = (file, options = {}) => {
 };
 
 /**
- * Create image preview URL
- * @param {File} file - File object
- * @returns {string} Object URL for preview
+ * Tạo URL preview ảnh
+ * @param {File} file - Đối tượng file
+ * @returns {string} Object URL dùng để preview
  */
 export const createImagePreview = (file) => {
   return URL.createObjectURL(file);
 };
 
 /**
- * Revoke image preview URL to free memory
+ * Thu hồi URL preview để giải phóng bộ nhớ
  * @param {string} url - Object URL
  */
 export const revokeImagePreview = (url) => {
@@ -123,10 +130,10 @@ export const revokeImagePreview = (url) => {
 };
 
 /**
- * Compress image before upload (client-side)
- * @param {File} file - Image file
- * @param {object} options - Compression options
- * @returns {Promise<Blob>} Compressed image blob
+ * Nén ảnh trước khi upload (phía client)
+ * @param {File} file - File ảnh
+ * @param {object} options - Tùy chọn nén
+ * @returns {Promise<Blob>} Blob ảnh sau khi nén
  */
 export const compressImage = async (file, options = {}) => {
   const {
@@ -146,7 +153,7 @@ export const compressImage = async (file, options = {}) => {
         let width = img.width;
         let height = img.height;
 
-        // Calculate new dimensions
+        // Tính kích thước mới theo giới hạn maxWidth/maxHeight.
         if (width > height) {
           if (width > maxWidth) {
             height *= maxWidth / width;
@@ -184,9 +191,9 @@ export const compressImage = async (file, options = {}) => {
 };
 
 /**
- * Format file size for display
- * @param {number} bytes - File size in bytes
- * @returns {string} Formatted size (e.g., "2.5 MB")
+ * Định dạng kích thước file để hiển thị
+ * @param {number} bytes - Kích thước file (byte)
+ * @returns {string} Chuỗi kích thước đã định dạng (ví dụ: "2.5 MB")
  */
 export const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';

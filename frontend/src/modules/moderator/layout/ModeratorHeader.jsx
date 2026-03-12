@@ -4,10 +4,12 @@ import {
   LogoutOutlined,
   UserOutlined,
   MenuOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  DownOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
+import { getUserAvatarUrl } from "../../../utils/imageHelper";
 
 const { Header } = Layout;
 const { Text, Title } = Typography;
@@ -25,6 +27,10 @@ const ModeratorHeader = ({ onOpenMenu, isMobile }) => {
     navigate("/moderator/profile");
   };
 
+  // Nếu người dùng có avatar thì hiển thị ảnh thật, ngược lại dùng fallback icon.
+  const avatarUrl = user?.avatar ? getUserAvatarUrl(user) : "";
+
+  // Các hành động trong menu user ở góc phải header.
   const items = [
     {
       key: "profile",
@@ -72,15 +78,31 @@ const ModeratorHeader = ({ onOpenMenu, isMobile }) => {
           <BellOutlined />
         </div>
 
-        <Dropdown menu={{ items }} placement="bottomRight">
+        <Dropdown menu={{ items }} placement="bottomRight" trigger={["click"]}>
           <Space className="moderator-user-chip">
-            <div className="moderator-avatar">
-              <UserOutlined />
+            <div className="moderator-avatar-wrap">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={user?.fullName || "User"}
+                  className="moderator-avatar"
+                  onError={(e) => {
+                    e.currentTarget.src = "/images/placeholders/avatar-placeholder.svg";
+                  }}
+                />
+              ) : (
+                // Fallback khi user chưa upload avatar.
+                <div className="moderator-avatar-fallback">
+                  <UserOutlined />
+                </div>
+              )}
             </div>
 
             {!isMobile && (
               <Text strong>{user?.fullName || "Kiểm duyệt viên"}</Text>
             )}
+
+            {!isMobile && <DownOutlined className="moderator-user-arrow" />}
           </Space>
         </Dropdown>
       </Space>

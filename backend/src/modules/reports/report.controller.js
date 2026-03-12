@@ -120,7 +120,7 @@ async function createDispute(req, res) {
     }
     
     if (!evidenceImages || evidenceImages.length === 0) {
-      return sendError(res, 400, 'Vui lòng cung cấp ít nhất 1 ảnh bằng chứng');
+      return sendError(res, 400, 'Vui lòng cung cấp ít nhất 1 tệp bằng chứng (ảnh hoặc video)');
     }
     
     const dispute = await reportService.createDispute(
@@ -213,6 +213,34 @@ async function addSellerResponse(req, res) {
 }
 
 /**
+ * Add buyer follow-up evidence/notes to dispute
+ * POST /api/disputes/:disputeId/buyer-follow-up
+ */
+async function addBuyerFollowUp(req, res) {
+  try {
+    const { disputeId } = req.params;
+    const { note, evidenceImages } = req.body;
+    const buyerId = req.user.userId;
+
+    if (!note?.trim() && (!evidenceImages || evidenceImages.length === 0)) {
+      return sendError(res, 400, 'Vui lòng nhập ghi chú hoặc tải lên ít nhất 1 tệp bằng chứng');
+    }
+
+    const dispute = await reportService.addBuyerFollowUp(
+      disputeId,
+      buyerId,
+      note,
+      evidenceImages
+    );
+
+    sendSuccess(res, 200, dispute, 'Đã bổ sung bằng chứng cho khiếu nại');
+  } catch (error) {
+    console.error('Add buyer follow-up error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
  * Get current user's reports
  * GET /api/reports/my-reports
  */
@@ -287,6 +315,38 @@ async function resolveReport(req, res) {
   }
 }
 
+/**
+ * Get dispute by order ID (accessible to buyer/seller)
+ * GET /api/orders/:orderId/dispute
+ */
+async function getDisputeByOrderId(req, res) {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.userId;
+    const dispute = await reportService.getDisputeByOrderId(orderId, userId);
+    sendSuccess(res, 200, dispute);
+  } catch (error) {
+    console.error('Get dispute by order ID error:', error);
+    sendError(res, 404, error.message);
+  }
+}
+
+/**
+ * Seller confirms return received (Th3)
+ * POST /api/disputes/:disputeId/confirm-return
+ */
+async function confirmSellerReturn(req, res) {
+  try {
+    const { disputeId } = req.params;
+    const sellerId = req.user.userId;
+    const dispute = await reportService.confirmSellerReturn(disputeId, sellerId);
+    sendSuccess(res, 200, dispute, 'Xác nhận nhận lại hàng thành công');
+  } catch (error) {
+    console.error('Confirm seller return error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
 module.exports = {
   createProductReport,
   createUserReport,
@@ -295,7 +355,10 @@ module.exports = {
   createDispute,
   getDisputes,
   getDisputeById,
+  getDisputeByOrderId,
   addSellerResponse,
+  addBuyerFollowUp,
+  confirmSellerReturn,
   getMyReports,
   getMyDisputes,
   resolveReport

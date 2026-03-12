@@ -63,7 +63,7 @@ const UserSchema = new Schema({
     },
     type: {
       type: String,
-      enum: ['report_update', 'system'],
+      enum: ['report_update', 'dispute_update', 'system'],
       default: 'report_update'
     },
     relatedReportId: {

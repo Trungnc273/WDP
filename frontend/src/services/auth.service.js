@@ -55,8 +55,8 @@ export const authService = {
   },
 
   async logout() {
-    // For now, logout is handled client-side by removing token
-    // In the future, we can add a backend endpoint to invalidate tokens
+    // Tam thoi xu ly dang xuat o client bang cach xoa token
+    // Sau nay co the bo sung endpoint backend de vo hieu hoa token
     localStorage.removeItem('token');
   },
 };

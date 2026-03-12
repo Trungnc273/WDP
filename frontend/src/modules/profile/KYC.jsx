@@ -62,7 +62,7 @@ const KYC = () => {
         [documentType]: file
       }));
       
-      // Create preview
+      // Tao anh xem truoc
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreviews(prev => ({
@@ -90,7 +90,7 @@ const KYC = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate all documents are uploaded
+    // Kiem tra da tai len day du giay to chua
     if (!documents.idCardFront || !documents.idCardBack || !documents.selfie) {
       setError('Vui lòng cung cấp đầy đủ 3 ảnh: CMND/CCCD mặt trước, mặt sau và ảnh selfie');
       return;
@@ -101,8 +101,8 @@ const KYC = () => {
     setSuccess('');
 
     try {
-      // In a real app, you would upload files to a storage service first
-      // For now, we'll use the preview URLs as placeholders
+      // Trong he thong that, ban can upload file len dich vu luu tru truoc
+      // Tam thoi dung URL preview lam du lieu thay the
       const kycData = {
         idCardFront: previews.idCardFront,
         idCardBack: previews.idCardBack,
@@ -113,10 +113,10 @@ const KYC = () => {
       
       setSuccess('Gửi yêu cầu xác thực thành công! Chúng tôi sẽ xem xét trong 1-3 ngày làm việc.');
       
-      // Refresh KYC status
+      // Tai lai trang thai KYC
       await fetchKYCStatus();
       
-      // Redirect after 3 seconds
+      // Chuyen huong sau 3 giay
       setTimeout(() => {
         navigate('/profile');
       }, 3000);

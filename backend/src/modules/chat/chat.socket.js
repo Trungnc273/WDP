@@ -9,11 +9,14 @@ const config = require('../../config/env');
 
 // Store online users
 const onlineUsers = new Map(); // userId -> socketId
+let ioInstance = null;
 
 /**
  * Initialize Socket.io for chat
  */
 function initializeChatSocket(io) {
+  ioInstance = io;
+
   // Authentication middleware
   io.use(async (socket, next) => {
     try {
@@ -42,6 +45,7 @@ function initializeChatSocket(io) {
     
     // Add user to online users
     onlineUsers.set(userId, socket.id);
+    socket.emit('online_users', Array.from(onlineUsers.keys()));
     
     // Broadcast user online status
     socket.broadcast.emit('user_online', { userId });
@@ -49,7 +53,7 @@ function initializeChatSocket(io) {
     // Join conversation room
     socket.on('join_conversation', async (data) => {
       try {
-        const { conversationId } = data;
+        const conversationId = typeof data === 'string' ? data : data?.conversationId;
         
         // Verify user has access to conversation
         await chatService.getConversationById(conversationId, userId);
@@ -86,7 +90,10 @@ function initializeChatSocket(io) {
         // Emit to conversation room
         io.to(`conversation:${conversationId}`).emit('receive_message', {
           conversationId,
-          message
+          message: {
+            ...message.toObject(),
+            conversation: conversationId
+          }
         });
         
         // Get conversation to notify the other user
@@ -173,8 +180,31 @@ function isUserOnline(userId) {
   return onlineUsers.has(userId);
 }
 
+function emitMessageToConversation(conversationId, message) {
+  if (!ioInstance || !conversationId || !message) return;
+
+  ioInstance.to(`conversation:${conversationId}`).emit('receive_message', {
+    conversationId,
+    message: {
+      ...message,
+      conversation: conversationId
+    }
+  });
+}
+
+function emitToUser(userId, eventName, payload) {
+  if (!ioInstance || !userId || !eventName) return;
+
+  const socketId = onlineUsers.get(userId.toString());
+  if (!socketId) return;
+
+  ioInstance.to(socketId).emit(eventName, payload);
+}
+
 module.exports = {
   initializeChatSocket,
   getOnlineUsers,
-  isUserOnline
+  isUserOnline,
+  emitMessageToConversation,
+  emitToUser
 };

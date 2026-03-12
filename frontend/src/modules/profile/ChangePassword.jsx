@@ -80,14 +80,14 @@ const ChangePassword = () => {
       
       setSuccess('Đổi mật khẩu thành công!');
       
-      // Clear form
+      // Xoa du lieu form
       setFormData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
       
-      // Redirect after 2 seconds
+      // Chuyen huong sau 2 giay
       setTimeout(() => {
         navigate('/profile');
       }, 2000);

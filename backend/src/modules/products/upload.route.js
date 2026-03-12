@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { upload, handleUploadError } = require('../../common/middlewares/upload.middleware');
+const { upload, uploadEvidence, handleUploadError } = require('../../common/middlewares/upload.middleware');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
 
 // Upload single image
@@ -65,6 +65,38 @@ router.post('/images', authenticate, upload.array('images', 5), handleUploadErro
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi upload file'
+    });
+  }
+});
+
+// Upload evidence files (images/videos) for disputes/reports
+router.post('/evidence', authenticate, uploadEvidence.array('files', 5), handleUploadError, (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn ít nhất một file để upload'
+      });
+    }
+
+    const targetId = req.uploadTargetId || 'temp';
+
+    const files = req.files.map(file => ({
+      filename: file.filename,
+      path: `/uploads/evidence/${targetId}/${file.filename}`,
+      size: file.size,
+      mimetype: file.mimetype
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: 'Upload bằng chứng thành công',
+      data: files
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi upload bằng chứng'
     });
   }
 });

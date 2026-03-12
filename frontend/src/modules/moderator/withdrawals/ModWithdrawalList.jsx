@@ -1,5 +1,5 @@
 import { Card, Table, Button, Typography, Tag, Space, message, Select, Modal, Input } from "antd";
-import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { getModeratorWithdrawals, updateModeratorWithdrawalStatus } from "../../../services/moderator.service";
 
@@ -10,9 +10,21 @@ const ModWithdrawalList = () => {
   const [loading, setLoading] = useState(false);
   const [withdrawals, setWithdrawals] = useState([]);
   const [status, setStatus] = useState("pending");
+  const [rawKeyword, setRawKeyword] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectNote, setRejectNote] = useState("");
+
+  const filteredWithdrawals = keyword
+    ? withdrawals.filter((w) => {
+        const name = (w.userId?.fullName || "").toLowerCase();
+        const bank = (w.metadata?.bankName || "").toLowerCase();
+        const account = (w.metadata?.bankAccount || "").toLowerCase();
+        const kw = keyword.toLowerCase();
+        return name.includes(kw) || bank.includes(kw) || account.includes(kw);
+      })
+    : withdrawals;
 
   // Dùng một hàm fetch chung để tránh lệch dữ liệu giữa lọc và phân trang.
   const fetchWithdrawals = async (page = 1, pageSize = 10) => {
@@ -36,6 +48,13 @@ const ModWithdrawalList = () => {
     fetchWithdrawals(1, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  const handleResetFilters = () => {
+    setStatus("pending");
+    setRawKeyword("");
+    setKeyword("");
+    fetchWithdrawals(1, pagination.pageSize);
+  };
 
   const handleApprove = async (id) => {
     try {
@@ -101,24 +120,38 @@ const ModWithdrawalList = () => {
 
   return (
     <Card className="mod-panel">
-      <Space className="mod-toolbar" style={{ width: "100%" }} wrap>
+      <div className="mod-toolbar">
         <Title level={4} style={{ margin: 0 }}>Yêu cầu Rút tiền</Title>
-        <Select
-          value={status}
-          onChange={setStatus}
-          style={{ width: 180 }}
-          options={[
-            { value: "pending", label: "Chờ duyệt" },
-            { value: "completed", label: "Đã duyệt" },
-            { value: "failed", label: "Từ chối" },
-            { value: "cancelled", label: "Đã hủy" }
-          ]}
-        />
-      </Space>
+        <div className="mod-filter-row">
+          <Input
+            placeholder="Tìm theo tên, ngân hàng..."
+            prefix={<SearchOutlined />}
+            value={rawKeyword}
+            onChange={(e) => setRawKeyword(e.target.value)}
+            onPressEnter={() => setKeyword(rawKeyword)}
+            style={{ width: 230 }}
+          />
+          <Select
+            value={status}
+            onChange={setStatus}
+            style={{ width: 160 }}
+            options={[
+              { value: "pending", label: "Chờ duyệt" },
+              { value: "completed", label: "Đã duyệt" },
+              { value: "failed", label: "Từ chối" },
+              { value: "cancelled", label: "Đã hủy" }
+            ]}
+          />
+          <div className="mod-filter-actions">
+            <Button type="primary" onClick={() => setKeyword(rawKeyword)}>Lọc</Button>
+            <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilters}>Reset</Button>
+          </div>
+        </div>
+      </div>
       <Table
         className="mod-table"
         columns={columns}
-        dataSource={withdrawals}
+        dataSource={filteredWithdrawals}
         loading={loading}
         rowKey="_id"
         pagination={pagination}

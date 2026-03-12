@@ -23,7 +23,7 @@ function Profile() {
     try {
       setLoading(true);
       
-      // Fetch profile and KYC status in parallel
+      // Tai profile va trang thai KYC song song
       const [profileResponse, kycResponse] = await Promise.all([
         getProfile(),
         getKYCStatus()

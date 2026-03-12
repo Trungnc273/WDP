@@ -25,12 +25,36 @@ async function getBalance(req, res, next) {
 async function getTransactions(req, res, next) {
   try {
     const userId = req.user.userId;
+    const allowedTypes = new Set(['deposit', 'withdrawal', 'payment', 'refund', 'earning', 'fee']);
     
     // Parse filters
     const filters = {};
-    if (req.query.type) filters.type = req.query.type;
-    if (req.query.startDate) filters.startDate = new Date(req.query.startDate);
-    if (req.query.endDate) filters.endDate = new Date(req.query.endDate);
+    if (req.query.type) {
+      if (!allowedTypes.has(req.query.type)) {
+        return sendError(res, 400, 'Loại giao dịch không hợp lệ');
+      }
+      filters.type = req.query.type;
+    }
+
+    if (req.query.startDate) {
+      const start = new Date(req.query.startDate);
+      if (Number.isNaN(start.getTime())) {
+        return sendError(res, 400, 'startDate không hợp lệ');
+      }
+      filters.startDate = start;
+    }
+
+    if (req.query.endDate) {
+      const end = new Date(req.query.endDate);
+      if (Number.isNaN(end.getTime())) {
+        return sendError(res, 400, 'endDate không hợp lệ');
+      }
+      filters.endDate = end;
+    }
+
+    if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+      return sendError(res, 400, 'Khoảng thời gian lọc không hợp lệ');
+    }
     
     // Parse pagination
     const pagination = {
@@ -54,6 +78,7 @@ async function createWithdrawal(req, res, next) {
   try {
     const userId = req.user.userId;
     const { amount, bankAccount, bankName, accountHolder } = req.body;
+    const normalizedAmount = Number(amount);
     
     // Validate required fields
     if (!amount || !bankAccount || !bankName || !accountHolder) {
@@ -61,12 +86,20 @@ async function createWithdrawal(req, res, next) {
     }
     
     // Validate amount
-    if (amount < 50000) {
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      return sendError(res, 400, 'Số tiền rút không hợp lệ');
+    }
+
+    if (!Number.isInteger(normalizedAmount)) {
+      return sendError(res, 400, 'Số tiền rút phải là số nguyên VND');
+    }
+
+    if (normalizedAmount < 50000) {
       return sendError(res, 400, 'Số tiền rút tối thiểu là 50,000 VND');
     }
     
     const withdrawal = await walletService.createWithdrawal(userId, {
-      amount,
+      amount: normalizedAmount,
       bankAccount,
       bankName,
       accountHolder

@@ -2,6 +2,10 @@ const Order = require('./order.model');
 const PurchaseRequest = require('./purchase-request.model');
 const Product = require('../products/product.model');
 const User = require('../users/user.model');
+const Conversation = require('../chat/conversation.model');
+const Message = require('../chat/message.model');
+const { emitMessageToConversation, emitToUser } = require('../chat/chat.socket');
+const notificationService = require('../notifications/notification.service');
 const mongoose = require('mongoose');
 
 /**
@@ -10,62 +14,126 @@ const mongoose = require('mongoose');
  */
 
 /**
- * Create a purchase request
+ * Create a purchase request or direct order (for quick buy)
  */
 async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
-  // Validate inputs
-  if (!message || message.trim().length === 0) {
-    throw new Error('Tin nhắn không được để trống');
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    // Validate inputs
+    if (!message || message.trim().length === 0) {
+      throw new Error('Tin nhắn không được để trống');
+    }
+    
+    if (!agreedPrice || agreedPrice <= 0) {
+      throw new Error('Giá đề nghị phải lớn hơn 0');
+    }
+    
+    // Get product details
+    const product = await Product.findById(listingId).session(session);
+    
+    if (!product) {
+      throw new Error('Sản phẩm không tồn tại');
+    }
+    
+    if (product.status !== 'active') {
+      throw new Error('Sản phẩm không còn khả dụng');
+    }
+    
+    // Check if buyer is trying to buy their own product
+    if (product.seller.toString() === buyerId.toString()) {
+      throw new Error('Bạn không thể mua sản phẩm của chính mình');
+    }
+    
+    const isQuickBuy = message.trim() === 'Mua ngay';
+    
+    // For quick buy, bypass pending request check and create order directly
+    if (isQuickBuy) {
+      // Calculate fees
+      const platformFee = calculatePlatformFee(agreedPrice);
+      const totalToPay = agreedPrice + platformFee;
+      
+      // Create order directly
+      const order = new Order({
+        buyerId: buyerId,
+        sellerId: product.seller,
+        productId: listingId,
+        agreedAmount: agreedPrice,
+        platformFee: platformFee,
+        totalToPay: totalToPay,
+        status: 'awaiting_seller_confirmation',
+        paymentStatus: 'unpaid'
+      });
+      await order.save({ session });
+      
+      // Update product status to pending (reserved)
+      product.status = 'pending';
+      await product.save({ session });
+      
+      // Create a reference purchase request for tracking (status: accepted)
+      const purchaseRequest = new PurchaseRequest({
+        listingId: listingId,
+        buyerId: buyerId,
+        sellerId: product.seller,
+        message: message.trim(),
+        agreedPrice: agreedPrice,
+        status: 'accepted',
+        acceptedAt: new Date(),
+        initiatedBy: 'buyer'
+      });
+      await purchaseRequest.save({ session });
+      
+      await session.commitTransaction();
+      
+      // Populate and return order
+      await order.populate([
+        { path: 'buyerId', select: 'fullName email avatar' },
+        { path: 'sellerId', select: 'fullName email' },
+        { path: 'productId', select: 'title price images' }
+      ]);
+      
+      return order;
+    }
+    
+    // For normal purchase request, check if there's already a pending request
+    const existingRequest = await PurchaseRequest.findOne({
+      listingId: listingId,
+      buyerId: buyerId,
+      status: 'pending'
+    }).session(session);
+    
+    if (existingRequest) {
+      throw new Error('Bạn đã gửi yêu cầu mua sản phẩm này rồi');
+    }
+    
+    // Create purchase request
+    const purchaseRequest = new PurchaseRequest({
+      listingId: listingId,
+      buyerId: buyerId,
+      sellerId: product.seller,
+      message: message.trim(),
+      agreedPrice: agreedPrice,
+      initiatedBy: 'buyer'
+    });
+    await purchaseRequest.save({ session });
+    
+    await session.commitTransaction();
+    
+    // Populate details
+    await purchaseRequest.populate([
+      { path: 'listingId', select: 'title price images' },
+      { path: 'buyerId', select: 'fullName email avatar' },
+      { path: 'sellerId', select: 'fullName email' }
+    ]);
+    
+    return purchaseRequest;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-  
-  if (!agreedPrice || agreedPrice <= 0) {
-    throw new Error('Giá đề nghị phải lớn hơn 0');
-  }
-  
-  // Get product details
-  const product = await Product.findById(listingId);
-  
-  if (!product) {
-    throw new Error('Sản phẩm không tồn tại');
-  }
-  
-  if (product.status !== 'active') {
-    throw new Error('Sản phẩm không còn khả dụng');
-  }
-  
-  // Check if buyer is trying to buy their own product
-  if (product.seller.toString() === buyerId.toString()) {
-    throw new Error('Bạn không thể mua sản phẩm của chính mình');
-  }
-  
-  // Check if there's already a pending request
-  const existingRequest = await PurchaseRequest.findOne({
-    listingId: listingId,
-    buyerId: buyerId,
-    status: 'pending'
-  });
-  
-  if (existingRequest) {
-    throw new Error('Bạn đã gửi yêu cầu mua sản phẩm này rồi');
-  }
-  
-  // Create purchase request
-  const purchaseRequest = await PurchaseRequest.create({
-    listingId: listingId,
-    buyerId: buyerId,
-    sellerId: product.seller,
-    message: message.trim(),
-    agreedPrice: agreedPrice
-  });
-  
-  // Populate details
-  await purchaseRequest.populate([
-    { path: 'listingId', select: 'title price images' },
-    { path: 'buyerId', select: 'fullName email avatar' },
-    { path: 'sellerId', select: 'fullName email' }
-  ]);
-  
-  return purchaseRequest;
 }
 
 /**
@@ -76,7 +144,10 @@ async function getSentPurchaseRequests(buyerId, filters = {}, pagination = {}) {
   const limit = parseInt(pagination.limit) || 20;
   const skip = (page - 1) * limit;
   
-  const query = { buyerId };
+  const query = {
+    buyerId,
+    initiatedBy: filters.initiatedBy || 'buyer'
+  };
   
   if (filters.status) {
     query.status = filters.status;
@@ -110,7 +181,10 @@ async function getReceivedPurchaseRequests(sellerId, filters = {}, pagination = 
   const limit = parseInt(pagination.limit) || 20;
   const skip = (page - 1) * limit;
   
-  const query = { sellerId };
+  const query = {
+    sellerId,
+    initiatedBy: filters.initiatedBy || 'buyer'
+  };
   
   if (filters.status) {
     query.status = filters.status;
@@ -158,9 +232,19 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       throw new Error('Yêu cầu mua hàng không tồn tại');
     }
     
-    // Verify seller
-    if (request.sellerId.toString() !== sellerId.toString()) {
-      throw new Error('Bạn không có quyền chấp nhận yêu cầu này');
+    // Verify actor based on who initiated the request
+    const initiatedBy = request.initiatedBy || 'buyer';
+    const isBuyerInitiated = initiatedBy === 'buyer';
+    const canAccept = isBuyerInitiated
+      ? request.sellerId.toString() === sellerId.toString()
+      : request.buyerId.toString() === sellerId.toString();
+
+    if (!canAccept) {
+      throw new Error(
+        isBuyerInitiated
+          ? 'Bạn không có quyền chấp nhận yêu cầu này'
+          : 'Bạn không có quyền chấp nhận đề nghị này'
+      );
     }
     
     // Check if request is still pending
@@ -183,6 +267,7 @@ async function acceptPurchaseRequest(requestId, sellerId) {
     const agreedAmount = request.agreedPrice;
     const platformFee = calculatePlatformFee(agreedAmount);
     const totalToPay = agreedAmount + platformFee;
+    const skipSellerConfirmation = isBuyerInitiated;
     
     // Create order
     const order = await Order.create([{
@@ -193,7 +278,9 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       agreedAmount: agreedAmount,
       platformFee: platformFee,
       totalToPay: totalToPay,
-      status: 'awaiting_payment',
+      status: skipSellerConfirmation ? 'awaiting_payment' : 'awaiting_seller_confirmation',
+      confirmedBySeller: skipSellerConfirmation,
+      confirmedBySellerAt: skipSellerConfirmation ? new Date() : null,
       paymentStatus: 'unpaid'
     }], { session });
     
@@ -201,6 +288,21 @@ async function acceptPurchaseRequest(requestId, sellerId) {
     request.status = 'accepted';
     request.acceptedAt = new Date();
     await request.save({ session });
+
+    await Message.updateOne(
+      {
+        type: 'offer',
+        'metadata.purchaseRequestId': request._id
+      },
+      {
+        $set: {
+          'metadata.status': 'accepted',
+          'metadata.respondedAt': new Date(),
+          'metadata.respondedBy': sellerId.toString()
+        }
+      },
+      { session }
+    );
     
     // Update product status to pending (reserved)
     product.status = 'pending';
@@ -214,6 +316,55 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       { path: 'sellerId', select: 'fullName email avatar' },
       { path: 'productId', select: 'title price images' }
     ]);
+
+    // Push updated offer status to chat in real-time
+    try {
+      const updatedOfferMessage = await Message.findOne({
+        type: 'offer',
+        'metadata.purchaseRequestId': request._id
+      }).populate('senderId', 'fullName avatar');
+
+      if (updatedOfferMessage?.conversationId) {
+        emitMessageToConversation(updatedOfferMessage.conversationId.toString(), {
+          ...updatedOfferMessage.toObject(),
+          conversation: updatedOfferMessage.conversationId.toString()
+        });
+      }
+    } catch (emitError) {
+      console.error('Error emitting accepted offer update:', emitError);
+    }
+
+    // Send notification to the user who needs to take next action
+    try {
+      const buyer = await User.findById(request.buyerId, 'fullName');
+      const product = await Product.findById(request.listingId, 'title');
+
+      if (skipSellerConfirmation) {
+        await notificationService.createNotification(
+          request.buyerId,
+          {
+            type: 'order_confirmed',
+            orderId: order[0]._id,
+            senderId: request.sellerId,
+            title: 'Đề nghị giá đã được chấp nhận',
+            message: `Người bán đã chấp nhận đề nghị cho "${product?.title}". Bạn có thể thanh toán ngay.`
+          }
+        );
+      } else {
+        await notificationService.createNotification(
+          request.sellerId,
+          {
+            type: 'order_created',
+            orderId: order[0]._id,
+            senderId: request.buyerId,
+            title: 'Đơn mua mới từ ' + (buyer?.fullName || 'Người dùng'),
+            message: `Có đơn mua mới cho sản phẩm "${product?.title}" với giá ${order[0].totalToPay.toLocaleString('vi-VN')}đ. Vui lòng xác nhận.`
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error sending order notification:', error);
+    }
     
     return order[0];
   } catch (error) {
@@ -235,9 +386,19 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
     throw new Error('Yêu cầu mua hàng không tồn tại');
   }
   
-  // Verify seller
-  if (request.sellerId.toString() !== sellerId.toString()) {
-    throw new Error('Bạn không có quyền từ chối yêu cầu này');
+  // Verify actor based on who initiated the request
+  const initiatedBy = request.initiatedBy || 'buyer';
+  const isBuyerInitiated = initiatedBy === 'buyer';
+  const canReject = isBuyerInitiated
+    ? request.sellerId.toString() === sellerId.toString()
+    : request.buyerId.toString() === sellerId.toString();
+
+  if (!canReject) {
+    throw new Error(
+      isBuyerInitiated
+        ? 'Bạn không có quyền từ chối yêu cầu này'
+        : 'Bạn không có quyền từ chối đề nghị này'
+    );
   }
   
   // Check if request is still pending
@@ -250,8 +411,266 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
   request.rejectedAt = new Date();
   request.sellerResponse = reason;
   await request.save();
+
+  await Message.updateOne(
+    {
+      type: 'offer',
+      'metadata.purchaseRequestId': request._id
+    },
+    {
+      $set: {
+        'metadata.status': 'rejected',
+        'metadata.respondedAt': new Date(),
+        'metadata.respondedBy': sellerId.toString(),
+        'metadata.reason': reason || ''
+      }
+    }
+  );
+
+  // Push updated offer status to chat in real-time
+  try {
+    const updatedOfferMessage = await Message.findOne({
+      type: 'offer',
+      'metadata.purchaseRequestId': request._id
+    }).populate('senderId', 'fullName avatar');
+
+    if (updatedOfferMessage?.conversationId) {
+      emitMessageToConversation(updatedOfferMessage.conversationId.toString(), {
+        ...updatedOfferMessage.toObject(),
+        conversation: updatedOfferMessage.conversationId.toString()
+      });
+    }
+  } catch (emitError) {
+    console.error('Error emitting rejected offer update:', emitError);
+  }
   
   return request;
+}
+
+/**
+ * Seller creates an offer directly in a conversation.
+ * Buyer can accept/reject this offer using existing accept/reject endpoints.
+ */
+async function createSellerOfferFromConversation(sellerId, conversationId, message, agreedPrice) {
+  if (!conversationId) {
+    throw new Error('Thiếu cuộc trò chuyện để gửi đề nghị');
+  }
+
+  if (!agreedPrice || Number(agreedPrice) <= 0) {
+    throw new Error('Giá đề nghị phải lớn hơn 0');
+  }
+
+  const conversation = await Conversation.findById(conversationId)
+    .populate('productId', 'title price images status seller')
+    .populate('buyerId', 'fullName avatar')
+    .populate('sellerId', 'fullName avatar');
+
+  if (!conversation) {
+    throw new Error('Cuộc trò chuyện không tồn tại');
+  }
+
+  if (conversation.sellerId._id.toString() !== sellerId.toString()) {
+    throw new Error('Chỉ người bán trong cuộc trò chuyện mới được gửi đề nghị');
+  }
+
+  const listingId = conversation.productId?._id || conversation.productId;
+  const buyerId = conversation.buyerId?._id || conversation.buyerId;
+
+  const product = await Product.findById(listingId);
+  if (!product) {
+    throw new Error('Sản phẩm không tồn tại');
+  }
+
+  if (product.status !== 'active') {
+    throw new Error('Sản phẩm không còn khả dụng để tạo đề nghị');
+  }
+
+  if (product.seller.toString() !== sellerId.toString()) {
+    throw new Error('Bạn không phải chủ sở hữu sản phẩm này');
+  }
+
+  const existingOffer = await PurchaseRequest.findOne({
+    listingId,
+    buyerId,
+    sellerId,
+    status: 'pending',
+    initiatedBy: 'seller'
+  });
+
+  if (existingOffer) {
+    throw new Error('Bạn đã gửi một đề nghị đang chờ phản hồi cho cuộc trò chuyện này');
+  }
+
+  const offerMessage = message && message.trim().length > 0
+    ? message.trim()
+    : 'Người bán đã gửi đề nghị mua hàng cho bạn.';
+
+  const purchaseRequest = await PurchaseRequest.create({
+    listingId,
+    buyerId,
+    sellerId,
+    message: offerMessage,
+    agreedPrice: Number(agreedPrice),
+    initiatedBy: 'seller'
+  });
+
+  await purchaseRequest.populate([
+    { path: 'listingId', select: 'title price images' },
+    { path: 'buyerId', select: 'fullName email avatar' },
+    { path: 'sellerId', select: 'fullName email avatar' }
+  ]);
+
+  const chatMessage = await Message.create({
+    conversationId,
+    senderId: sellerId,
+    content: offerMessage,
+    type: 'offer',
+    metadata: {
+      purchaseRequestId: purchaseRequest._id,
+      agreedPrice: Number(agreedPrice),
+      listingId,
+      initiatedBy: 'seller',
+      status: 'pending'
+    }
+  });
+
+  await chatMessage.populate('senderId', 'fullName avatar');
+
+  await conversation.updateLastMessage(`Người bán gửi đề nghị: ${Number(agreedPrice).toLocaleString('vi-VN')}đ`);
+  await conversation.incrementUnreadCount(buyerId);
+
+  const normalizedMessage = {
+    ...chatMessage.toObject(),
+    conversation: conversationId
+  };
+
+  emitMessageToConversation(conversationId, normalizedMessage);
+
+  emitToUser(buyerId.toString(), 'new_message_notification', {
+    conversationId,
+    message: normalizedMessage,
+    sender: {
+      _id: sellerId.toString(),
+      fullName: chatMessage.senderId?.fullName,
+      avatar: chatMessage.senderId?.avatar
+    }
+  });
+
+  return {
+    request: purchaseRequest,
+    chatMessage
+  };
+}
+
+/**
+ * Buyer creates an offer directly in a conversation.
+ * Seller can accept/reject this offer using existing accept/reject endpoints.
+ */
+async function createBuyerOfferFromConversation(buyerId, conversationId, message, agreedPrice) {
+  if (!conversationId) {
+    throw new Error('Thiếu cuộc trò chuyện để gửi đề nghị');
+  }
+
+  if (!agreedPrice || Number(agreedPrice) <= 0) {
+    throw new Error('Giá đề nghị phải lớn hơn 0');
+  }
+
+  const conversation = await Conversation.findById(conversationId)
+    .populate('productId', 'title price images status seller')
+    .populate('buyerId', 'fullName avatar')
+    .populate('sellerId', 'fullName avatar');
+
+  if (!conversation) {
+    throw new Error('Cuộc trò chuyện không tồn tại');
+  }
+
+  if (conversation.buyerId._id.toString() !== buyerId.toString()) {
+    throw new Error('Chỉ người mua trong cuộc trò chuyện mới được gửi đề nghị giá');
+  }
+
+  const listingId = conversation.productId?._id || conversation.productId;
+  const sellerId = conversation.sellerId?._id || conversation.sellerId;
+
+  const product = await Product.findById(listingId);
+  if (!product) {
+    throw new Error('Sản phẩm không tồn tại');
+  }
+
+  if (product.status !== 'active') {
+    throw new Error('Sản phẩm không còn khả dụng để tạo đề nghị');
+  }
+
+  const existingOffer = await PurchaseRequest.findOne({
+    listingId,
+    buyerId,
+    sellerId,
+    status: 'pending',
+    initiatedBy: 'buyer'
+  });
+
+  if (existingOffer) {
+    throw new Error('Bạn đã gửi một đề nghị giá đang chờ phản hồi cho cuộc trò chuyện này');
+  }
+
+  const offerMessage = message && message.trim().length > 0
+    ? message.trim()
+    : 'Người mua đã gửi đề nghị giá cho bạn.';
+
+  const purchaseRequest = await PurchaseRequest.create({
+    listingId,
+    buyerId,
+    sellerId,
+    message: offerMessage,
+    agreedPrice: Number(agreedPrice),
+    initiatedBy: 'buyer'
+  });
+
+  await purchaseRequest.populate([
+    { path: 'listingId', select: 'title price images' },
+    { path: 'buyerId', select: 'fullName email avatar' },
+    { path: 'sellerId', select: 'fullName email avatar' }
+  ]);
+
+  const chatMessage = await Message.create({
+    conversationId,
+    senderId: buyerId,
+    content: offerMessage,
+    type: 'offer',
+    metadata: {
+      purchaseRequestId: purchaseRequest._id,
+      agreedPrice: Number(agreedPrice),
+      listingId,
+      initiatedBy: 'buyer',
+      status: 'pending'
+    }
+  });
+
+  await chatMessage.populate('senderId', 'fullName avatar');
+
+  await conversation.updateLastMessage(`Người mua đề nghị giá: ${Number(agreedPrice).toLocaleString('vi-VN')}đ`);
+  await conversation.incrementUnreadCount(sellerId);
+
+  const normalizedMessage = {
+    ...chatMessage.toObject(),
+    conversation: conversationId
+  };
+
+  emitMessageToConversation(conversationId, normalizedMessage);
+
+  emitToUser(sellerId.toString(), 'new_message_notification', {
+    conversationId,
+    message: normalizedMessage,
+    sender: {
+      _id: buyerId.toString(),
+      fullName: chatMessage.senderId?.fullName,
+      avatar: chatMessage.senderId?.avatar
+    }
+  });
+
+  return {
+    request: purchaseRequest,
+    chatMessage
+  };
 }
 
 /**
@@ -259,9 +678,14 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
  */
 async function getOrderById(orderId, userId) {
   const order = await Order.findById(orderId)
+    .populate('requestId', 'initiatedBy')
     .populate('buyerId', 'fullName email phone avatar rating')
     .populate('sellerId', 'fullName email phone avatar rating')
-    .populate('productId', 'title description price images condition location category')
+    .populate({
+      path: 'productId',
+      select: 'title description price images condition location category',
+      populate: { path: 'category', select: 'name' }
+    })
     .lean();
   
   if (!order) {
@@ -273,6 +697,14 @@ async function getOrderById(orderId, userId) {
       order.sellerId._id.toString() !== userId.toString()) {
     throw new Error('Bạn không có quyền xem đơn hàng này');
   }
+
+  const isBuyerInitiatedRequest = order?.requestId?.initiatedBy === 'buyer';
+  const shouldSkipSellerConfirmStep =
+    order.status === 'awaiting_seller_confirmation' &&
+    (isBuyerInitiatedRequest || order.confirmedBySeller);
+  const normalizedOrderStatus = shouldSkipSellerConfirmStep
+    ? 'pending'
+    : (order.status === 'awaiting_payment' ? 'pending' : order.status);
   
   // Transform the data to match frontend expectations
   const transformedOrder = {
@@ -283,7 +715,7 @@ async function getOrderById(orderId, userId) {
     agreedPrice: order.agreedAmount,
     totalAmount: order.totalToPay,
     platformFee: order.platformFee,
-    status: order.status === 'awaiting_payment' ? 'pending' : order.status,
+    status: normalizedOrderStatus,
     // Add shipping info if exists
     shipping: order.trackingNumber ? {
       provider: order.shippingProvider,
@@ -313,19 +745,34 @@ async function getOrdersAsBuyer(buyerId, filters = {}, pagination = {}) {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
+    .populate('requestId', 'initiatedBy')
     .populate('sellerId', 'fullName avatar rating')
-    .populate('productId', 'title price images condition location category')
+    .populate({
+      path: 'productId',
+      select: 'title price images condition location category',
+      populate: { path: 'category', select: 'name' }
+    })
     .lean();
   
   // Transform the data to match frontend expectations
-  const transformedOrders = orders.map(order => ({
-    ...order,
-    seller: order.sellerId,
-    listing: order.productId,
-    agreedPrice: order.agreedAmount,
-    totalAmount: order.totalToPay,
-    status: order.status === 'awaiting_payment' ? 'pending' : order.status
-  }));
+  const transformedOrders = orders.map(order => {
+    const isBuyerInitiatedRequest = order?.requestId?.initiatedBy === 'buyer';
+    const shouldSkipSellerConfirmStep =
+      order.status === 'awaiting_seller_confirmation' &&
+      (isBuyerInitiatedRequest || order.confirmedBySeller);
+    const normalizedOrderStatus = shouldSkipSellerConfirmStep
+      ? 'pending'
+      : (order.status === 'awaiting_payment' ? 'pending' : order.status);
+
+    return {
+      ...order,
+      seller: order.sellerId,
+      listing: order.productId,
+      agreedPrice: order.agreedAmount,
+      totalAmount: order.totalToPay,
+      status: normalizedOrderStatus
+    };
+  });
   
   const total = await Order.countDocuments(query);
   
@@ -355,19 +802,31 @@ async function getOrdersAsSeller(sellerId, filters = {}, pagination = {}) {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
+    .populate('requestId', 'initiatedBy')
     .populate('buyerId', 'fullName avatar rating')
-    .populate('productId', 'title price images condition location category')
+    .populate({
+      path: 'productId',
+      select: 'title price images condition location category',
+      populate: { path: 'category', select: 'name' }
+    })
     .lean();
   
   // Transform the data to match frontend expectations
-  const transformedOrders = orders.map(order => ({
-    ...order,
-    buyer: order.buyerId,
-    listing: order.productId,
-    agreedPrice: order.agreedAmount,
-    totalAmount: order.totalToPay,
-    status: order.status === 'awaiting_payment' ? 'pending' : order.status
-  }));
+  const transformedOrders = orders.map(order => {
+    const isBuyerInitiatedRequest = order?.requestId?.initiatedBy === 'buyer';
+    const shouldSkipSellerConfirmStep =
+      order.status === 'awaiting_seller_confirmation' && isBuyerInitiatedRequest;
+
+    return {
+      ...order,
+      buyer: order.buyerId,
+      listing: order.productId,
+      agreedPrice: order.agreedAmount,
+      totalAmount: order.totalToPay,
+      status: shouldSkipSellerConfirmStep ? 'awaiting_payment' : order.status,
+      confirmedBySeller: shouldSkipSellerConfirmStep ? true : order.confirmedBySeller
+    };
+  });
   
   const total = await Order.countDocuments(query);
   
@@ -448,17 +907,19 @@ async function forceCancelOrder(orderId, moderatorId, reason) {
 
     // Không thể hủy đơn đã hoàn thành hoặc đã hủy
     if (order.status === 'completed' || order.status === 'cancelled') {
-      throw new Error(`Không thể hủy đơn hàng đang ở trạng thái: ${order.status}`);
+      if (order.status === 'completed') {
+        throw new Error('Không thể hủy đơn hàng đã hoàn thành');
+      }
+      throw new Error('Đơn hàng đã ở trạng thái hủy');
     }
 
     // QUAN TRỌNG: Nếu đơn hàng ĐÃ THANH TOÁN (Tiền đang nằm trong Escrow)
     // Thì phải hoàn tiền lại cho người mua (Buyer)
     if (order.paymentStatus === 'paid') {
       const escrowService = require('../payments/escrow.service');
-      // Gọi hàm hoàn tiền của Escrow (Giả định bạn đã có hàm refundToBuyer trong escrow.service)
-      await escrowService.refundToBuyer(
-        orderId, 
-        `Hủy bởi Moderator. Lý do: ${reason}`
+      await escrowService.refundFunds(
+        orderId,
+        `Hủy bởi quản trị viên. Lý do: ${reason}`
       );
     }
 
@@ -484,8 +945,59 @@ async function forceCancelOrder(orderId, moderatorId, reason) {
     session.endSession();
   }
 }
+
+/**
+ * Seller confirms order - changes status from awaiting_seller_confirmation to awaiting_payment
+ */
+async function confirmOrderBySeller(orderId, sellerId) {
+  const order = await Order.findById(orderId);
+  
+  if (!order) {
+    throw new Error('Đơn hàng không tồn tại');
+  }
+  
+  // Check authorization - only seller can confirm
+  if (order.sellerId.toString() !== sellerId.toString()) {
+    throw new Error('Bạn không có quyền xác nhận đơn hàng này');
+  }
+  
+  // Check order status
+  if (order.status !== 'awaiting_seller_confirmation') {
+    throw new Error('Đơn hàng không ở trạng thái chờ xác nhận từ người bán');
+  }
+  
+  // Update order status
+  order.status = 'awaiting_payment';
+  order.confirmedBySeller = true;
+  order.confirmedBySellerAt = new Date();
+  await order.save();
+
+  try {
+    await notificationService.createNotification(order.buyerId, {
+      type: 'order_confirmed',
+      orderId: order._id,
+      senderId: sellerId,
+      title: 'Đơn mua đã được người bán xác nhận',
+      message: 'Người bán đã xác nhận đơn hàng của bạn. Bạn có thể tiến hành thanh toán ngay.'
+    });
+  } catch (error) {
+    console.error('Error sending order confirmed notification:', error);
+  }
+  
+  // Populate order details
+  await order.populate([
+    { path: 'buyerId', select: 'fullName email avatar' },
+    { path: 'sellerId', select: 'fullName email avatar' },
+    { path: 'productId', select: 'title price images' }
+  ]);
+  
+  return order;
+}
+
 module.exports = {
   createPurchaseRequest,
+  createSellerOfferFromConversation,
+  createBuyerOfferFromConversation,
   getSentPurchaseRequests,
   getReceivedPurchaseRequests,
   acceptPurchaseRequest,
@@ -495,6 +1007,7 @@ module.exports = {
   getOrdersAsBuyer,
   getOrdersAsSeller,
   updateOrderStatus,
+  confirmOrderBySeller,
   payOrder,
   confirmShipment,
   confirmReceipt,
@@ -505,12 +1018,9 @@ module.exports = {
  * Pay for an order (simplified version without wallet integration)
  */
 async function payOrder(orderId, buyerId) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     // Get order details
-    const order = await Order.findById(orderId).session(session);
+    const order = await Order.findById(orderId).populate('requestId', 'initiatedBy');
     
     if (!order) {
       throw new Error('Đơn hàng không tồn tại');
@@ -521,8 +1031,21 @@ async function payOrder(orderId, buyerId) {
       throw new Error('Bạn không có quyền thanh toán đơn hàng này');
     }
     
+    // Normalize legacy transition: buyer-initiated offers can skip seller confirm step.
+    const isBuyerInitiatedRequest = order?.requestId?.initiatedBy === 'buyer';
+    const canSkipSellerConfirm =
+      order.status === 'awaiting_seller_confirmation' &&
+      (isBuyerInitiatedRequest || order.confirmedBySeller);
+
+    if (canSkipSellerConfirm) {
+      order.status = 'awaiting_payment';
+      order.confirmedBySeller = true;
+      order.confirmedBySellerAt = order.confirmedBySellerAt || new Date();
+      await order.save();
+    }
+
     // Check order status
-    if (order.status !== 'awaiting_payment') {
+    if (!['awaiting_payment', 'pending'].includes(order.status)) {
       throw new Error('Đơn hàng không ở trạng thái chờ thanh toán');
     }
     
@@ -532,40 +1055,24 @@ async function payOrder(orderId, buyerId) {
     
     // Import escrow service
     const escrowService = require('../payments/escrow.service');
-    
-    // For now, simulate successful payment without wallet check
-    // TODO: Integrate with wallet service when wallet routes are fixed
-    
-    // Create escrow hold
-    const escrowHold = await escrowService.createEscrowHold(
-      buyerId,
-      order.sellerId,
-      order._id,
-      order.agreedAmount
-    );
-    
-    // Update order status
-    order.status = 'paid';
-    order.paymentStatus = 'paid';
-    order.paidAt = new Date();
-    order.escrowHoldId = escrowHold._id;
-    await order.save({ session });
-    
-    await session.commitTransaction();
+
+    // Hold funds in escrow and deduct buyer wallet in one flow.
+    const escrowHold = await escrowService.holdFunds(orderId, buyerId, order.totalToPay);
+
+    const paidOrder = await Order.findById(orderId);
+    paidOrder.escrowHoldId = escrowHold._id;
+    await paidOrder.save();
     
     // Populate order details
-    await order.populate([
+    await paidOrder.populate([
       { path: 'buyerId', select: 'fullName email avatar' },
       { path: 'sellerId', select: 'fullName email avatar' },
       { path: 'productId', select: 'title price images' }
     ]);
     
-    return order;
+    return paidOrder;
   } catch (error) {
-    await session.abortTransaction();
     throw error;
-  } finally {
-    session.endSession();
   }
 }
 /**
@@ -613,6 +1120,18 @@ async function confirmShipment(orderId, sellerId, shipmentData = {}) {
       { path: 'sellerId', select: 'fullName email avatar' },
       { path: 'productId', select: 'title price images' }
     ]);
+
+    try {
+      await notificationService.createNotification(order.buyerId._id, {
+        type: 'order_shipped',
+        orderId: order._id,
+        senderId: sellerId,
+        title: 'Đơn hàng đang được giao',
+        message: 'Người bán đã xác nhận giao hàng. Bạn có thể theo dõi tiến trình trong chi tiết đơn hàng.'
+      });
+    } catch (notificationError) {
+      console.error('Error sending shipped notification:', notificationError);
+    }
     
     return order;
   } catch (error) {
@@ -655,6 +1174,13 @@ async function confirmReceipt(orderId, buyerId) {
     order.status = 'completed';
     order.completedAt = new Date();
     await order.save({ session });
+
+    // Mark listing as sold so it no longer appears as an available post.
+    const product = await Product.findById(order.productId).session(session);
+    if (product && product.status !== 'sold') {
+      product.status = 'sold';
+      await product.save({ session });
+    }
     
     await session.commitTransaction();
     
@@ -664,6 +1190,18 @@ async function confirmReceipt(orderId, buyerId) {
       { path: 'sellerId', select: 'fullName email avatar' },
       { path: 'productId', select: 'title price images' }
     ]);
+
+    try {
+      await notificationService.createNotification(order.sellerId._id, {
+        type: 'order_completed',
+        orderId: order._id,
+        senderId: buyerId,
+        title: 'Đơn hàng đã hoàn tất',
+        message: `Người mua đã xác nhận nhận hàng cho đơn "${order.productId?.title || 'Sản phẩm'}".`
+      });
+    } catch (notificationError) {
+      console.error('Error sending completed notification:', notificationError);
+    }
     
     return order;
   } catch (error) {

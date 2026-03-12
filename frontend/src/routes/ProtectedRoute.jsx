@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
-  // Show loading state while checking authentication
+  // Hien thi trang thai tai trong luc kiem tra dang nhap
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -14,12 +14,12 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  // Redirect to login if not authenticated
+  // Chuyen ve trang dang nhap neu chua xac thuc
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Render the protected component if authenticated
+  // Hien thi component duoc bao ve neu da xac thuc
   return children;
 }
 

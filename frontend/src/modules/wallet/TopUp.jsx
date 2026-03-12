@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import walletService from '../../services/wallet.service';
+import vnpayService from '../../services/vnpay.service';
 import './TopUp.css';
 
 const TopUp = () => {
@@ -43,10 +43,12 @@ const TopUp = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    const amountNum = parseInt(amount);
+    const amountNum = Number(amount);
 
-    if (!amount || amountNum <= 0) {
+    if (!amount || !Number.isFinite(amountNum) || amountNum <= 0) {
       newErrors.amount = 'Vui lòng nhập số tiền hợp lệ';
+    } else if (!Number.isInteger(amountNum)) {
+      newErrors.amount = 'Số tiền nạp phải là số nguyên VND';
     } else if (amountNum < 10000) {
       newErrors.amount = 'Số tiền nạp tối thiểu là 10,000 VNĐ';
     } else if (amountNum > 500000000) {
@@ -67,17 +69,18 @@ const TopUp = () => {
     setLoading(true);
 
     try {
+      const normalizedAmount = Number(amount);
       const paymentData = {
-        amount: parseInt(amount),
-        orderInfo: orderInfo || `Nạp ${parseInt(amount).toLocaleString('vi-VN')} VNĐ vào ví`
+        amount: normalizedAmount,
+        orderInfo: orderInfo?.trim() || `Nạp ${normalizedAmount.toLocaleString('vi-VN')} VNĐ vào ví`
       };
 
-      const result = await walletService.createVNPayPayment(paymentData);
+      const result = await vnpayService.createPayment(paymentData);
       
-      // Redirect to VNPay payment page
+      // Chuyen huong sang trang thanh toan VNPay
       window.location.href = result.paymentUrl;
     } catch (error) {
-      alert(error.response?.data?.message || 'Không thể tạo thanh toán. Vui lòng thử lại.');
+      alert(error.message || 'Không thể tạo thanh toán. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -175,7 +178,15 @@ const TopUp = () => {
             <h2>Phương thức thanh toán</h2>
             <div className="payment-method">
               <div className="method-card active">
-                <img src="/images/vnpay-logo.png" alt="VNPay" className="method-logo" />
+                <img
+                  src="/images/vnpay-logo.png"
+                  alt="VNPay"
+                  className="method-logo"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/images/logo/logo.png';
+                  }}
+                />
                 <div className="method-info">
                   <h4>VNPay</h4>
                   <p>Thanh toán qua ngân hàng, ví điện tử</p>

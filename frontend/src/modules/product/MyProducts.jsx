@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './MyProducts.css';
 
 const MyProducts = () => {
@@ -42,10 +43,7 @@ const MyProducts = () => {
       if (statusFilter) {
         params.status = statusFilter;
       }
-
-      console.log('Fetching my products with params:', params);
       const data = await productService.getMyProducts(params);
-      console.log('My products response:', data);
       
       setProducts(data.products || []);
       setPagination(prev => ({
@@ -124,9 +122,12 @@ const MyProducts = () => {
   return (
     <div className="my-products-container">
       <div className="my-products-header">
-        <h1>Quản lý tin đăng</h1>
+        <div className="my-products-header-content">
+          <h1>Quản lý tin đăng</h1>
+          <p>Theo dõi trạng thái và chỉnh sửa tin đăng của bạn tại một nơi.</p>
+        </div>
         <Link to="/product/create" className="btn btn-primary">
-          + Đăng tin mới
+          + Tạo tin mới
         </Link>
       </div>
 
@@ -161,7 +162,8 @@ const MyProducts = () => {
       {/* Products Grid */}
       {products.length === 0 ? (
         <div className="empty-state">
-          <p>Bạn chưa có tin đăng nào</p>
+          <h3>Chưa có tin đăng nào</h3>
+          <p>Đăng tin đầu tiên để bắt đầu tiếp cận người mua.</p>
           <Link to="/product/create" className="btn btn-primary">
             Đăng tin ngay
           </Link>
@@ -173,21 +175,40 @@ const MyProducts = () => {
               <div key={product._id} className="product-card">
                 <Link to={`/product/${product._id}`} className="product-image">
                   <img 
-                    src={product.images[0] || '/images/placeholder.png'} 
+                    src={getImageUrl(product.images?.[0]) || '/images/placeholders/product-placeholder.svg'} 
                     alt={product.title}
                   />
                   {getStatusBadge(product.status)}
                 </Link>
                 
                 <div className="product-info">
-                  <Link to={`/product/${product._id}`} className="product-title">
-                    {product.title}
-                  </Link>
-                  <div className="product-price">{formatPrice(product.price)}</div>
-                  <div className="product-meta">
-                    <span>{product.category?.name}</span>
-                    <span>•</span>
-                    <span>{product.location?.city}</span>
+                  <div className="product-detail-block">
+                    <span className="product-label">Tiêu đề</span>
+                    <Link to={`/product/${product._id}`} className="product-title">
+                      {product.title}
+                    </Link>
+                  </div>
+
+                  <div className="product-detail-grid">
+                    <div className="product-detail-block product-detail-block--price">
+                      <span className="product-label">Giá bán</span>
+                      <div className="product-price">{formatPrice(product.price)}</div>
+                    </div>
+
+                    <div className="product-detail-block">
+                      <span className="product-label">Danh mục</span>
+                      <span className="product-category-chip">
+                        {product.category?.name || 'Chưa phân loại'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="product-detail-block product-location-block">
+                    <span className="product-label">Địa chỉ</span>
+                    <div className="product-meta product-location-row">
+                      <span className="product-meta-icon">📍</span>
+                      <span>{product.location?.city || 'Chưa cập nhật vị trí'}</span>
+                    </div>
                   </div>
                 </div>
 

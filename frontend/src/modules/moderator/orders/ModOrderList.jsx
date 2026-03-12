@@ -59,7 +59,9 @@ const ModOrderList = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
 
+  // Map trạng thái backend sang màu hiển thị ở UI.
   const STATUS_COLOR = {
+    awaiting_seller_confirmation: "blue",
     awaiting_payment: "gold",
     paid: "cyan",
     shipped: "processing",
@@ -68,7 +70,9 @@ const ModOrderList = () => {
     disputed: "orange"
   };
 
+  // Map trạng thái backend sang nhãn tiếng Việt cho bảng moderator.
   const STATUS_LABEL = {
+    awaiting_seller_confirmation: "Chờ xác nhận",
     awaiting_payment: "Chờ thanh toán",
     paid: "Đã thanh toán",
     shipped: "Đang giao",
@@ -77,6 +81,7 @@ const ModOrderList = () => {
     disputed: "Đang tranh chấp"
   };
 
+  // Cấu hình cột bảng để tách phần dữ liệu và phần render UI.
   const columns = [
     { title: "Mã ĐH", dataIndex: "_id", key: "_id", render: (text) => <b>{String(text).slice(-8).toUpperCase()}</b> },
     { title: "Người mua", dataIndex: ["buyerId", "fullName"], key: "buyer" },
@@ -134,6 +139,7 @@ const ModOrderList = () => {
             style={{ width: 180 }}
             onChange={(value) => setFilters((prev) => ({ ...prev, status: value || "" }))}
             options={[
+              { value: "awaiting_seller_confirmation", label: "Chờ xác nhận" },
               { value: "awaiting_payment", label: "Chờ thanh toán" },
               { value: "paid", label: "Đã thanh toán" },
               { value: "shipped", label: "Đang giao" },

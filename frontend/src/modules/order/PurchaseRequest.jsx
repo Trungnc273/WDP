@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { createPurchaseRequest } from '../../services/order.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './PurchaseRequest.css';
 
-const PurchaseRequest = ({ product, onClose, onSuccess }) => {
+const PurchaseRequest = ({ product, onClose, onSuccess, isQuickBuy = false }) => {
   const [formData, setFormData] = useState({
-    message: '',
+    message: isQuickBuy ? 'Mua ngay' : '',
     agreedPrice: product?.price || 0
   });
   const [loading, setLoading] = useState(false);
@@ -29,18 +30,24 @@ const PurchaseRequest = ({ product, onClose, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.message.trim()) {
-      newErrors.message = 'Vui lòng nhập tin nhắn';
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = 'Tin nhắn phải có ít nhất 10 ký tự';
-    } else if (formData.message.trim().length > 500) {
-      newErrors.message = 'Tin nhắn không được quá 500 ký tự';
+    // Skip message validation for quick buy
+    if (!isQuickBuy) {
+      if (!formData.message.trim()) {
+        newErrors.message = 'Vui lòng nhập tin nhắn';
+      } else if (formData.message.trim().length < 10) {
+        newErrors.message = 'Tin nhắn phải có ít nhất 10 ký tự';
+      } else if (formData.message.trim().length > 500) {
+        newErrors.message = 'Tin nhắn không được quá 500 ký tự';
+      }
     }
 
-    if (!formData.agreedPrice || formData.agreedPrice <= 0) {
-      newErrors.agreedPrice = 'Vui lòng nhập giá đề nghị hợp lệ';
-    } else if (formData.agreedPrice < product.price * 0.5) {
-      newErrors.agreedPrice = 'Giá đề nghị quá thấp (tối thiểu 50% giá gốc)';
+    // For quick buy, agreedPrice is fixed
+    if (!isQuickBuy) {
+      if (!formData.agreedPrice || formData.agreedPrice <= 0) {
+        newErrors.agreedPrice = 'Vui lòng nhập giá đề nghị hợp lệ';
+      } else if (formData.agreedPrice < product.price) {
+        newErrors.agreedPrice = 'Giá đề nghị phải bằng hoặc cao hơn giá sản phẩm';
+      }
     }
 
     setErrors(newErrors);
@@ -96,7 +103,7 @@ const PurchaseRequest = ({ product, onClose, onSuccess }) => {
         <div className="product-info">
           <div className="product-image">
             <img 
-              src={product?.images?.[0] || '/placeholder-image.jpg'} 
+              src={getImageUrl(product?.images?.[0]) || '/placeholder-image.jpg'} 
               alt={product?.title}
             />
           </div>
@@ -111,48 +118,70 @@ const PurchaseRequest = ({ product, onClose, onSuccess }) => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="purchase-request-form">
-          <div className="form-group">
-            <label htmlFor="message">
-              Tin nhắn cho người bán <span className="required">*</span>
-            </label>
-            <textarea
-              id="message"
-              name="message"
-              value={formData.message}
-              onChange={handleInputChange}
-              placeholder="Xin chào, tôi muốn mua sản phẩm này. Có thể thương lượng giá được không?"
-              rows="4"
-              className={errors.message ? 'error' : ''}
-            />
-            {errors.message && <span className="error-message">{errors.message}</span>}
-            <div className="character-count">
-              {formData.message.length}/500 ký tự
-            </div>
+        <div className="price-summary">
+          <div className="price-row">
+            <span className="price-label">Giá sản phẩm:</span>
+            <span className="price-value">{formatPrice(product?.price)} VND</span>
           </div>
+          <div className="price-row">
+            <span className="price-label">Hoa hồng nền tảng (5%):</span>
+            <span className="price-value">{formatPrice(Math.round(product?.price * 0.05))} VND</span>
+          </div>
+          <div className="price-row total">
+            <span className="price-label">Tổng tiền:</span>
+            <span className="price-value">{formatPrice(Math.round(product?.price * 1.05))} VND</span>
+          </div>
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="agreedPrice">
-              Giá đề nghị <span className="required">*</span>
-            </label>
-            <div className="price-input-wrapper">
-              <input
-                type="number"
-                id="agreedPrice"
-                name="agreedPrice"
-                value={formData.agreedPrice}
-                onChange={handleInputChange}
-                min="0"
-                step="1000"
-                className={errors.agreedPrice ? 'error' : ''}
-              />
-              <span className="currency">VND</span>
-            </div>
-            {errors.agreedPrice && <span className="error-message">{errors.agreedPrice}</span>}
-            <div className="price-suggestion">
-              Giá gốc: {formatPrice(product?.price)} VND
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="purchase-request-form">
+          {!isQuickBuy && (
+            <>
+              <div className="form-group">
+                <label htmlFor="message">
+                  Tin nhắn cho người bán <span className="required">*</span>
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  disabled={isQuickBuy}
+                  placeholder="Xin chào, tôi muốn mua sản phẩm này. Có thể thương lượng giá được không?"
+                  rows="4"
+                  className={errors.message ? 'error' : ''}
+                />
+                {errors.message && <span className="error-message">{errors.message}</span>}
+                <div className="character-count">
+                  {formData.message.length}/500 ký tự
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="agreedPrice">
+                  Giá đề nghị <span className="required">*</span>
+                </label>
+                <div className="price-input-wrapper">
+                  <input
+                    type="number"
+                    id="agreedPrice"
+                    name="agreedPrice"
+                    value={formData.agreedPrice}
+                    onChange={handleInputChange}
+                    disabled={isQuickBuy}
+                    min="0"
+                    step="1000"
+                    className={errors.agreedPrice ? 'error' : ''}
+                  />
+                  />
+                  <span className="currency">VND</span>
+                </div>
+                {errors.agreedPrice && <span className="error-message">{errors.agreedPrice}</span>}
+                <div className="price-suggestion">
+                  Giá tối thiểu: {formatPrice(product?.price)} VND
+                </div>
+              </div>
+            </>
+          )}
 
           {errors.submit && (
             <div className="error-message submit-error">
@@ -177,12 +206,12 @@ const PurchaseRequest = ({ product, onClose, onSuccess }) => {
               {loading ? (
                 <>
                   <i className="fas fa-spinner fa-spin"></i>
-                  Đang gửi...
+                  {isQuickBuy ? 'Đang xác nhận...' : 'Đang gửi...'}
                 </>
               ) : (
                 <>
-                  <i className="fas fa-paper-plane"></i>
-                  Gửi yêu cầu
+                  <i className={`fas fa-${isQuickBuy ? 'check' : 'paper-plane'}`}></i>
+                  {isQuickBuy ? 'Xác nhận mua ngay' : 'Gửi yêu cầu'}
                 </>
               )}
             </button>

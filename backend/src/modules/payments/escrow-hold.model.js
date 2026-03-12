@@ -89,9 +89,9 @@ escrowHoldSchema.virtual('isRefunded').get(function() {
 });
 
 // Method to release funds to seller
-escrowHoldSchema.methods.release = function(reason = 'Buyer confirmed receipt', isAuto = false) {
+escrowHoldSchema.methods.release = function(reason = 'Người mua đã xác nhận nhận hàng', isAuto = false) {
   if (this.status !== 'held') {
-    throw new Error('Escrow funds are not in held status');
+    throw new Error('Tiền ký quỹ không ở trạng thái đang giữ');
   }
   
   this.status = 'released';
@@ -103,9 +103,9 @@ escrowHoldSchema.methods.release = function(reason = 'Buyer confirmed receipt', 
 };
 
 // Method to refund funds to buyer
-escrowHoldSchema.methods.refund = function(reason = 'Dispute resolved in favor of buyer') {
+escrowHoldSchema.methods.refund = function(reason = 'Tranh chấp đã xử lý: Hoàn tiền cho người mua') {
   if (this.status !== 'held') {
-    throw new Error('Escrow funds are not in held status');
+    throw new Error('Tiền ký quỹ không ở trạng thái đang giữ');
   }
   
   this.status = 'refunded';

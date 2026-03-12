@@ -1,13 +1,13 @@
 import api from './api';
 
 /**
- * Wallet Service
- * Handles all wallet-related API calls
+ * Service ví
+ * Xử lý các API liên quan đến ví và giao dịch ví
  */
 
 /**
- * Get wallet balance
- * @returns {Promise<Object>} Balance information
+ * Lấy số dư ví
+ * @returns {Promise<Object>} Thông tin số dư
  */
 async function getBalance() {
   try {
@@ -19,14 +19,14 @@ async function getBalance() {
 }
 
 /**
- * Get transaction history
- * @param {Object} params - Query parameters
- * @param {number} params.page - Page number
- * @param {number} params.limit - Items per page
- * @param {string} params.type - Transaction type filter
- * @param {string} params.startDate - Start date filter
- * @param {string} params.endDate - End date filter
- * @returns {Promise<Object>} Transaction history with pagination
+ * Lấy lịch sử giao dịch
+ * @param {Object} params - Tham số truy vấn
+ * @param {number} params.page - Trang hiện tại
+ * @param {number} params.limit - Số bản ghi mỗi trang
+ * @param {string} params.type - Lọc theo loại giao dịch
+ * @param {string} params.startDate - Lọc từ ngày
+ * @param {string} params.endDate - Lọc đến ngày
+ * @returns {Promise<Object>} Dữ liệu giao dịch có phân trang
  */
 async function getTransactions(params = {}) {
   try {
@@ -38,11 +38,11 @@ async function getTransactions(params = {}) {
 }
 
 /**
- * Create withdrawal request
- * @param {Object} withdrawalData - Withdrawal data
- * @param {number} withdrawalData.amount - Amount to withdraw
- * @param {Object} withdrawalData.bankAccount - Bank account info
- * @returns {Promise<Object>} Withdrawal request
+ * Tạo yêu cầu rút tiền
+ * @param {Object} withdrawalData - Dữ liệu rút tiền
+ * @param {number} withdrawalData.amount - Số tiền cần rút
+ * @param {Object} withdrawalData.bankAccount - Thông tin tài khoản ngân hàng
+ * @returns {Promise<Object>} Kết quả tạo yêu cầu rút tiền
  */
 async function createWithdrawal(withdrawalData) {
   try {
@@ -54,11 +54,11 @@ async function createWithdrawal(withdrawalData) {
 }
 
 /**
- * Create VNPay payment
- * @param {Object} paymentData - Payment data
- * @param {number} paymentData.amount - Amount to pay
- * @param {string} paymentData.orderInfo - Order description
- * @returns {Promise<Object>} Payment URL and transaction info
+ * Tạo giao dịch nạp tiền qua VNPay
+ * @param {Object} paymentData - Dữ liệu thanh toán
+ * @param {number} paymentData.amount - Số tiền thanh toán
+ * @param {string} paymentData.orderInfo - Mô tả giao dịch
+ * @returns {Promise<Object>} Link thanh toán và thông tin giao dịch
  */
 async function createVNPayPayment(paymentData) {
   try {

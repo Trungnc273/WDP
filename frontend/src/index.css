@@ -52,6 +52,12 @@
   border-color: var(--gray-300);
 }
 
+.navbar--transparent .navbar__btn-orders {
+  color: var(--primary-blue);
+  border-color: #bfdbfe;
+  background-color: #eff6ff;
+}
+
 .navbar--transparent .navbar__btn-manage:hover {
   background-color: var(--gray-100);
   color: var(--primary-blue);
@@ -93,6 +99,12 @@
 .navbar--scrolled .navbar__btn-manage {
   color: var(--gray-900);
   border-color: var(--gray-300);
+}
+
+.navbar--scrolled .navbar__btn-orders {
+  color: var(--primary-blue);
+  border-color: #bfdbfe;
+  background-color: #eff6ff;
 }
 
 .navbar--scrolled .navbar__btn-manage:hover {
@@ -226,6 +238,40 @@
   transition: all var(--transition-base);
   white-space: nowrap;
   display: inline-block;
+}
+
+.navbar__btn-orders {
+  padding: 8px 16px;
+  background-color: #eff6ff;
+  color: var(--primary-blue);
+  border: 2px solid #bfdbfe;
+  border-radius: 20px;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.navbar__btn-orders:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.navbar__btn-orders--seller {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.navbar__btn-orders--seller:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .navbar__btn-manage:hover {
@@ -536,6 +582,33 @@
   padding: var(--spacing-xl);
   color: var(--gray-600);
   font-size: var(--font-size-base);
+}
+
+/* Notification Badge */
+.navbar__icon-btn {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.notification-dropdown-wrapper {
+  position: relative;
 }
 
 /* Responsive Design */

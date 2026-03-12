@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { createDispute, uploadEvidenceImages } from '../../services/report.service';
+import { createDispute, uploadEvidenceMedia } from '../../services/report.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import './Dispute.css';
 
-const Dispute = ({ order, onSuccess, onCancel }) => {
-  const [reason, setReason] = useState('');
+const Dispute = ({ order, onSuccess, onCancel, initialReason = '' }) => {
+  const [reason, setReason] = useState(initialReason);
   const [description, setDescription] = useState('');
   const [evidenceImages, setEvidenceImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,8 +16,15 @@ const Dispute = ({ order, onSuccess, onCancel }) => {
     { value: 'damaged', label: 'Sản phẩm bị hỏng/hư hại' },
     { value: 'not_received', label: 'Không nhận được hàng' },
     { value: 'counterfeit', label: 'Hàng giả, hàng nhái' },
+    { value: 'return_request', label: 'Yêu cầu hoàn hàng' },
     { value: 'other', label: 'Khác' }
   ];
+
+  React.useEffect(() => {
+    setReason(initialReason || '');
+  }, [initialReason]);
+
+  const isVideoEvidence = (url = '') => /\.(mp4|mov|webm|avi|mkv)$/i.test(url);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,7 +40,7 @@ const Dispute = ({ order, onSuccess, onCancel }) => {
     }
 
     if (evidenceImages.length === 0) {
-      setError('Vui lòng cung cấp ít nhất 1 ảnh bằng chứng');
+      setError('Vui lòng cung cấp ít nhất 1 tệp bằng chứng (ảnh hoặc video)');
       return;
     }
 
@@ -60,10 +67,10 @@ const Dispute = ({ order, onSuccess, onCancel }) => {
     setError('');
 
     try {
-      const uploadedPaths = await uploadEvidenceImages(files.slice(0, availableSlots));
+      const uploadedPaths = await uploadEvidenceMedia(files.slice(0, availableSlots));
       setEvidenceImages(prev => [...prev, ...uploadedPaths].slice(0, 5));
     } catch (uploadError) {
-      setError(uploadError.message || 'Không thể upload ảnh bằng chứng');
+      setError(uploadError.message || 'Không thể upload bằng chứng');
     } finally {
       setUploadingImages(false);
       e.target.value = '';
@@ -145,25 +152,29 @@ const Dispute = ({ order, onSuccess, onCancel }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="evidence">Ảnh bằng chứng * (bắt buộc)</label>
+            <label htmlFor="evidence">Bằng chứng * (ảnh/video)</label>
             <input
               type="file"
               id="evidence"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               onChange={handleImageUpload}
               disabled={evidenceImages.length >= 5 || loading || uploadingImages}
             />
             <div className="upload-note">
-              Bắt buộc ít nhất 1 ảnh, tối đa 5 ảnh. Ảnh bằng chứng rất quan trọng để xử lý khiếu nại.
+              Bắt buộc ít nhất 1 tệp, tối đa 5 tệp (ảnh hoặc video).
             </div>
-            {uploadingImages && <div className="upload-note">Đang upload ảnh...</div>}
+            {uploadingImages && <div className="upload-note">Đang upload bằng chứng...</div>}
             
             {evidenceImages.length > 0 && (
               <div className="evidence-preview">
                 {evidenceImages.map((url, index) => (
                   <div key={index} className="evidence-item">
-                    <img src={getImageUrl(url)} alt={`Bằng chứng ${index + 1}`} />
+                    {isVideoEvidence(url) ? (
+                      <video src={getImageUrl(url)} controls className="evidence-video" />
+                    ) : (
+                      <img src={getImageUrl(url)} alt={`Bằng chứng ${index + 1}`} />
+                    )}
                     <button 
                       type="button" 
                       className="remove-image"

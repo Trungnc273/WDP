@@ -245,6 +245,60 @@ async function createTransaction(userId, data) {
   return transaction;
 }
 
+/**
+ * Create withdrawal request
+ */
+async function createWithdrawal(userId, withdrawalData) {
+  const { amount, bankAccount, bankName, accountHolder } = withdrawalData;
+  const normalizedAmount = Number(amount);
+
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    throw new Error('Số tiền rút không hợp lệ');
+  }
+
+  if (!Number.isInteger(normalizedAmount)) {
+    throw new Error('Số tiền rút phải là số nguyên VND');
+  }
+
+  if (normalizedAmount < 50000) {
+    throw new Error('Số tiền rút tối thiểu là 50,000 VND');
+  }
+
+  if (!bankAccount || String(bankAccount).trim().length < 6) {
+    throw new Error('Số tài khoản ngân hàng không hợp lệ');
+  }
+
+  if (!bankName || String(bankName).trim().length < 2) {
+    throw new Error('Tên ngân hàng không hợp lệ');
+  }
+
+  if (!accountHolder || String(accountHolder).trim().length < 2) {
+    throw new Error('Tên chủ tài khoản không hợp lệ');
+  }
+  
+  // Check if user has sufficient balance
+  const balance = await getBalance(userId);
+  if (balance.balance < normalizedAmount) {
+    throw new Error('Số dư không đủ để thực hiện giao dịch này');
+  }
+  
+  // Create withdrawal transaction record
+  const withdrawal = await createTransaction(userId, {
+    type: 'withdrawal',
+    amount: normalizedAmount,
+    status: 'pending',
+    description: `Yêu cầu rút tiền về ${String(bankName).trim()} - ${String(bankAccount).trim()}`,
+    metadata: {
+      bankAccount: String(bankAccount).trim(),
+      bankName: String(bankName).trim(),
+      accountHolder: String(accountHolder).trim(),
+      requestedAt: new Date()
+    }
+  });
+  
+  return withdrawal;
+}
+
 module.exports = {
   getOrCreateWallet,
   getBalance,
@@ -254,32 +308,3 @@ module.exports = {
   createTransaction,
   createWithdrawal
 };
-
-/**
- * Create withdrawal request
- */
-async function createWithdrawal(userId, withdrawalData) {
-  const { amount, bankAccount, bankName, accountHolder } = withdrawalData;
-  
-  // Check if user has sufficient balance
-  const balance = await getBalance(userId);
-  if (balance.balance < amount) {
-    throw new Error('Số dư không đủ để thực hiện giao dịch này');
-  }
-  
-  // Create withdrawal transaction record
-  const withdrawal = await createTransaction(userId, {
-    type: 'withdrawal',
-    amount: amount,
-    status: 'pending',
-    description: `Yêu cầu rút tiền về ${bankName} - ${bankAccount}`,
-    metadata: {
-      bankAccount,
-      bankName,
-      accountHolder,
-      requestedAt: new Date()
-    }
-  });
-  
-  return withdrawal;
-}

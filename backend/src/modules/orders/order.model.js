@@ -10,7 +10,7 @@ const orderSchema = new mongoose.Schema({
   requestId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PurchaseRequest',
-    required: true
+    required: false
   },
   
   // Buyer information
@@ -64,8 +64,8 @@ const orderSchema = new mongoose.Schema({
   // Order status
   status: {
     type: String,
-    enum: ['awaiting_payment', 'paid', 'shipped', 'completed', 'cancelled', 'disputed'],
-    default: 'awaiting_payment'
+    enum: ['awaiting_seller_confirmation', 'awaiting_payment', 'paid', 'shipped', 'completed', 'cancelled', 'disputed'],
+    default: 'awaiting_seller_confirmation'
   },
   
   // Payment status
@@ -73,6 +73,16 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: ['unpaid', 'paid', 'refunded'],
     default: 'unpaid'
+  },
+  
+  // Seller confirmation
+  confirmedBySeller: {
+    type: Boolean,
+    default: false
+  },
+  
+  confirmedBySellerAt: {
+    type: Date
   },
   
   // Timestamps for order lifecycle
@@ -146,7 +156,7 @@ orderSchema.virtual('isEligibleForAutoRelease').get(function() {
     return false;
   }
   const daysSinceShipped = (Date.now() - this.shippedAt.getTime()) / (1000 * 60 * 60 * 24);
-  return daysSinceShipped >= 5;
+  return daysSinceShipped >= 10;
 });
 
 const Order = mongoose.model('Order', orderSchema);

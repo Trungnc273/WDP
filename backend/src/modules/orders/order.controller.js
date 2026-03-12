@@ -35,6 +35,60 @@ async function createPurchaseRequest(req, res) {
 }
 
 /**
+ * Seller creates offer from chat conversation
+ * POST /api/orders/seller-offer
+ */
+async function createSellerOfferFromChat(req, res) {
+  try {
+    const sellerId = req.user.userId;
+    const { conversationId, message, agreedPrice } = req.body;
+
+    if (!conversationId || !agreedPrice) {
+      return sendError(res, 400, 'Thiếu thông tin bắt buộc');
+    }
+
+    const result = await orderService.createSellerOfferFromConversation(
+      sellerId,
+      conversationId,
+      message,
+      agreedPrice
+    );
+
+    return sendSuccess(res, 201, result, 'Gửi đề nghị từ người bán thành công');
+  } catch (error) {
+    console.error('Create seller offer from chat error:', error);
+    return sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Buyer creates offer from chat conversation
+ * POST /api/orders/buyer-offer
+ */
+async function createBuyerOfferFromChat(req, res) {
+  try {
+    const buyerId = req.user.userId;
+    const { conversationId, message, agreedPrice } = req.body;
+
+    if (!conversationId || !agreedPrice) {
+      return sendError(res, 400, 'Thiếu thông tin bắt buộc');
+    }
+
+    const result = await orderService.createBuyerOfferFromConversation(
+      buyerId,
+      conversationId,
+      message,
+      agreedPrice
+    );
+
+    return sendSuccess(res, 201, result, 'Gửi đề nghị từ người mua thành công');
+  } catch (error) {
+    console.error('Create buyer offer from chat error:', error);
+    return sendError(res, 400, error.message);
+  }
+}
+
+/**
  * Get sent purchase requests (buyer)
  * GET /api/orders/purchase-requests/sent
  */
@@ -317,8 +371,29 @@ async function forceCancelOrder(req, res) {
     return sendError(res, 400, error.message);
   }
 }
+
+/**
+ * Confirm order by seller
+ * PATCH /api/orders/:id/confirm
+ */
+async function confirmOrderBySeller(req, res) {
+  try {
+    const orderId = req.params.id;
+    const sellerId = req.user.userId;
+
+    const order = await orderService.confirmOrderBySeller(orderId, sellerId);
+    
+    return sendSuccess(res, 200, order, 'Đã xác nhận đơn hàng thành công');
+  } catch (error) {
+    console.error('Confirm order by seller error:', error);
+    return sendError(res, 400, error.message);
+  }
+}
+
 module.exports = {
   createPurchaseRequest,
+  createSellerOfferFromChat,
+  createBuyerOfferFromChat,
   getSentPurchaseRequests,
   getReceivedPurchaseRequests,
   acceptPurchaseRequest,
@@ -330,5 +405,6 @@ module.exports = {
   getOrdersAsSeller,
   getOrderById,
   getAllOrdersForMod, 
+  confirmOrderBySeller,
   forceCancelOrder    
 };

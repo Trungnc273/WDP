@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load user from localStorage on mount
+    // Tai thong tin nguoi dung tu localStorage khi component mount
     const storedToken = localStorage.getItem('token');
     if (storedToken) {
       loadUser(storedToken);
@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
       setToken(token);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
-      // Token is invalid or expired
+      // Token khong hop le hoac da het han
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);

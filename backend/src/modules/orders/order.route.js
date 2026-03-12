@@ -19,6 +19,14 @@ router.use(authenticate);
 // POST /api/orders/purchase-request
 router.post('/purchase-request', orderController.createPurchaseRequest);
 
+// Seller creates an offer from chat
+// POST /api/orders/seller-offer
+router.post('/seller-offer', orderController.createSellerOfferFromChat);
+
+// Buyer creates an offer from chat
+// POST /api/orders/buyer-offer
+router.post('/buyer-offer', orderController.createBuyerOfferFromChat);
+
 // Get sent purchase requests (buyer)
 // GET /api/orders/purchase-requests/sent
 router.get('/purchase-requests/sent', orderController.getSentPurchaseRequests);
@@ -58,6 +66,10 @@ router.get('/:id', orderController.getOrderById);
 // Pay for order
 // POST /api/orders/:orderId/pay
 router.post('/:orderId/pay', orderController.payOrder);
+
+// Seller confirm order (change status from awaiting_seller_confirmation to awaiting_payment)
+// PATCH /api/orders/:id/confirm
+router.patch('/:id/confirm', orderController.confirmOrderBySeller);
 
 // Confirm shipment (seller)
 // POST /api/orders/:orderId/ship

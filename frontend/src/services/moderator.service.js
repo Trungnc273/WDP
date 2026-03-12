@@ -209,18 +209,62 @@ export async function resolveModeratorDispute(disputeId, payload) {
   const { resolution, moderatorNotes } = payload || {};
 
   if (!['refund', 'release'].includes(resolution)) {
-    throw new Error('resolution phải là refund hoặc release');
+    throw new Error('Kết quả xử lý chỉ được chọn Hoàn tiền hoặc Nhả tiền');
   }
 
-  if (!moderatorNotes || moderatorNotes.trim().length < 10) {
-    throw new Error('moderatorNotes tối thiểu 10 ký tự');
+  if (moderatorNotes && moderatorNotes.trim().length > 500) {
+    throw new Error('moderatorNotes không được vượt quá 500 ký tự');
   }
 
   const response = await api.put(`/moderator/disputes/${disputeId}/resolve`, {
     resolution,
-    moderatorNotes: moderatorNotes.trim()
+    moderatorNotes: String(moderatorNotes || '').trim()
   });
 
+  return response.data?.data;
+}
+
+export async function getModeratorPendingProducts() {
+  const response = await api.get('/moderator/products/pending');
+  return response.data?.data || [];
+}
+
+export async function approveModeratorProduct(productId) {
+  ensureObjectId(productId, 'Mã sản phẩm');
+  const response = await api.patch(`/moderator/products/${productId}/approve`);
+  return response.data?.data;
+}
+
+export async function rejectModeratorProduct(productId, reason) {
+  ensureObjectId(productId, 'Mã sản phẩm');
+  if (!reason || reason.trim().length < 10) {
+    throw new Error('Lý do từ chối phải có ít nhất 10 ký tự');
+  }
+  const response = await api.patch(`/moderator/products/${productId}/reject`, {
+    reason: reason.trim()
+  });
+  return response.data?.data;
+}
+
+export async function getModeratorPendingKYC() {
+  const response = await api.get('/moderator/kyc/pending');
+  return response.data?.data || [];
+}
+
+export async function approveModeratorKYC(userId) {
+  ensureObjectId(userId, 'Mã người dùng');
+  const response = await api.post(`/moderator/kyc/${userId}/approve`);
+  return response.data?.data;
+}
+
+export async function rejectModeratorKYC(userId, reason) {
+  ensureObjectId(userId, 'Mã người dùng');
+  if (!reason || reason.trim().length < 10) {
+    throw new Error('Lý do từ chối phải có ít nhất 10 ký tự');
+  }
+  const response = await api.post(`/moderator/kyc/${userId}/reject`, {
+    reason: reason.trim()
+  });
   return response.data?.data;
 }
 
@@ -240,7 +284,13 @@ const moderatorService = {
   getModeratorDisputes,
   getModeratorDisputeById,
   markModeratorDisputeInvestigating,
-  resolveModeratorDispute
+  resolveModeratorDispute,
+  getModeratorPendingProducts,
+  approveModeratorProduct,
+  rejectModeratorProduct,
+  getModeratorPendingKYC,
+  approveModeratorKYC,
+  rejectModeratorKYC
 };
 
 export default moderatorService;

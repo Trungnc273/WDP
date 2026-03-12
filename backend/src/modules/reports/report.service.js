@@ -3,23 +3,27 @@ const Dispute = require('./dispute.model');
 const Product = require('../products/product.model');
 const Order = require('../orders/order.model');
 const User = require('../users/user.model');
+const notificationService = require('../notifications/notification.service');
 
 const PRODUCT_WARN_THRESHOLD = 3;
 
 async function pushReportNotification(userId, title, message, reportId) {
   if (!userId) return;
+  await notificationService.createNotification(userId, {
+    type: 'report_update',
+    title,
+    message,
+    reportId
+  });
+}
 
-  await User.findByIdAndUpdate(userId, {
-    $push: {
-      notifications: {
-        title,
-        message,
-        type: 'report_update',
-        relatedReportId: reportId,
-        isRead: false,
-        createdAt: new Date()
-      }
-    }
+async function pushDisputeNotification(userId, title, message, disputeId) {
+  if (!userId) return;
+  await notificationService.createNotification(userId, {
+    type: 'dispute_update',
+    title,
+    message,
+    disputeId
   });
 }
 
@@ -208,7 +212,7 @@ async function createDispute(buyerId, orderId, reason, description, evidenceImag
   }
   
   if (!evidenceImages || evidenceImages.length === 0) {
-    throw new Error('Vui lòng cung cấp ít nhất 1 ảnh bằng chứng');
+    throw new Error('Vui lòng cung cấp ít nhất 1 tệp bằng chứng (ảnh hoặc video)');
   }
   
   // Get order
@@ -352,19 +356,85 @@ async function addSellerResponse(disputeId, sellerId, response, evidenceImages =
     throw new Error('Bạn không phải người bán của đơn hàng này');
   }
   
-  // Check if dispute is still pending
-  if (dispute.status !== 'pending') {
+  // Seller can ONLY provide evidence when moderator has moved dispute to 'investigating'
+  // (Must wait for moderator to explicitly approve investigation)
+  if (dispute.status === 'pending') {
+    throw new Error('Moderator chưa bắt đầu điều tra khiếu nại. Vui lòng đợi moderator chuyển sang giai đoạn điều tra.');
+  }
+  
+  // Cannot provide evidence if already resolved
+  if (dispute.status === 'resolved') {
     throw new Error('Khiếu nại này đã được xử lý rồi');
   }
   
-  // Update dispute
+  // Update dispute (status should already be 'investigating' from moderator action)
   dispute.sellerResponse = response.trim();
-  dispute.sellerEvidenceImages = evidenceImages;
-  dispute.status = 'investigating';
-  dispute.investigatingAt = new Date();
+  if (evidenceImages?.length) {
+    dispute.sellerEvidenceImages = [
+      ...(dispute.sellerEvidenceImages || []),
+      ...evidenceImages
+    ].slice(0, 10);
+  }
+  
+  // Keep existing status (don't auto-transition)
   await dispute.save();
   
   return dispute;
+}
+
+/**
+ * Buyer adds follow-up evidence/notes to an existing dispute.
+ * Can only be done AFTER moderator has moved dispute to 'investigating' status.
+ */
+async function addBuyerFollowUp(disputeId, buyerId, note = '', evidenceImages = []) {
+  const dispute = await Dispute.findById(disputeId);
+
+  if (!dispute) {
+    throw new Error('Khiếu nại không tồn tại');
+  }
+
+  if (dispute.buyerId.toString() !== buyerId.toString()) {
+    throw new Error('Bạn không phải người mua của đơn hàng này');
+  }
+
+  // Buyer can ONLY provide follow-up evidence when moderator has moved to 'investigating'
+  if (dispute.status === 'pending') {
+    throw new Error('Moderator chưa bắt đầu điều tra. Vui lòng đợi moderator xác nhận để gửi bằng chứng bổ sung.');
+  }
+
+  if (dispute.status === 'resolved') {
+    throw new Error('Khiếu nại này đã được xử lý rồi');
+  }
+
+  const trimmedNote = String(note || '').trim();
+  if (!trimmedNote && (!evidenceImages || evidenceImages.length === 0)) {
+    throw new Error('Vui lòng nhập ghi chú hoặc tải lên ít nhất 1 tệp bằng chứng');
+  }
+
+  if (trimmedNote) {
+    dispute.buyerFollowUpNote = trimmedNote;
+  }
+
+  if (evidenceImages?.length) {
+    dispute.buyerAdditionalEvidenceImages = [
+      ...(dispute.buyerAdditionalEvidenceImages || []),
+      ...evidenceImages
+    ].slice(0, 10);
+  }
+
+  dispute.buyerFollowUpUpdatedAt = new Date();
+  await dispute.save();
+
+  if (dispute.moderatorId) {
+    await pushDisputeNotification(
+      dispute.moderatorId,
+      'Người mua bổ sung bằng chứng',
+      'Người mua vừa bổ sung ghi chú hoặc bằng chứng mới cho tranh chấp đang xử lý.',
+      dispute._id
+    );
+  }
+
+  return getDisputeById(disputeId, buyerId);
 }
 
 /**
@@ -518,6 +588,55 @@ async function resolveReport(
   return report;
 }
 
+/**
+ * Get dispute by order ID (accessible to buyer, seller, mod, admin)
+ */
+async function getDisputeByOrderId(orderId, userId) {
+  const dispute = await Dispute.findOne({ orderId })
+    .populate('orderId', 'agreedAmount totalToPay status')
+    .populate('buyerId', 'fullName email avatar phone')
+    .populate('sellerId', 'fullName email avatar phone')
+    .populate('productId', 'title price images description')
+    .populate('moderatorId', 'fullName email');
+
+  if (!dispute) {
+    throw new Error('Không tìm thấy khiếu nại cho đơn hàng này');
+  }
+
+  if (userId) {
+    const user = await User.findById(userId);
+    const isAuthorized =
+      dispute.buyerId._id.toString() === userId.toString() ||
+      dispute.sellerId._id.toString() === userId.toString() ||
+      (user && (user.role === 'moderator' || user.role === 'admin'));
+    if (!isAuthorized) {
+      throw new Error('Bạn không có quyền xem khiếu nại này');
+    }
+  }
+
+  return dispute;
+}
+
+/**
+ * Seller confirms they have received the returned item (Th3 return flow)
+ */
+async function confirmSellerReturn(disputeId, sellerId) {
+  const dispute = await Dispute.findById(disputeId);
+  if (!dispute) throw new Error('Khiếu nại không tồn tại');
+  if (dispute.sellerId.toString() !== sellerId.toString())
+    throw new Error('Bạn không phải người bán của đơn hàng này');
+  if (dispute.reason !== 'return_request')
+    throw new Error('Chỉ áp dụng cho yêu cầu hoàn hàng');
+  if (dispute.status !== 'investigating')
+    throw new Error('Chỉ xác nhận khi tranh chấp đang trong giai đoạn điều tra');
+  if (dispute.sellerConfirmedReturnAt)
+    throw new Error('Đã xác nhận nhận lại hàng trước đó');
+
+  dispute.sellerConfirmedReturnAt = new Date();
+  await dispute.save();
+  return dispute;
+}
+
 module.exports = {
   createProductReport,
   createUserReport,
@@ -526,9 +645,12 @@ module.exports = {
   createDispute,
   getDisputes,
   getDisputeById,
+  getDisputeByOrderId,
   addSellerResponse,
+  addBuyerFollowUp,
+  confirmSellerReturn,
   getUserReports,
   getUserDisputes,
-  getAllReports,   
-  resolveReport   
+  getAllReports,
+  resolveReport
 };

@@ -38,7 +38,7 @@ const disputeSchema = new mongoose.Schema({
   // Dispute reason
   reason: {
     type: String,
-    enum: ['not_as_described', 'damaged', 'not_received', 'counterfeit', 'other'],
+    enum: ['not_as_described', 'damaged', 'not_received', 'counterfeit', 'return_request', 'other'],
     required: true
   },
   
@@ -99,6 +99,21 @@ const disputeSchema = new mongoose.Schema({
   sellerEvidenceImages: [{
     type: String // URLs to images
   }],
+
+  // Additional buyer notes/evidence after moderator starts investigating
+  buyerFollowUpNote: {
+    type: String,
+    trim: true,
+    maxlength: 1000
+  },
+
+  buyerAdditionalEvidenceImages: [{
+    type: String
+  }],
+
+  buyerFollowUpUpdatedAt: {
+    type: Date
+  },
   
   // Timestamps for status changes
   investigatingAt: {
@@ -106,6 +121,11 @@ const disputeSchema = new mongoose.Schema({
   },
   
   resolvedAt: {
+    type: Date
+  },
+
+  // For return_request: seller confirms they have received the returned item
+  sellerConfirmedReturnAt: {
     type: Date
   }
 }, {

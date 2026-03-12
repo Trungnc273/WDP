@@ -16,7 +16,7 @@ const config = {
   },
 };
 
-// Validate required environment variables
+// Kiem tra cac bien moi truong bat buoc
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 

@@ -25,7 +25,7 @@ function Home() {
     city: null
   });
 
-  // State for pagination (Req 5)
+  // State phan trang (Yeu cau 5)
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -33,7 +33,7 @@ function Home() {
     totalPages: 0
   });
 
-  // Fetch products when filters change (reset to page 1)
+  // Tai san pham khi bo loc thay doi (reset ve trang 1)
   useEffect(() => {
     setProducts([]);
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -42,9 +42,9 @@ function Home() {
   }, [filters]);
 
   /**
-   * Fetch products from API
-   * Implements Requirement 5: Browse Products with pagination
-   * Implements Requirement 10: Combine multiple filters
+   * Tai danh sach san pham tu API
+   * Trien khai Yeu cau 5: Duyet san pham co phan trang
+   * Trien khai Yeu cau 10: Ket hop nhieu bo loc
    */
   const fetchProducts = async (page = 1, reset = false) => {
     setLoading(true);

@@ -11,10 +11,13 @@ const reviewService = require("../reports/review.service");
 const reportService = require("../reports/report.service");
 const orderService = require("../orders/order.service");
 const escrowService = require("../payments/escrow.service");
+const EscrowHold = require("../payments/escrow-hold.model");
 const walletService = require("../payments/wallet.service");
+const notificationService = require("../notifications/notification.service");
 
 // Luồng trạng thái đơn hàng cho moderator: chỉ đi tới trước, không cho quay ngược.
 const MODERATOR_ORDER_TRANSITIONS = {
+  awaiting_seller_confirmation: ["cancelled"],
   awaiting_payment: ["cancelled"],
   paid: ["shipped", "disputed", "cancelled"],
   shipped: ["completed", "disputed"],
@@ -186,6 +189,9 @@ async function getDashboardStats() {
     reportedReviews,
     openOrders,
     suspendedUsers,
+    pendingDisputes,
+    pendingProducts,
+    pendingKYC,
     recentReports
   ] = await Promise.all([
     Report.countDocuments({ status: "pending" }),
@@ -193,8 +199,11 @@ async function getDashboardStats() {
     Report.countDocuments({ status: { $in: ["pending", "reviewing"] } }),
     Transaction.countDocuments({ type: "withdrawal", status: "pending" }),
     Review.countDocuments({ status: "reported" }),
-    Order.countDocuments({ status: { $in: ["awaiting_payment", "paid", "shipped", "disputed"] } }),
+    Order.countDocuments({ status: { $in: ["awaiting_seller_confirmation", "awaiting_payment", "paid", "shipped"] } }),
     User.countDocuments({ isSuspended: true }),
+    Dispute.countDocuments({ status: { $in: ["pending", "investigating"] } }),
+    Product.countDocuments({ status: "pending" }),
+    User.countDocuments({ kycStatus: "pending" }),
     Report.find({ status: { $in: ["pending", "reviewing"] } })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -211,12 +220,88 @@ async function getDashboardStats() {
     reportedReviews,
     openOrders,
     suspendedUsers,
+    pendingDisputes,
+    pendingProducts,
+    pendingKYC,
     recentReports
   };
 }
 
 async function getPendingProducts() {
   return Product.find({ status: "pending" }).populate("seller", "fullName email");
+}
+
+async function approvePendingProduct(productId) {
+  const product = await Product.findById(productId);
+  if (!product) throw new Error("Sản phẩm không tồn tại");
+
+  if (!["pending", "rejected"].includes(product.status)) {
+    throw new Error("Chỉ có thể duyệt sản phẩm đang chờ hoặc đã bị từ chối trước đó");
+  }
+
+  product.status = "active";
+  product.moderationStatus = "approved";
+  product.rejectionReason = undefined;
+  await product.save();
+
+  return product;
+}
+
+async function rejectPendingProduct(productId, reason = "") {
+  const product = await Product.findById(productId);
+  if (!product) throw new Error("Sản phẩm không tồn tại");
+
+  if (!["pending", "active"].includes(product.status)) {
+    throw new Error("Không thể từ chối sản phẩm ở trạng thái hiện tại");
+  }
+
+  product.status = "rejected";
+  product.moderationStatus = "rejected";
+  product.rejectionReason = String(reason || "").trim() || "Vi phạm chính sách nền tảng";
+  await product.save();
+
+  return product;
+}
+
+async function getPendingKYCRequests() {
+  return User.find({ kycStatus: "pending" })
+    .select("fullName email avatar kycStatus kycDocuments kycSubmittedAt")
+    .sort({ kycSubmittedAt: 1 });
+}
+
+async function approveKYC(userId) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("Người dùng không tồn tại");
+
+  if (user.kycStatus !== "pending") {
+    throw new Error("Yêu cầu KYC không ở trạng thái chờ duyệt");
+  }
+
+  user.kycStatus = "approved";
+  user.isVerified = true;
+  user.kycApprovedAt = new Date();
+  user.kycRejectedAt = undefined;
+  user.kycRejectionReason = undefined;
+  await user.save();
+
+  return user;
+}
+
+async function rejectKYC(userId, reason = "") {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("Người dùng không tồn tại");
+
+  if (user.kycStatus !== "pending") {
+    throw new Error("Yêu cầu KYC không ở trạng thái chờ duyệt");
+  }
+
+  user.kycStatus = "rejected";
+  user.isVerified = false;
+  user.kycRejectedAt = new Date();
+  user.kycRejectionReason = String(reason || "").trim() || "Thông tin KYC không hợp lệ";
+  await user.save();
+
+  return user;
 }
 
 async function banUser(userId, suspendedReason = "") {
@@ -391,6 +476,10 @@ async function updateOrderStatusByModerator(orderId, nextStatus, moderatorId, no
   if (nextStatus === "completed") {
     order.paymentStatus = "paid";
     order.completedAt = order.completedAt || new Date();
+
+    if (order.productId) {
+      await Product.findByIdAndUpdate(order.productId, { status: "sold" });
+    }
   }
 
   if (nextStatus === "cancelled") {
@@ -471,7 +560,16 @@ async function updateWithdrawalStatus(withdrawalId, nextStatus, note = "") {
 
   withdrawal.status = nextStatus;
   if (nextStatus === "completed") {
+    const wallet = await walletService.decrementBalance(
+      withdrawal.userId,
+      withdrawal.amount,
+      "withdrawal",
+      `Rút tiền theo yêu cầu #${withdrawal._id}`,
+      { withdrawalId: withdrawal._id }
+    );
+
     withdrawal.completedAt = new Date();
+    withdrawal.balanceAfter = wallet.balance;
   }
   if (nextStatus === "failed") {
     withdrawal.failedAt = new Date();
@@ -490,17 +588,92 @@ async function getDisputes(filters = {}, pagination = {}) {
   if (filters.status) query.status = filters.status;
 
   const { page, limit, skip } = parsePagination(pagination);
-  const disputes = await Dispute.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
+
+  const populateDisputes = (builder) => builder
     .populate("orderId", "agreedAmount totalToPay status")
     .populate("buyerId", "fullName email avatar violationCount isSuspended")
     .populate("sellerId", "fullName email avatar violationCount isSuspended")
     .populate("productId", "title images")
     .populate("moderatorId", "fullName email");
 
-  const total = await Dispute.countDocuments(query);
+  let disputes = [];
+  let total = 0;
+
+  if (filters.status) {
+    disputes = await populateDisputes(
+      Dispute.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+    );
+    total = await Dispute.countDocuments(query);
+  } else {
+    const unresolvedQuery = { status: { $in: ["pending", "investigating"] } };
+    const resolvedQuery = { status: "resolved" };
+
+    const [pendingTotal, unresolvedTotal, allTotal] = await Promise.all([
+      Dispute.countDocuments({ status: "pending" }),
+      Dispute.countDocuments(unresolvedQuery),
+      Dispute.countDocuments({})
+    ]);
+
+    total = allTotal;
+
+    if (skip < unresolvedTotal) {
+      const unresolvedLimit = Math.min(limit, unresolvedTotal - skip);
+
+      // In unresolved bucket, show pending first then investigating (newest first in each bucket).
+      if (skip < pendingTotal) {
+        const pendingItems = await populateDisputes(
+          Dispute.find({ status: "pending" })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(unresolvedLimit)
+        );
+
+        const remaining = unresolvedLimit - pendingItems.length;
+        if (remaining > 0) {
+          const investigatingItems = await populateDisputes(
+            Dispute.find({ status: "investigating" })
+              .sort({ createdAt: -1 })
+              .skip(0)
+              .limit(remaining)
+          );
+          disputes = [...pendingItems, ...investigatingItems];
+        } else {
+          disputes = pendingItems;
+        }
+      } else {
+        const investigatingSkip = skip - pendingTotal;
+        disputes = await populateDisputes(
+          Dispute.find({ status: "investigating" })
+            .sort({ createdAt: -1 })
+            .skip(investigatingSkip)
+            .limit(unresolvedLimit)
+        );
+      }
+
+      const remaining = limit - disputes.length;
+      if (remaining > 0) {
+        const resolvedItems = await populateDisputes(
+          Dispute.find(resolvedQuery)
+            .sort({ createdAt: -1 })
+            .skip(0)
+            .limit(remaining)
+        );
+        disputes = [...disputes, ...resolvedItems];
+      }
+    } else {
+      const resolvedSkip = skip - unresolvedTotal;
+      disputes = await populateDisputes(
+        Dispute.find(resolvedQuery)
+          .sort({ createdAt: -1 })
+          .skip(resolvedSkip)
+          .limit(limit)
+      );
+    }
+  }
+
   return {
     disputes,
     pagination: {
@@ -556,28 +729,36 @@ async function resolveDispute(disputeId, moderatorId, payload) {
   }
 
   const orderId = dispute.orderId.toString();
+  const escrowHold = await EscrowHold.findOne({ orderId });
+
+  if (!escrowHold) {
+    throw new Error("Không tìm thấy tiền ký quỹ cho đơn hàng này");
+  }
 
   if (resolution === "refund") {
-    await escrowService.refundFunds(orderId, "Dispute resolved: refund to buyer");
+    if (escrowHold.status === "held") {
+      await escrowService.refundFunds(orderId, "Tranh chấp đã xử lý: Hoàn tiền cho người mua");
+    } else if (escrowHold.status === "released") {
+      throw new Error("Tiền đã nhả cho người bán, không thể hoàn tiền cho người mua");
+    }
     await increaseViolationAndMaybeSuspend(dispute.sellerId);
   } else if (resolution === "release") {
-    await escrowService.releaseFunds(orderId, "Dispute resolved: release to seller", false);
+    if (escrowHold.status === "held") {
+      await escrowService.releaseFunds(orderId, "Tranh chấp đã xử lý: Nhả tiền cho người bán", false);
+    } else if (escrowHold.status === "refunded") {
+      throw new Error("Tiền đã hoàn cho người mua, không thể nhả lại cho người bán");
+    }
 
-    // releaseFunds hiện chỉ nhả trạng thái giữ tiền, nên cần cộng ví người bán thủ công.
     const order = await Order.findById(orderId);
     if (order && order.status !== "completed") {
-      await walletService.incrementBalance(
-        order.sellerId,
-        order.agreedAmount,
-        "earning",
-        `Thu nhập từ tranh chấp đã xử lý cho đơn #${orderId}`,
-        { orderId }
-      );
-
       order.status = "completed";
       order.paymentStatus = "paid";
       order.completedAt = new Date();
       await order.save();
+
+      if (order.productId) {
+        await Product.findByIdAndUpdate(order.productId, { status: "sold" });
+      }
     }
 
     await increaseViolationAndMaybeSuspend(dispute.buyerId);
@@ -591,6 +772,16 @@ async function resolveDispute(disputeId, moderatorId, payload) {
   await dispute.save();
 
   return getDisputeById(disputeId);
+}
+
+async function pushDisputeNotification(userId, title, msg, disputeId) {
+  if (!userId) return;
+  await notificationService.createNotification(userId, {
+    type: 'dispute_update',
+    title,
+    message: msg,
+    disputeId
+  });
 }
 
 // Chuyển tranh chấp sang "investigating" để phản ánh giai đoạn điều tra trung gian.
@@ -612,6 +803,20 @@ async function markDisputeInvestigating(disputeId, moderatorId, note = "") {
   }
 
   await dispute.save();
+
+  const isReturn = dispute.reason === 'return_request';
+  const buyerMsg = isReturn
+    ? 'Yêu cầu hoàn hàng của bạn đang được điều tra. Vui lòng gửi hàng lại cho người bán.'
+    : 'Khiếu nại của bạn đang được điều tra. Vui lòng cung cấp thêm bằng chứng nếu có.';
+  const sellerMsg = isReturn
+    ? 'Người mua yêu cầu hoàn hàng. Chuẩn bị nhận lại hàng và xác nhận khi đã nhận được.'
+    : 'Đơn hàng đang bị khiếu nại. Vui lòng cung cấp bằng chứng phản hồi trong hệ thống.';
+
+  await Promise.all([
+    pushDisputeNotification(dispute.buyerId, 'Tranh chấp đang điều tra', buyerMsg, disputeId),
+    pushDisputeNotification(dispute.sellerId, 'Tranh chấp đang điều tra', sellerMsg, disputeId)
+  ]);
+
   return getDisputeById(disputeId);
 }
 
@@ -623,6 +828,11 @@ module.exports = {
   isValidObjectId,
   getDashboardStats,
   getPendingProducts,
+  approvePendingProduct,
+  rejectPendingProduct,
+  getPendingKYCRequests,
+  approveKYC,
+  rejectKYC,
   banUser,
   getReports,
   getReportById,

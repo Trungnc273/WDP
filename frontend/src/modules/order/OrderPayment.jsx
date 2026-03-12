@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrderById, payOrder } from '../../services/order.service';
 import walletService from '../../services/wallet.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './OrderPayment.css';
 
 const OrderPayment = () => {
@@ -16,6 +17,8 @@ const OrderPayment = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const getUserId = (value) => value?._id || value?.id || value?.userId || value || null;
+
   useEffect(() => {
     fetchOrderAndBalance();
   }, [id]);
@@ -27,8 +30,9 @@ const OrderPayment = () => {
         getOrderById(id),
         walletService.getBalance()
       ]);
-      
-      setOrder(orderData);
+
+      const normalizedOrder = orderData?.data || orderData;
+      setOrder(normalizedOrder);
       setBalance(balanceData.balance);
       setError(null);
     } catch (err) {
@@ -108,8 +112,8 @@ const OrderPayment = () => {
     return null;
   }
 
-  // Check if user is the buyer
-  if (!user || order.buyer._id !== user._id) {
+  // Kiem tra nguoi dung co phai nguoi mua khong
+  if (!user || String(getUserId(order.buyer)) !== String(getUserId(user))) {
     return (
       <div className="order-payment-container">
         <div className="error-message">Bạn không có quyền truy cập trang này</div>
@@ -120,8 +124,8 @@ const OrderPayment = () => {
     );
   }
 
-  // Check if order is already paid
-  if (order.status !== 'pending') {
+  // Kiem tra don hang da duoc thanh toan chua
+  if (order.status !== 'awaiting_payment' && order.status !== 'pending') {
     return (
       <div className="order-payment-container">
         <div className="info-message">
@@ -163,7 +167,7 @@ const OrderPayment = () => {
           <div className="product-info">
             <div className="product-image">
               <img 
-                src={order.listing?.images?.[0] || '/placeholder-image.jpg'} 
+                src={getImageUrl(order.listing?.images?.[0]) || '/placeholder-image.jpg'} 
                 alt={order.listing?.title}
               />
             </div>
@@ -183,7 +187,14 @@ const OrderPayment = () => {
             <div className="seller-details">
               <div className="seller-avatar">
                 {order.seller?.avatar ? (
-                  <img src={order.seller.avatar} alt={order.seller.fullName} />
+                  <img
+                    src={getImageUrl(order.seller.avatar)}
+                    alt={order.seller.fullName}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/images/placeholders/avatar-placeholder.svg';
+                    }}
+                  />
                 ) : (
                   <div className="avatar-placeholder">
                     {order.seller?.fullName?.charAt(0).toUpperCase()}
@@ -298,7 +309,7 @@ const OrderPayment = () => {
         <ul>
           <li>Tiền sẽ được giữ trong ký quỹ và chỉ chuyển cho người bán khi bạn xác nhận đã nhận hàng</li>
           <li>Nếu có tranh chấp, tiền sẽ được giữ cho đến khi giải quyết xong</li>
-          <li>Sau 5 ngày kể từ khi người bán xác nhận giao hàng, tiền sẽ tự động được chuyển</li>
+          <li>Sau 10 ngày kể từ khi người bán xác nhận giao hàng, tiền sẽ tự động được chuyển</li>
           <li>Bạn có thể liên hệ với người bán qua tính năng chat để thỏa thuận chi tiết</li>
         </ul>
       </div>

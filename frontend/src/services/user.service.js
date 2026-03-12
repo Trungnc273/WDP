@@ -1,12 +1,12 @@
 import api from './api';
 
 /**
- * User Service
- * Handles all user profile and KYC related API calls
+ * Service người dùng
+ * Xử lý các API liên quan đến hồ sơ người dùng và KYC
  */
 
 /**
- * Get current user profile
+ * Lấy hồ sơ của người dùng hiện tại
  */
 export const getProfile = async () => {
   const response = await api.get('/users/profile');
@@ -14,8 +14,8 @@ export const getProfile = async () => {
 };
 
 /**
- * Update user profile
- * @param {object} profileData - Profile data to update
+ * Cập nhật hồ sơ người dùng
+ * @param {object} profileData - Dữ liệu hồ sơ cần cập nhật
  */
 export const updateProfile = async (profileData) => {
   const response = await api.put('/users/profile', profileData);
@@ -23,8 +23,8 @@ export const updateProfile = async (profileData) => {
 };
 
 /**
- * Upload avatar
- * @param {string} avatarUrl - Avatar URL
+ * Cập nhật ảnh đại diện
+ * @param {string} avatarUrl - Đường dẫn ảnh đại diện
  */
 export const uploadAvatar = async (avatarUrl) => {
   const response = await api.post('/users/avatar', { avatarUrl });
@@ -32,8 +32,8 @@ export const uploadAvatar = async (avatarUrl) => {
 };
 
 /**
- * Get public profile
- * @param {string} userId - User ID
+ * Lấy hồ sơ công khai
+ * @param {string} userId - Mã người dùng
  */
 export const getPublicProfile = async (userId) => {
   const response = await api.get(`/users/${userId}/public`);
@@ -41,8 +41,8 @@ export const getPublicProfile = async (userId) => {
 };
 
 /**
- * Submit KYC verification
- * @param {object} kycData - KYC documents
+ * Gửi hồ sơ xác minh KYC
+ * @param {object} kycData - Dữ liệu giấy tờ KYC
  */
 export const submitKYC = async (kycData) => {
   const response = await api.post('/users/kyc', kycData);
@@ -50,7 +50,7 @@ export const submitKYC = async (kycData) => {
 };
 
 /**
- * Get KYC status
+ * Lấy trạng thái xác minh KYC
  */
 export const getKYCStatus = async () => {
   const response = await api.get('/users/kyc/status');
@@ -58,9 +58,9 @@ export const getKYCStatus = async () => {
 };
 
 /**
- * Change password
- * @param {string} currentPassword - Current password
- * @param {string} newPassword - New password
+ * Đổi mật khẩu
+ * @param {string} currentPassword - Mật khẩu hiện tại
+ * @param {string} newPassword - Mật khẩu mới
  */
 export const changePassword = async (currentPassword, newPassword) => {
   const response = await api.post('/users/change-password', {
@@ -71,8 +71,8 @@ export const changePassword = async (currentPassword, newPassword) => {
 };
 
 /**
- * Get user statistics
- * @param {string} userId - User ID
+ * Lấy thống kê người dùng
+ * @param {string} userId - Mã người dùng
  */
 export const getUserStats = async (userId) => {
   const response = await api.get(`/users/${userId}/stats`);

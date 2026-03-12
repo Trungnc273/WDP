@@ -1,12 +1,12 @@
 import api from './api';
 
 /**
- * Delivery Service
- * Handles shipping and delivery API calls
+ * Service vận chuyển
+ * Xử lý các API liên quan đến giao hàng
  */
 
 /**
- * Create delivery record for an order
+ * Tạo bản ghi vận chuyển cho đơn hàng
  */
 export const createDelivery = async (deliveryData) => {
   try {
@@ -18,7 +18,7 @@ export const createDelivery = async (deliveryData) => {
 };
 
 /**
- * Get delivery information by order ID
+ * Lấy thông tin vận chuyển theo mã đơn hàng
  */
 export const getDeliveryByOrderId = async (orderId) => {
   try {
@@ -30,7 +30,7 @@ export const getDeliveryByOrderId = async (orderId) => {
 };
 
 /**
- * Update delivery status
+ * Cập nhật trạng thái giao hàng
  */
 export const updateDeliveryStatus = async (orderId, statusData) => {
   try {
@@ -42,7 +42,7 @@ export const updateDeliveryStatus = async (orderId, statusData) => {
 };
 
 /**
- * Get delivery tracking history
+ * Lấy lịch sử theo dõi giao hàng
  */
 export const getTrackingHistory = async (orderId) => {
   try {
@@ -54,7 +54,7 @@ export const getTrackingHistory = async (orderId) => {
 };
 
 /**
- * Update delivery information
+ * Cập nhật thông tin vận chuyển
  */
 export const updateDelivery = async (orderId, updateData) => {
   try {
@@ -66,7 +66,7 @@ export const updateDelivery = async (orderId, updateData) => {
 };
 
 /**
- * Get all deliveries (admin/management)
+ * Lấy toàn bộ danh sách vận chuyển (cho quản trị/điều phối)
  */
 export const getAllDeliveries = async (filters = {}) => {
   try {

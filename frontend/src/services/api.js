@@ -1,15 +1,14 @@
 import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { NETWORK_CONFIG } from './network.config';
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: NETWORK_CONFIG.API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add token to headers
+// Interceptor request de gan token vao header
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -23,24 +22,24 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors
+// Interceptor response de xu ly loi
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
     if (error.response) {
-      // Handle 401 Unauthorized - token expired or invalid
+      // Xu ly 401 Unauthorized - token het han hoac khong hop le
       if (error.response.status === 401) {
         localStorage.removeItem('token');
         window.location.href = '/login';
       }
       
-      // Return error message from backend
+      // Tra ve thong bao loi tu backend
       const message = error.response.data?.message || 'Đã có lỗi xảy ra';
       return Promise.reject(new Error(message));
     } else if (error.request) {
-      // Network error
+      // Loi mang
       return Promise.reject(new Error('Không thể kết nối đến server'));
     } else {
       return Promise.reject(error);

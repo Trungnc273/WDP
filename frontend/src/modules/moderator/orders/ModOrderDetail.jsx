@@ -21,6 +21,8 @@ const ModOrderDetail = () => {
   const [nextStatus, setNextStatus] = useState(undefined);
   const [error, setError] = useState("");
 
+  const SHIP_ONLY_STATUS = "shipped";
+
   const STATUS_LABEL = {
     awaiting_payment: "Chờ thanh toán",
     paid: "Đã thanh toán",
@@ -36,7 +38,8 @@ const ModOrderDetail = () => {
     try {
       const data = await getModeratorOrderById(id);
       setOrder(data);
-      setNextStatus(data?.allowedNextStatuses?.[0]);
+      const shipAllowed = (data?.allowedNextStatuses || []).includes(SHIP_ONLY_STATUS);
+      setNextStatus(shipAllowed ? SHIP_ONLY_STATUS : undefined);
     } catch (err) {
       setError(err.message || "Không tải được chi tiết đơn hàng");
     } finally {
@@ -82,6 +85,13 @@ const ModOrderDetail = () => {
     return <Alert type="error" showIcon message={error} />;
   }
 
+  const shipOnlyOptions = (order?.allowedNextStatuses || [])
+    .filter((status) => status === SHIP_ONLY_STATUS)
+    .map((status) => ({
+      value: status,
+      label: STATUS_LABEL[status] || status
+    }));
+
   return (
     <Space direction="vertical" style={{ width: "100%" }} size="large">
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/moderator/orders")}>
@@ -109,20 +119,17 @@ const ModOrderDetail = () => {
             <Select
               value={nextStatus}
               onChange={setNextStatus}
-              placeholder="Chọn trạng thái kế tiếp"
-              options={(order?.allowedNextStatuses || []).map((status) => ({
-                value: status,
-                label: STATUS_LABEL[status] || status
-              }))}
+              placeholder="Chỉ cho phép chuyển sang Đang giao"
+              options={shipOnlyOptions}
             />
             <TextArea
               rows={3}
               value={statusNote}
               onChange={(e) => setStatusNote(e.target.value)}
-              placeholder="Ghi chú cập nhật trạng thái (bắt buộc >= 10 ký tự nếu chọn Hủy đơn)"
+              placeholder="Ghi chú khi chuyển trạng thái sang Đang giao"
             />
             <Popconfirm title="Xác nhận cập nhật trạng thái đơn hàng?" onConfirm={handleUpdateStatus}>
-              <Button type="primary" disabled={!order?.allowedNextStatuses?.length}>
+              <Button type="primary" disabled={!shipOnlyOptions.length}>
                 Cập nhật trạng thái
               </Button>
             </Popconfirm>

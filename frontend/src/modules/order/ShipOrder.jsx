@@ -109,7 +109,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
     }).format(price);
   };
 
-  // Get minimum date (today)
+  // Lay ngay nho nhat (hom nay)
   const today = new Date();
   const minDate = today.toISOString().split('T')[0];
 

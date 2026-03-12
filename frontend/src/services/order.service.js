@@ -18,6 +18,18 @@ export const createPurchaseRequest = async (requestData) => {
 };
 
 /**
+ * Seller creates an offer directly from chat
+ */
+export const createSellerOfferFromChat = async (payload) => {
+  try {
+    const response = await api.post('/orders/seller-offer', payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
  * Get sent purchase requests (buyer)
  */
 export const getSentPurchaseRequests = async (params = {}) => {
@@ -137,8 +149,21 @@ export const getOrderById = async (orderId) => {
   }
 };
 
+/**
+ * Confirm order by seller
+ */
+export const confirmOrderBySeller = async (orderId) => {
+  try {
+    const response = await api.patch(`/orders/${orderId}/confirm`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default {
   createPurchaseRequest,
+  createSellerOfferFromChat,
   getSentPurchaseRequests,
   getReceivedPurchaseRequests,
   acceptPurchaseRequest,
@@ -148,5 +173,6 @@ export default {
   confirmReceipt,
   getOrdersAsBuyer,
   getOrdersAsSeller,
-  getOrderById
+  getOrderById,
+  confirmOrderBySeller
 };

@@ -11,12 +11,12 @@ const LocationSelector = ({ value, onChange, errors }) => {
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedWard, setSelectedWard] = useState(null);
 
-  // Load provinces on mount
+  // Tai danh sach tinh/thanh khi component mount
   useEffect(() => {
     loadProvinces();
   }, []);
 
-  // Load existing values if provided
+  // Tai gia tri co san neu duoc truyen vao
   useEffect(() => {
     if (value?.provinceCode && provinces.length > 0) {
       const province = provinces.find(p => p.code === value.provinceCode);

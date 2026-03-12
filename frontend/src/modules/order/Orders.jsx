@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getOrdersAsBuyer, getOrdersAsSeller } from '../../services/order.service';
+import { getOrdersAsBuyer, getOrdersAsSeller, confirmReceipt, confirmOrderBySeller } from '../../services/order.service';
+import { getImageUrl } from '../../utils/imageHelper';
+import Dispute from '../report/Dispute';
 import './Orders.css';
 
 const Orders = () => {
@@ -12,6 +14,10 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [confirmingOrderId, setConfirmingOrderId] = useState(null);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [disputeMode, setDisputeMode] = useState('normal');
   const [filters, setFilters] = useState({
     status: '',
     page: 1,
@@ -24,6 +30,8 @@ const Orders = () => {
   });
 
   const orderStatuses = {
+    'awaiting_seller_confirmation': 'Chờ xác nhận',
+    'awaiting_payment': 'Chờ thanh toán',
     'pending': 'Chờ thanh toán',
     'paid': 'Đã thanh toán',
     'shipped': 'Đã giao hàng',
@@ -33,6 +41,8 @@ const Orders = () => {
   };
 
   const statusColors = {
+    'awaiting_seller_confirmation': 'status-waiting',
+    'awaiting_payment': 'status-pending',
     'pending': 'status-pending',
     'paid': 'status-paid',
     'shipped': 'status-shipped',
@@ -90,6 +100,57 @@ const Orders = () => {
     navigate(`/orders/${orderId}`);
   };
 
+  const handleConfirmReceipt = async (order) => {
+    const accepted = window.confirm('Bạn xác nhận đã nhận được hàng và muốn hoàn tất đơn này?');
+    if (!accepted) return;
+
+    try {
+      setConfirmingOrderId(order._id);
+      await confirmReceipt(order._id);
+      await fetchOrders();
+      alert('Xác nhận nhận hàng thành công. Tiền đã được chuyển cho người bán.');
+    } catch (err) {
+      alert(err.message || 'Không thể xác nhận nhận hàng');
+    } finally {
+      setConfirmingOrderId(null);
+    }
+  };
+
+  const handleConfirmOrderBySeller = async (order) => {
+    const accepted = window.confirm('Bạn xác nhận đơn hàng này và chuyển cho người mua thanh toán?');
+    if (!accepted) return;
+
+    try {
+      setConfirmingOrderId(order._id);
+      await confirmOrderBySeller(order._id);
+      await fetchOrders();
+      alert('Đã xác nhận đơn hàng. Người mua sẽ tiến hành thanh toán.');
+    } catch (err) {
+      alert(err.message || 'Không thể xác nhận đơn hàng');
+    } finally {
+      setConfirmingOrderId(null);
+    }
+  };
+
+  const openDisputeModal = (order, mode = 'normal') => {
+    setSelectedOrder(order);
+    setDisputeMode(mode);
+    setShowDisputeModal(true);
+  };
+
+  const handleDisputeSuccess = async () => {
+    setShowDisputeModal(false);
+    setSelectedOrder(null);
+    await fetchOrders();
+
+    if (disputeMode === 'return') {
+      alert('Yêu cầu hoàn hàng đã được tạo thành công. Bạn có thể theo dõi xử lý trong chi tiết đơn hàng.');
+      return;
+    }
+
+    alert('Khiếu nại đã được tạo thành công. Bạn có thể theo dõi xử lý trong chi tiết đơn hàng.');
+  };
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -115,25 +176,59 @@ const Orders = () => {
         case 'pending':
           return (
             <button 
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm btn-pay"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/orders/${order._id}/pay`);
               }}
             >
+              <i className="fas fa-credit-card"></i>
               Thanh toán
             </button>
           );
         case 'shipped':
           return (
-            <button 
-              className="btn btn-success btn-sm"
+            <>
+              <button 
+                className="btn btn-success btn-sm"
+                disabled={confirmingOrderId === order._id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleConfirmReceipt(order);
+                }}
+              >
+                {confirmingOrderId === order._id ? 'Đang xử lý...' : 'Xác nhận nhận hàng'}
+              </button>
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDisputeModal(order, 'normal');
+                }}
+              >
+                Khiếu nại
+              </button>
+              <button
+                className="btn btn-warning btn-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDisputeModal(order, 'return');
+                }}
+              >
+                Hoàn hàng
+              </button>
+            </>
+          );
+        case 'disputed':
+          return (
+            <button
+              className="btn btn-warning btn-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                // Handle confirm receipt
+                navigate(`/orders/${order._id}?action=followup`);
               }}
             >
-              Xác nhận nhận hàng
+              Bổ sung bằng chứng
             </button>
           );
         default:
@@ -141,16 +236,41 @@ const Orders = () => {
       }
     } else {
       switch (order.status) {
+        case 'awaiting_seller_confirmation':
+          return (
+            <button
+              className="btn btn-success btn-sm"
+              disabled={confirmingOrderId === order._id}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleConfirmOrderBySeller(order);
+              }}
+            >
+              {confirmingOrderId === order._id ? 'Đang xử lý...' : 'Xác nhận đơn'}
+            </button>
+          );
         case 'paid':
           return (
             <button 
               className="btn btn-primary btn-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                // Handle ship order
+                // Xu ly giao hang
               }}
             >
               Xác nhận giao hàng
+            </button>
+          );
+        case 'disputed':
+          return (
+            <button
+              className="btn btn-warning btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/orders/${order._id}?action=seller-evidence`);
+              }}
+            >
+              Xử lý tranh chấp
             </button>
           );
         default:
@@ -251,17 +371,18 @@ const Orders = () => {
                     <span className="label">Mã đơn hàng:</span>
                     <span className="value">#{order._id.slice(-8).toUpperCase()}</span>
                   </div>
-                  <div className={`order-status ${statusColors[order.status]}`}>
-                    {orderStatuses[order.status]}
+                  <div className={`order-status ${statusColors[order.status] || ''}`}>
+                    {orderStatuses[order.status] || order.status}
                   </div>
                 </div>
 
                 <div className="order-content">
                   <div className="product-info">
                     <div className="product-image">
-                      <img 
-                        src={order.listing?.images?.[0] || '/placeholder-image.jpg'} 
+                      <img
+                        src={getImageUrl(order.listing?.images?.[0]) || '/placeholder-image.jpg'}
                         alt={order.listing?.title}
+                        onError={(e) => { e.target.src = '/images/placeholders/product-placeholder.png'; }}
                       />
                     </div>
                     <div className="product-details">
@@ -281,8 +402,8 @@ const Orders = () => {
                         {activeTab === 'buying' ? 'Người bán:' : 'Người mua:'}
                       </span>
                       <span className="value">
-                        {activeTab === 'buying' 
-                          ? order.seller?.fullName 
+                        {activeTab === 'buying'
+                          ? order.seller?.fullName
                           : order.buyer?.fullName
                         }
                       </span>
@@ -301,18 +422,18 @@ const Orders = () => {
                 </div>
 
                 <div className="order-actions">
-                  <button 
+                  <button
                     className="btn btn-outline btn-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/chat`); // Navigate to chat with context
+                      navigate('/chat');
                     }}
                   >
                     <i className="fas fa-comment"></i>
                     Chat
                   </button>
                   {getActionButton(order)}
-                  <button 
+                  <button
                     className="btn btn-secondary btn-sm"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -365,6 +486,18 @@ const Orders = () => {
             Đang tải...
           </div>
         </div>
+      )}
+
+      {showDisputeModal && selectedOrder && (
+        <Dispute
+          order={selectedOrder}
+          initialReason={disputeMode === 'return' ? 'return_request' : ''}
+          onSuccess={handleDisputeSuccess}
+          onCancel={() => {
+            setShowDisputeModal(false);
+            setSelectedOrder(null);
+          }}
+        />
       )}
     </div>
   );

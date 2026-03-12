@@ -1,45 +1,46 @@
 const cron = require('node-cron');
 const Order = require('../modules/orders/order.model');
+const Product = require('../modules/products/product.model');
 const escrowService = require('../modules/payments/escrow.service');
 const logger = require('../common/utils/logger.util');
 const mongoose = require('mongoose');
 
 /**
  * Auto-Release Service
- * Handles automatic release of funds for orders shipped > 5 days ago
+ * Handles automatic release of funds for orders shipped > 10 days ago
  */
 
 /**
- * Find orders eligible for auto-release
- * Orders that have been shipped for more than 5 days without dispute
+ * Tim cac don du dieu kien tu dong giai ngan
+ * Don da giao hon 10 ngay va khong co tranh chap
  */
 async function findEligibleOrders() {
   try {
-    // Ensure database connection
+    // Dam bao da ket noi den co so du lieu
     if (mongoose.connection.readyState !== 1) {
       logger.warn('Database not connected, skipping auto-release');
       return [];
     }
     
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
     
-    // Find orders that are shipped and older than 5 days
+    // Tim don da giao hang va qua 10 ngay
     const orders = await Order.find({
       status: 'shipped',
-      shippedAt: { $lte: fiveDaysAgo }
+      shippedAt: { $lte: tenDaysAgo }
     }).populate([
       { path: 'productId', select: 'title' },
       { path: 'buyerId', select: 'fullName email' },
       { path: 'sellerId', select: 'fullName email' }
     ]);
     
-    // Filter out orders with disputes (if dispute model exists)
+    // Loai bo don co tranh chap (neu ton tai dispute model)
     const eligibleOrders = [];
     
     for (const order of orders) {
       try {
-        // Check if dispute model exists and if there are any disputes
+        // Kiem tra dispute model co ton tai va co tranh chap hay khong
         const Dispute = require('../modules/reports/dispute.model');
         const dispute = await Dispute.findOne({ orderId: order._id });
         
@@ -49,7 +50,7 @@ async function findEligibleOrders() {
           logger.info(`Order ${order._id} has dispute, skipping auto-release`);
         }
       } catch (error) {
-        // If dispute model doesn't exist, assume no disputes
+        // Neu khong co dispute model thi xem nhu khong co tranh chap
         eligibleOrders.push(order);
       }
     }
@@ -62,7 +63,7 @@ async function findEligibleOrders() {
 }
 
 /**
- * Auto-release funds for eligible orders
+ * Tu dong giai ngan tien cho cac don du dieu kien
  */
 async function autoReleaseOrders() {
   try {
@@ -82,17 +83,21 @@ async function autoReleaseOrders() {
     
     for (const order of eligibleOrders) {
       try {
-        // Release funds from escrow
+        // Giai ngan tien dang giu trong escrow
         await escrowService.releaseFunds(
           order._id, 
-          'Auto-release after 5 days', 
-          true // isAuto flag
+          'Auto-release after 10 days', 
+          true // Co tu dong giai ngan
         );
         
-        // Update order status to completed
+        // Cap nhat trang thai don sang completed
         order.status = 'completed';
         order.completedAt = new Date();
         await order.save();
+
+        if (order.productId?._id) {
+          await Product.findByIdAndUpdate(order.productId._id, { status: 'sold' });
+        }
         
         successful++;
         
@@ -123,11 +128,11 @@ async function autoReleaseOrders() {
 }
 
 /**
- * Start the auto-release cron job
- * Runs daily at 2:00 AM
+ * Khoi dong cron job tu dong giai ngan
+ * Chay hang ngay luc 2:00 sang
  */
 function startAutoReleaseCronJob() {
-  // Run daily at 2:00 AM
+  // Chay hang ngay luc 2:00 sang
   const cronExpression = '0 2 * * *';
   
   cron.schedule(cronExpression, async () => {

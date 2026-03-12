@@ -20,12 +20,15 @@ import MyProducts from '../modules/product/MyProducts';
 
 import Wallet from '../modules/wallet/Wallet';
 import TopUp from '../modules/wallet/TopUp';
+import TopUpResult from '../modules/wallet/TopUpResult';
+import VNPaySuccess from '../modules/wallet/VNPaySuccess';
 import Withdrawal from '../modules/wallet/Withdrawal';
 
 import PurchaseRequests from '../modules/order/PurchaseRequests';
 import OrderPayment from '../modules/order/OrderPayment';
 import Orders from '../modules/order/Orders';
 import OrderDetail from '../modules/order/OrderDetail';
+import SellerOrders from '../modules/order/SellerOrders';
 
 import Chat from '../modules/chat/Chat';
 
@@ -33,27 +36,29 @@ import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
 
 
-// ================= MODERATOR IMPORT =================
-// Layout
+// ================= IMPORT CHO MODERATOR =================
+// Bố cục
 import ModeratorLayout from "../modules/moderator/layout/ModeratorLayout";
 import ModeratorDashboard from "../modules/moderator/dashboard/ModeratorDashboard";
 import ModProfile from "../modules/moderator/profile/ModProfile";
 
-// Reports
+// Báo cáo
 import ModReportList from "../modules/moderator/reports/ModReportList";
 import ModReportDetail from "../modules/moderator/reports/ModReportDetail";
 
-// Orders
+// Đơn hàng
 import ModOrderList from "../modules/moderator/orders/ModOrderList";
 import ModOrderDetail from "../modules/moderator/orders/ModOrderDetail";
 
-// Reviews
+// Đánh giá
 import ModReviewList from "../modules/moderator/reviews/ModReviewList";
 
-// Withdrawals
+// Yêu cầu rút tiền
 import ModWithdrawalList from "../modules/moderator/withdrawals/ModWithdrawalList";
 import ModDisputeList from "../modules/moderator/disputes/ModDisputeList";
 import ModDisputeDetail from "../modules/moderator/disputes/ModDisputeDetail";
+import ModProductList from "../modules/moderator/products/ModProductList";
+import ModKYCList from "../modules/moderator/kyc/ModKYCList";
 // ====================================================
 
 
@@ -61,23 +66,23 @@ function AppRoutes() {
   return (
     <Routes>
 
-      {/* Public route - accessible to everyone */}
+      {/* Route công khai - mọi người đều truy cập được */}
       <Route path="/" element={<Home />} />
       
 
-      {/* Public routes - redirect to home if already authenticated */}
+      {/* Route công khai - chuyển về trang chủ nếu đã đăng nhập */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
 
-      {/* Protected route - requires authentication */}
+      {/* Route bảo vệ - yêu cầu đăng nhập */}
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
       <Route path="/profile/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
       <Route path="/profile/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
 
-      {/* Product routes */}
+      {/* Route sản phẩm */}
       <Route path="/product/:id" element={<ProductDetail />} />
       <Route path="/product/create" element={<ProtectedRoute><CreateProduct /></ProtectedRoute>} />
       <Route path="/product/:id/edit" element={<ProtectedRoute><EditProduct /></ProtectedRoute>} />
@@ -85,20 +90,24 @@ function AppRoutes() {
       <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
 
 
-      {/* Wallet routes */}
+      {/* Route ví */}
       <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
       <Route path="/wallet/topup" element={<ProtectedRoute><TopUp /></ProtectedRoute>} />
+      <Route path="/wallet/topup-success" element={<ProtectedRoute><VNPaySuccess /></ProtectedRoute>} />
+      <Route path="/wallet/topup-result" element={<ProtectedRoute><TopUpResult /></ProtectedRoute>} />
       <Route path="/wallet/withdraw" element={<ProtectedRoute><Withdrawal /></ProtectedRoute>} />
 
 
-      {/* Order routes */}
+      {/* Route đơn hàng */}
       <Route path="/purchase-requests" element={<ProtectedRoute><PurchaseRequests /></ProtectedRoute>} />
+      <Route path="/seller-orders" element={<ProtectedRoute><SellerOrders /></ProtectedRoute>} />
       <Route path="/orders/:id/pay" element={<ProtectedRoute><OrderPayment /></ProtectedRoute>} />
       <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+      <Route path="/order-detail/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
       <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
 
 
-      {/* Chat routes */}
+      {/* Route chat */}
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
 
@@ -136,10 +145,16 @@ function AppRoutes() {
         <Route path="disputes" element={<ModDisputeList />} />
         <Route path="disputes/:id" element={<ModDisputeDetail />} />
 
+        {/* 6. Module Duyệt Sản phẩm */}
+        <Route path="products" element={<ModProductList />} />
+
+        {/* 7. Module Xác minh KYC */}
+        <Route path="kyc" element={<ModKYCList />} />
+
       </Route>
 
 
-      {/* Review routes */}
+      {/* Route đánh giá */}
       <Route path="/user/:userId/reviews" element={<UserReviews />} />
       <Route path="/user/:userId" element={<UserProfile />} />
 

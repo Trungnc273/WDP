@@ -61,7 +61,6 @@
   margin: 0 0 20px 0;
 }
 
-/* Amount Grid */
 .amount-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -86,12 +85,11 @@
 }
 
 .amount-btn.active {
-  border-color: #e74c3c;
-  background-color: #e74c3c;
-  color: white;
+  border-color: #3498db;
+  background-color: #ebf5ff;
+  color: #2980b9;
 }
 
-/* Form Group */
 .form-group {
   margin-bottom: 20px;
 }
@@ -166,12 +164,11 @@
   margin: 8px 0 0 0;
 }
 
-/* Payment Summary */
 .payment-summary {
   background-color: #f8f9fa;
   padding: 20px;
   border-radius: 8px;
-  margin: 20px 0;
+  margin: 20px 30px;
 }
 
 .payment-summary h3 {
@@ -207,7 +204,6 @@
   font-weight: 600;
 }
 
-/* Payment Method */
 .payment-method {
   display: flex;
   flex-direction: column;
@@ -225,8 +221,8 @@
 }
 
 .method-card.active {
-  border-color: #e74c3c;
-  background-color: #fdf2f2;
+  border-color: #3498db;
+  background-color: #ecf6ff;
 }
 
 .method-logo {
@@ -234,6 +230,10 @@
   height: 40px;
   object-fit: contain;
   margin-right: 15px;
+  padding: 6px;
+  border: 1px solid #d1fae5;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .method-info {
@@ -256,7 +256,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background-color: #e74c3c;
+  background-color: #3498db;
   color: white;
   display: flex;
   align-items: center;
@@ -265,7 +265,6 @@
   font-weight: 600;
 }
 
-/* Form Actions */
 .form-actions {
   padding: 20px 30px;
   display: flex;
@@ -308,7 +307,6 @@
   background-color: #7f8c8d;
 }
 
-/* Security Notice */
 .security-notice {
   background-color: white;
   border-radius: 8px;
@@ -340,14 +338,13 @@
 }
 
 .security-notice li:before {
-  content: '✓';
+  content: '•';
   position: absolute;
   left: 0;
-  color: #27ae60;
+  color: #f39c12;
   font-weight: 600;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .topup-content {
     grid-template-columns: 1fr;
@@ -366,6 +363,10 @@
 
   .form-section {
     padding: 20px;
+  }
+
+  .payment-summary {
+    margin: 20px;
   }
 
   .form-actions {

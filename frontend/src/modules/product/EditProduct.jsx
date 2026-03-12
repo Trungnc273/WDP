@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
@@ -33,30 +33,25 @@ const EditProduct = () => {
   const [newImageFiles, setNewImageFiles] = useState([]);
   const [newImagePreviews, setNewImagePreviews] = useState([]);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    fetchCategories();
-    fetchProduct();
-  }, [id, user, navigate]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get('/categories');
       setCategories(response.data.data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
-  };
+  }, []);
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
     try {
       setFetchingProduct(true);
       const product = await productService.getProductById(id);
       
-      // Check ownership
+      // Kiem tra quyen so huu
       if (product.seller._id !== user._id) {
         alert('Bạn không có quyền chỉnh sửa sản phẩm này');
         navigate('/');
@@ -80,7 +75,16 @@ const EditProduct = () => {
     } finally {
       setFetchingProduct(false);
     }
-  };
+  }, [id, navigate, user]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    fetchCategories();
+    fetchProduct();
+  }, [fetchCategories, fetchProduct, navigate, user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -188,7 +192,7 @@ const EditProduct = () => {
         }
       });
       
-      // Extract paths from response
+      // Lay duong dan anh tu response
       const files = response.data.data;
       if (Array.isArray(files)) {
         return files.map(f => f.path);
@@ -210,13 +214,13 @@ const EditProduct = () => {
     setLoading(true);
 
     try {
-      // Upload new images
+      // Upload anh moi
       const newImageUrls = await uploadNewImages();
 
-      // Combine existing and new images
+      // Gop anh cu va anh moi
       const allImages = [...existingImages, ...newImageUrls];
 
-      // Update product
+      // Cap nhat san pham
       const updateData = {
         title: formData.title,
         description: formData.description,

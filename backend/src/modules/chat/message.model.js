@@ -32,8 +32,14 @@ const messageSchema = new mongoose.Schema({
   // Message type
   type: {
     type: String,
-    enum: ['text', 'system'],
+    enum: ['text', 'system', 'offer'],
     default: 'text'
+  },
+
+  // Optional structured payload for non-text messages (e.g., seller offers)
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
   },
   
   // Read status

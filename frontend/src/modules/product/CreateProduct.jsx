@@ -6,6 +6,14 @@ import api from '../../services/api';
 import LocationSelector from '../../components/LocationSelector';
 import './CreateProduct.css';
 
+const CONDITION_LABELS = {
+  new: 'Mới',
+  'like-new': 'Như mới',
+  good: 'Tốt',
+  fair: 'Khá',
+  poor: 'Cũ'
+};
+
 const CreateProduct = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -42,20 +50,11 @@ const CreateProduct = () => {
     fetchCategories();
   }, [user, navigate]);
 
-  useEffect(() => {
-    console.log('Categories state changed:', categories);
-    console.log('Categories length:', categories.length);
-  }, [categories]);
-
   const fetchCategories = async () => {
     try {
       const response = await api.get('/categories');
-      console.log('Categories response:', response.data);
       const categoriesData = response.data.data || response.data || [];
-      console.log('Categories data to set:', categoriesData);
-      console.log('Categories count:', categoriesData.length);
       setCategories(categoriesData);
-      console.log('Categories state updated');
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
@@ -110,14 +109,14 @@ const CreateProduct = () => {
       return;
     }
 
-    // Validate file size (max 5MB each)
+    // Kiem tra kich thuoc file (toi da 5MB moi anh)
     const invalidFiles = files.filter(file => file.size > 5 * 1024 * 1024);
     if (invalidFiles.length > 0) {
       alert('Mỗi ảnh không được vượt quá 5MB');
       return;
     }
 
-    // Create previews
+    // Tao anh xem truoc
     const newPreviews = files.map(file => URL.createObjectURL(file));
     
     setImageFiles(prev => [...prev, ...files]);
@@ -186,7 +185,7 @@ const CreateProduct = () => {
         }
       });
       
-      // Extract paths from response
+      // Lay duong dan anh tu response
       const files = response.data.data;
       if (Array.isArray(files)) {
         return files.map(f => f.path);
@@ -208,12 +207,10 @@ const CreateProduct = () => {
     setLoading(true);
 
     try {
-      // Upload images first
+      // Upload anh truoc
       const imageUrls = await uploadImages();
-      
-      console.log('Image URLs:', imageUrls);
 
-      // Create product - only send fields backend expects
+      // Tao san pham - chi gui cac truong backend can
       const productData = {
         title: formData.title,
         description: formData.description,
@@ -227,8 +224,6 @@ const CreateProduct = () => {
           ward: formData.location.ward || ''
         }
       };
-      
-      console.log('Product data to send:', productData);
 
       const createdProduct = await productService.createProduct(productData);
       
@@ -242,155 +237,281 @@ const CreateProduct = () => {
     }
   };
 
+  const selectedCategory = categories.find(cat => cat._id === formData.category);
+  const formattedPrice = formData.price
+    ? Number(formData.price).toLocaleString('vi-VN')
+    : 'Chưa nhập';
+  const locationPreview = [formData.location.ward, formData.location.district, formData.location.city]
+    .filter(Boolean)
+    .join(', ');
+  const completedFieldCount = [
+    formData.title.trim(),
+    formData.description.trim(),
+    formData.price,
+    formData.category,
+    formData.location.city,
+    formData.location.district,
+    imageFiles.length > 0
+  ].filter(Boolean).length;
+  const completionPercent = Math.round((completedFieldCount / 7) * 100);
+
   return (
     <div className="create-product-container">
       <div className="create-product-header">
-        <h1>Đăng tin mới</h1>
-        <p>Điền thông tin chi tiết về sản phẩm của bạn</p>
+        <div className="create-product-header-copy">
+          <span className="create-product-eyebrow">Đăng bán sản phẩm</span>
+          <h1>Đăng tin mới</h1>
+          <p>Tạo một bài đăng rõ ràng, đẹp mắt để tăng độ tin cậy và giúp người mua ra quyết định nhanh hơn.</p>
+        </div>
+        <div className="create-product-header-stats">
+          <div className="header-stat-card">
+            <span className="header-stat-label">Ảnh đã thêm</span>
+            <strong>{imageFiles.length}/5</strong>
+          </div>
+          <div className="header-stat-card">
+            <span className="header-stat-label">Mức hoàn thiện</span>
+            <strong>{completionPercent}%</strong>
+          </div>
+          <div className="header-stat-card">
+            <span className="header-stat-label">Trạng thái</span>
+            <strong>{loading ? 'Đang xử lý' : 'Sẵn sàng đăng'}</strong>
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="create-product-form">
-        {/* Images Upload */}
-        <div className="form-section">
-          <h2>Hình ảnh sản phẩm</h2>
-          <div className="image-upload-area">
-            <div className="image-previews">
-              {imagePreviews.map((preview, index) => (
-                <div key={index} className="image-preview">
-                  <img src={preview} alt={`Preview ${index + 1}`} />
-                  <button
-                    type="button"
-                    className="remove-image"
-                    onClick={() => removeImage(index)}
-                  >
-                    ×
-                  </button>
+        <div className="create-product-grid">
+          <div className="create-product-main">
+            <div className="form-section form-section-highlight">
+              <div className="section-heading">
+                <div>
+                  <span className="section-kicker">Bộ ảnh</span>
+                  <h2>Hình ảnh sản phẩm</h2>
                 </div>
-              ))}
-              {imageFiles.length < 5 && (
-                <label className="image-upload-button">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageChange}
-                    style={{ display: 'none' }}
-                  />
-                  <div className="upload-placeholder">
-                    <span>+</span>
-                    <span>Thêm ảnh</span>
-                  </div>
-                </label>
-              )}
+                <p>Ảnh sáng rõ, nhiều góc chụp sẽ giúp tin đăng chuyên nghiệp và tăng độ tin cậy.</p>
+              </div>
+
+              <div className="image-upload-area">
+                <div className="image-previews">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="image-preview">
+                      <img src={preview} alt={`Preview ${index + 1}`} />
+                      <button
+                        type="button"
+                        className="remove-image"
+                        onClick={() => removeImage(index)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {imageFiles.length < 5 && (
+                    <label className="image-upload-button">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageChange}
+                        style={{ display: 'none' }}
+                      />
+                      <div className="upload-placeholder">
+                        <span>+</span>
+                        <strong>Thêm ảnh</strong>
+                        <small>Kéo thả hoặc bấm để chọn</small>
+                      </div>
+                    </label>
+                  )}
+                </div>
+
+                <div className="upload-guidelines">
+                  <span>1-5 ảnh</span>
+                  <span>Tối đa 5MB mỗi ảnh</span>
+                  <span>Ưu tiên ảnh thật của sản phẩm</span>
+                </div>
+
+                {errors.images && <p className="error-text">{errors.images}</p>}
+              </div>
             </div>
-            <p className="help-text">
-              Tải lên 1-5 ảnh (tối đa 5MB mỗi ảnh)
-            </p>
-            {errors.images && <p className="error-text">{errors.images}</p>}
+
+            <div className="form-section">
+              <div className="section-heading">
+                <div>
+                  <span className="section-kicker">Thông tin</span>
+                  <h2>Thông tin cơ bản</h2>
+                </div>
+                <p>Trình bày rõ ràng để người mua hiểu nhanh tình trạng, giá bán và danh mục sản phẩm.</p>
+              </div>
+
+              <div className="form-grid two-columns">
+                <div className="form-group form-group-full">
+                  <label htmlFor="title">Tiêu đề <span className="required">*</span></label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="VD: iPhone 13 Pro Max 256GB, đầy đủ phụ kiện"
+                    maxLength={100}
+                  />
+                  <div className="field-footnote">
+                    <span>Tiêu đề càng cụ thể càng dễ tiếp cận đúng người mua.</span>
+                    <span>{formData.title.length}/100</span>
+                  </div>
+                  {errors.title && <p className="error-text">{errors.title}</p>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="category">Danh mục <span className="required">*</span></label>
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                  >
+                    <option value="">Chọn danh mục</option>
+                    {categories && categories.length > 0 ? (
+                      categories.map(cat => (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.icon} {cat.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>Đang tải danh mục...</option>
+                    )}
+                  </select>
+                  {errors.category && <p className="error-text">{errors.category}</p>}
+                  {categories.length === 0 && (
+                    <p className="help-text">Đang tải danh mục...</p>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="condition">Tình trạng <span className="required">*</span></label>
+                  <select
+                    id="condition"
+                    name="condition"
+                    value={formData.condition}
+                    onChange={handleChange}
+                  >
+                    <option value="new">Mới</option>
+                    <option value="like-new">Như mới</option>
+                    <option value="good">Tốt</option>
+                    <option value="fair">Khá</option>
+                    <option value="poor">Cũ</option>
+                  </select>
+                </div>
+
+                <div className="form-group form-group-full">
+                  <label htmlFor="price">Giá bán (VNĐ) <span className="required">*</span></label>
+                  <div className="price-input-wrap">
+                    <input
+                      type="number"
+                      id="price"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      placeholder="VD: 25000000"
+                      min="0"
+                    />
+                    <span className="price-input-suffix">VND</span>
+                  </div>
+                  {errors.price && <p className="error-text">{errors.price}</p>}
+                </div>
+
+                <div className="form-group form-group-full">
+                  <label htmlFor="description">Mô tả chi tiết <span className="required">*</span></label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Mô tả rõ ngoại hình, phụ kiện đi kèm, thời gian sử dụng, lỗi nếu có và lý do bán..."
+                    rows={7}
+                  />
+                  {errors.description && <p className="error-text">{errors.description}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="form-section">
+              <div className="section-heading">
+                <div>
+                  <span className="section-kicker">Khu vực</span>
+                  <h2>Địa chỉ đăng bán</h2>
+                </div>
+                <p>Thông tin địa điểm rõ ràng sẽ giúp người mua yên tâm hơn khi trao đổi và nhận hàng.</p>
+              </div>
+
+              <div className="location-panel">
+                <LocationSelector
+                  value={formData.location}
+                  onChange={handleLocationChange}
+                  errors={{
+                    city: errors['location.city'],
+                    district: errors['location.district']
+                  }}
+                />
+              </div>
+            </div>
           </div>
+
+          <aside className="create-product-sidebar">
+            <div className="sidebar-card sidebar-card-accent">
+              <div className="sidebar-card-head">
+                <span className="sidebar-kicker">Xem trước</span>
+                <h3>Tóm tắt tin đăng</h3>
+              </div>
+
+              <div className="listing-preview-card">
+                <div className="listing-preview-media">
+                  {imagePreviews[0] ? (
+                    <img src={imagePreviews[0]} alt="Ảnh xem trước sản phẩm" />
+                  ) : (
+                    <div className="listing-preview-placeholder">Chưa có ảnh</div>
+                  )}
+                </div>
+
+                <div className="listing-preview-body">
+                  <span className="listing-preview-condition">
+                    {CONDITION_LABELS[formData.condition]}
+                  </span>
+                  <h4>{formData.title.trim() || 'Tiêu đề tin đăng sẽ hiển thị tại đây'}</h4>
+                  <p className="listing-preview-price">{formattedPrice === 'Chưa nhập' ? formattedPrice : `${formattedPrice} đ`}</p>
+                  <ul className="preview-meta-list">
+                    <li>
+                      <span>Danh mục</span>
+                      <strong>{selectedCategory?.name || 'Chưa chọn'}</strong>
+                    </li>
+                    <li>
+                      <span>Khu vực</span>
+                      <strong>{locationPreview || 'Chưa cập nhật'}</strong>
+                    </li>
+                    <li>
+                      <span>Số ảnh</span>
+                      <strong>{imageFiles.length} ảnh</strong>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="sidebar-card">
+              <div className="sidebar-card-head">
+                <span className="sidebar-kicker">Gợi ý</span>
+                <h3>Mẹo để tin đăng đẹp hơn</h3>
+              </div>
+
+              <ul className="tips-list">
+                <li>Chụp đủ mặt trước, mặt sau, viền và phụ kiện đi kèm.</li>
+                <li>Tiêu đề nên gồm tên sản phẩm, phiên bản và dung lượng nếu có.</li>
+                <li>Mô tả trung thực tình trạng để giảm trao đổi qua lại không cần thiết.</li>
+                <li>Đặt giá rõ ràng để tăng tỷ lệ được liên hệ đúng nhu cầu.</li>
+              </ul>
+            </div>
+          </aside>
         </div>
 
-        {/* Basic Info */}
-        <div className="form-section">
-          <h2>Thông tin cơ bản</h2>
-          
-          <div className="form-group">
-            <label htmlFor="title">Tiêu đề <span className="required">*</span></label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="VD: iPhone 13 Pro Max 256GB"
-              maxLength={100}
-            />
-            {errors.title && <p className="error-text">{errors.title}</p>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="category">Danh mục <span className="required">*</span></label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-            >
-              <option value="">Chọn danh mục</option>
-              {categories && categories.length > 0 ? (
-                categories.map(cat => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.icon} {cat.name}
-                  </option>
-                ))
-              ) : (
-                <option disabled>Đang tải danh mục...</option>
-              )}
-            </select>
-            {errors.category && <p className="error-text">{errors.category}</p>}
-            {categories.length === 0 && (
-              <p className="help-text">Đang tải danh mục...</p>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="condition">Tình trạng <span className="required">*</span></label>
-            <select
-              id="condition"
-              name="condition"
-              value={formData.condition}
-              onChange={handleChange}
-            >
-              <option value="new">Mới</option>
-              <option value="like-new">Như mới</option>
-              <option value="good">Tốt</option>
-              <option value="fair">Khá</option>
-              <option value="poor">Cũ</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="price">Giá (VNĐ) <span className="required">*</span></label>
-            <input
-              type="number"
-              id="price"
-              name="price"
-              value={formData.price}
-              onChange={handleChange}
-              placeholder="VD: 25000000"
-              min="0"
-            />
-            {errors.price && <p className="error-text">{errors.price}</p>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="description">Mô tả chi tiết <span className="required">*</span></label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Mô tả chi tiết về sản phẩm của bạn..."
-              rows={6}
-            />
-            {errors.description && <p className="error-text">{errors.description}</p>}
-          </div>
-        </div>
-
-        {/* Location */}
-        <div className="form-section">
-          <h2>Địa chỉ</h2>
-          <LocationSelector
-            value={formData.location}
-            onChange={handleLocationChange}
-            errors={{
-              city: errors['location.city'],
-              district: errors['location.district']
-            }}
-          />
-        </div>
-
-        {/* Submit Buttons */}
         <div className="form-actions">
           <button
             type="button"

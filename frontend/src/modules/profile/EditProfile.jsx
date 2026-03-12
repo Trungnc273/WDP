@@ -62,7 +62,7 @@ const EditProfile = () => {
         return;
       }
       
-      // Validate file size (max 5MB)
+      // Kiem tra kich thuoc file (toi da 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('Kích thước ảnh không được vượt quá 5MB');
         return;
@@ -70,7 +70,7 @@ const EditProfile = () => {
       
       setAvatarFile(file);
       
-      // Create preview
+      // Tao anh xem truoc
       const reader = new FileReader();
       reader.onload = (e) => {
         setAvatarPreview(e.target.result);
@@ -82,7 +82,7 @@ const EditProfile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
+    // Kiem tra cac truong bat buoc
     if (!profile.fullName.trim()) {
       setError('Vui lòng nhập họ tên');
       return;
@@ -98,16 +98,16 @@ const EditProfile = () => {
     setSuccess('');
 
     try {
-      // Upload avatar first if there's a new file
+      // Upload avatar truoc neu co file moi
       let avatarUrl = profile.avatar;
       if (avatarFile) {
-        // In a real app, you would upload to a file storage service
-        // For now, we'll use the preview URL as placeholder
+        // Trong he thong that, ban se upload len dich vu luu tru file
+        // Tam thoi dung URL preview lam du lieu thay the
         avatarUrl = avatarPreview;
         await uploadAvatar(avatarUrl);
       }
 
-      // Update profile
+      // Cap nhat thong tin ca nhan
       await updateProfile({
         fullName: profile.fullName.trim(),
         phone: profile.phone.trim(),
@@ -116,7 +116,7 @@ const EditProfile = () => {
 
       setSuccess('Cập nhật thông tin thành công!');
       
-      // Redirect after 2 seconds
+      // Chuyen huong sau 2 giay
       setTimeout(() => {
         navigate('/profile');
       }, 2000);

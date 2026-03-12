@@ -46,7 +46,7 @@ const Wallet = () => {
       setBalance(balanceData);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Không thể tải thông tin ví');
+      setError(err.message || 'Không thể tải thông tin ví');
     } finally {
       setLoading(false);
     }
@@ -65,8 +65,8 @@ const Wallet = () => {
       setTransactions(data.transactions || []);
       setPagination(prev => ({
         ...prev,
-        total: data.total || 0,
-        totalPages: data.totalPages || 0
+        total: data.pagination?.total || 0,
+        totalPages: data.pagination?.totalPages || 0
       }));
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -108,7 +108,8 @@ const Wallet = () => {
       'withdrawal': 'Rút tiền',
       'payment': 'Thanh toán',
       'refund': 'Hoàn tiền',
-      'earning': 'Thu nhập'
+      'earning': 'Thu nhập',
+      'fee': 'Phí nền tảng'
     };
     return types[type] || type;
   };
@@ -119,7 +120,8 @@ const Wallet = () => {
       'withdrawal': '↙️',
       'payment': '💳',
       'refund': '↩️',
-      'earning': '💰'
+      'earning': '💰',
+      'fee': '🏦'
     };
     return icons[type] || '💱';
   };

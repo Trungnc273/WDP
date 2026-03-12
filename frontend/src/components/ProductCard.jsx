@@ -23,7 +23,7 @@ function ProductCard({ product }) {
     seller
   } = product;
 
-  // Format price to Vietnamese currency
+  // Dinh dang gia theo tien te Viet Nam
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -31,7 +31,7 @@ function ProductCard({ product }) {
     }).format(price);
   };
 
-  // Format date to relative time
+  // Dinh dang thoi gian tuong doi
   const formatDate = (date) => {
     const now = new Date();
     const productDate = new Date(date);
@@ -45,7 +45,7 @@ function ProductCard({ product }) {
     return `${Math.floor(diffDays / 30)} tháng trước`;
   };
 
-  // Get image URL with fallback
+  // Lay URL anh va co fallback
   const imageUrl = getProductImageUrl(product);
 
   const handleClick = () => {

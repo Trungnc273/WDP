@@ -17,10 +17,10 @@ const getConversations = async (req, res) => {
 
     const result = await chatService.getConversations(userId, pagination);
     
-    sendSuccess(res, result, 'Lấy danh sách cuộc trò chuyện thành công');
+    sendSuccess(res, 200, result, 'Lấy danh sách cuộc trò chuyện thành công');
   } catch (error) {
     console.error('Error getting conversations:', error);
-    sendError(res, error.message || 'Không thể lấy danh sách cuộc trò chuyện', 500);
+    sendError(res, 500, error.message || 'Không thể lấy danh sách cuộc trò chuyện');
   }
 };
 
@@ -41,10 +41,10 @@ const getMessages = async (req, res) => {
 
     const result = await chatService.getMessages(conversationId, userId, pagination);
     
-    sendSuccess(res, result, 'Lấy tin nhắn thành công');
+    sendSuccess(res, 200, result, 'Lấy tin nhắn thành công');
   } catch (error) {
     console.error('Error getting messages:', error);
-    sendError(res, error.message || 'Không thể lấy tin nhắn', 500);
+    sendError(res, 500, error.message || 'Không thể lấy tin nhắn');
   }
 };
 
@@ -59,20 +59,20 @@ const createConversation = async (req, res) => {
 
     // Validate required fields
     if (!sellerId || !productId) {
-      return sendError(res, 'sellerId và productId là bắt buộc', 400);
+      return sendError(res, 400, 'sellerId và productId là bắt buộc');
     }
 
     // Check if user is trying to chat with themselves
     if (buyerId === sellerId) {
-      return sendError(res, 'Không thể tạo cuộc trò chuyện với chính mình', 400);
+      return sendError(res, 400, 'Không thể tạo cuộc trò chuyện với chính mình');
     }
 
     const conversation = await chatService.createConversation(buyerId, sellerId, productId);
     
-    sendSuccess(res, conversation, 'Tạo cuộc trò chuyện thành công');
+    sendSuccess(res, 200, conversation, 'Tạo cuộc trò chuyện thành công');
   } catch (error) {
     console.error('Error creating conversation:', error);
-    sendError(res, error.message || 'Không thể tạo cuộc trò chuyện', 500);
+    sendError(res, 500, error.message || 'Không thể tạo cuộc trò chuyện');
   }
 };
 
@@ -87,24 +87,24 @@ const sendMessage = async (req, res) => {
 
     // Validate required fields
     if (!conversationId || !content) {
-      return sendError(res, 'conversationId và content là bắt buộc', 400);
+      return sendError(res, 400, 'conversationId và content là bắt buộc');
     }
 
     // Validate content length
     if (content.trim().length === 0) {
-      return sendError(res, 'Nội dung tin nhắn không được để trống', 400);
+      return sendError(res, 400, 'Nội dung tin nhắn không được để trống');
     }
 
     if (content.length > 1000) {
-      return sendError(res, 'Nội dung tin nhắn không được quá 1000 ký tự', 400);
+      return sendError(res, 400, 'Nội dung tin nhắn không được quá 1000 ký tự');
     }
 
     const message = await chatService.sendMessage(conversationId, senderId, content.trim());
     
-    sendSuccess(res, message, 'Gửi tin nhắn thành công');
+    sendSuccess(res, 200, message, 'Gửi tin nhắn thành công');
   } catch (error) {
     console.error('Error sending message:', error);
-    sendError(res, error.message || 'Không thể gửi tin nhắn', 500);
+    sendError(res, 500, error.message || 'Không thể gửi tin nhắn');
   }
 };
 
@@ -119,10 +119,10 @@ const getConversationById = async (req, res) => {
 
     const conversation = await chatService.getConversationById(conversationId, userId);
     
-    sendSuccess(res, conversation, 'Lấy thông tin cuộc trò chuyện thành công');
+    sendSuccess(res, 200, conversation, 'Lấy thông tin cuộc trò chuyện thành công');
   } catch (error) {
     console.error('Error getting conversation:', error);
-    sendError(res, error.message || 'Không thể lấy thông tin cuộc trò chuyện', 500);
+    sendError(res, 500, error.message || 'Không thể lấy thông tin cuộc trò chuyện');
   }
 };
 

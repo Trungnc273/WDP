@@ -46,7 +46,16 @@ router.get('/disputes', authenticate, reportController.getDisputes);
 // Get dispute by ID
 router.get('/disputes/:disputeId', authenticate, reportController.getDisputeById);
 
+// Get dispute by order ID (buyer or seller)
+router.get('/orders/:orderId/dispute', authenticate, reportController.getDisputeByOrderId);
+
 // Add seller response to dispute
 router.post('/disputes/:disputeId/respond', authenticate, reportController.addSellerResponse);
+
+// Buyer adds follow-up evidence/notes after dispute is opened
+router.post('/disputes/:disputeId/buyer-follow-up', authenticate, reportController.addBuyerFollowUp);
+
+// Seller confirms returned item received (Th3)
+router.post('/disputes/:disputeId/confirm-return', authenticate, reportController.confirmSellerReturn);
 
 module.exports = router;

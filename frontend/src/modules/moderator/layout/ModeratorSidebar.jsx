@@ -5,7 +5,9 @@ import {
   ShoppingOutlined,
   StarOutlined,
   BankOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  AppstoreOutlined,
+  IdcardOutlined
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -25,10 +27,13 @@ const ModeratorSidebar = ({ onNavigate }) => {
     if (location.pathname.startsWith("/moderator/reviews")) return "/moderator/reviews";
     if (location.pathname.startsWith("/moderator/withdrawals")) return "/moderator/withdrawals";
     if (location.pathname.startsWith("/moderator/disputes")) return "/moderator/disputes";
+    if (location.pathname.startsWith("/moderator/products")) return "/moderator/products";
+    if (location.pathname.startsWith("/moderator/kyc")) return "/moderator/kyc";
     return "/moderator/dashboard";
   };
 
   const handleClick = (e) => {
+    // Điều hướng route và đóng drawer trên mobile (nếu có truyền callback).
     navigate(e.key);
     if (onNavigate) onNavigate();
   };
@@ -78,6 +83,16 @@ const ModeratorSidebar = ({ onNavigate }) => {
             key: "/moderator/disputes",
             icon: <SafetyCertificateOutlined />,
             label: "Giải quyết Tranh chấp",
+          },
+          {
+            key: "/moderator/products",
+            icon: <AppstoreOutlined />,
+            label: "Duyệt Sản phẩm",
+          },
+          {
+            key: "/moderator/kyc",
+            icon: <IdcardOutlined />,
+            label: "Xác minh KYC",
           },
         ]}
       />

@@ -1,5 +1,5 @@
-import { Card, Table, Button, Typography, Tag, message, Select, Space } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Card, Table, Button, Typography, Tag, message, Select, Space, Input } from "antd";
+import { DeleteOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { getModeratorReviews, hideModeratorReview } from "../../../services/moderator.service";
 
@@ -9,7 +9,19 @@ const ModReviewList = () => {
   const [loading, setLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [status, setStatus] = useState("reported");
+  const [rawKeyword, setRawKeyword] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+
+  const filteredReviews = keyword
+    ? reviews.filter((r) => {
+        const name = (r.reviewerId?.fullName || "").toLowerCase();
+        const product = (r.productId?.title || "").toLowerCase();
+        const comment = (r.comment || "").toLowerCase();
+        const kw = keyword.toLowerCase();
+        return name.includes(kw) || product.includes(kw) || comment.includes(kw);
+      })
+    : reviews;
 
   // Tập trung gọi API tại một chỗ để dễ bảo trì bộ lọc và phân trang.
   const fetchReviews = async (page = 1, pageSize = 10) => {
@@ -33,6 +45,13 @@ const ModReviewList = () => {
     fetchReviews(1, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  const handleResetFilters = () => {
+    setStatus("reported");
+    setRawKeyword("");
+    setKeyword("");
+    fetchReviews(1, pagination.pageSize);
+  };
 
   const handleDelete = async (id) => {
     try {
@@ -70,23 +89,37 @@ const ModReviewList = () => {
 
   return (
     <Card className="mod-panel">
-      <Space className="mod-toolbar" style={{ width: "100%" }} wrap>
-        <Title level={4} style={{ margin: 0 }}>Quản lý Đánh giá & Nhận xét</Title>
-        <Select
-          value={status}
-          onChange={setStatus}
-          style={{ width: 180 }}
-          options={[
-            { value: "reported", label: "Bị báo cáo" },
-            { value: "active", label: "Đang hiển thị" },
-            { value: "hidden", label: "Đã ẩn" }
-          ]}
-        />
-      </Space>
+      <div className="mod-toolbar">
+        <Title level={4} style={{ margin: 0 }}>Quản lý Đánh giá &amp; Nhận xét</Title>
+        <div className="mod-filter-row">
+          <Input
+            placeholder="Tìm theo tên, sản phẩm, nội dung..."
+            prefix={<SearchOutlined />}
+            value={rawKeyword}
+            onChange={(e) => setRawKeyword(e.target.value)}
+            onPressEnter={() => setKeyword(rawKeyword)}
+            style={{ width: 260 }}
+          />
+          <Select
+            value={status}
+            onChange={setStatus}
+            style={{ width: 180 }}
+            options={[
+              { value: "reported", label: "Bị báo cáo" },
+              { value: "active", label: "Đang hiển thị" },
+              { value: "hidden", label: "Đã ẩn" }
+            ]}
+          />
+          <div className="mod-filter-actions">
+            <Button type="primary" onClick={() => setKeyword(rawKeyword)}>Lọc</Button>
+            <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilters}>Reset</Button>
+          </div>
+        </div>
+      </div>
       <Table
         className="mod-table"
         columns={columns}
-        dataSource={reviews}
+        dataSource={filteredReviews}
         loading={loading}
         rowKey="_id"
         pagination={pagination}

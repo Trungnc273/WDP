@@ -20,11 +20,11 @@ const UserProfile = () => {
     try {
       setLoading(true);
       
-      // Fetch user info
+      // Tai thong tin nguoi dung
       const userResponse = await api.get(`/users/${userId}`);
       setUser(userResponse.data.data);
       
-      // Fetch user's products
+      // Tai danh sach san pham cua nguoi dung
       const productsResponse = await api.get(`/products?seller=${userId}`);
       setProducts(productsResponse.data.data?.products || []);
       

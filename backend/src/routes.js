@@ -21,6 +21,7 @@ const userRoutes = require('./modules/users/user.route');
 const deliveryRoutes = require('./modules/delivery/delivery.route');
 const favoriteRoutes = require('./modules/users/favorite.route');
 const moderatorRoutes = require("./modules/moderator/moderator.route");
+const notificationRoutes = require('./modules/notifications/notification.route');
 // Register routes
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
@@ -36,6 +37,7 @@ router.use('/users', userRoutes);
 router.use('/delivery', deliveryRoutes);
 router.use('/favorites', favoriteRoutes);
 router.use("/moderator", moderatorRoutes);
+router.use('/notifications', notificationRoutes);
 // API info endpoint
 router.get('/', (req, res) => {
   res.json({

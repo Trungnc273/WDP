@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { getReceivedPurchaseRequests, acceptPurchaseRequest, rejectPurchaseRequest } from '../../services/order.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './PurchaseRequests.css';
 
 const PurchaseRequests = () => {
@@ -19,10 +20,22 @@ const PurchaseRequests = () => {
     try {
       setLoading(true);
       const data = await getReceivedPurchaseRequests();
-      setRequests(data);
+      const rawRequests = Array.isArray(data)
+        ? data
+        : data?.data?.requests || data?.requests || [];
+
+      const normalizedRequests = rawRequests.map((request) => ({
+        ...request,
+        listing: request.listing || request.listingId || null,
+        buyer: request.buyer || request.buyerId || null,
+        seller: request.seller || request.sellerId || null
+      }));
+
+      setRequests(normalizedRequests);
       setError(null);
     } catch (err) {
       setError(err.message || 'Không thể tải danh sách yêu cầu');
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -130,7 +143,7 @@ const PurchaseRequests = () => {
                 <div className="product-info">
                   <div className="product-image">
                     <img 
-                      src={request.listing?.images?.[0] || '/placeholder-image.jpg'} 
+                      src={getImageUrl(request.listing?.images?.[0]) || '/placeholder-image.jpg'} 
                       alt={request.listing?.title}
                     />
                   </div>
@@ -149,7 +162,7 @@ const PurchaseRequests = () => {
               <div className="buyer-info">
                 <div className="buyer-avatar">
                   {request.buyer?.avatar ? (
-                    <img src={request.buyer.avatar} alt={request.buyer.fullName} />
+                    <img src={getImageUrl(request.buyer.avatar)} alt={request.buyer.fullName} />
                   ) : (
                     <div className="avatar-placeholder">
                       {request.buyer?.fullName?.charAt(0).toUpperCase()}

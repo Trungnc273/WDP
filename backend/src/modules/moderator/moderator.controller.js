@@ -5,7 +5,7 @@ const REPORT_STATUS = ["pending", "reviewing", "resolved", "dismissed"];
 const REPORT_TYPE = ["product", "user"];
 // Danh sách quyết định xử lý báo cáo được phép từ moderator.
 const REPORT_DECISIONS = ["remove_content", "warn_user", "ban_user", "reply_feedback"];
-const ORDER_STATUS = ["awaiting_payment", "paid", "shipped", "completed", "cancelled", "disputed"];
+const ORDER_STATUS = ["awaiting_seller_confirmation", "awaiting_payment", "paid", "shipped", "completed", "cancelled", "disputed"];
 const ORDER_STATUS_UPDATABLE = ["paid", "shipped", "completed", "cancelled", "disputed"];
 const REVIEW_STATUS = ["active", "hidden", "reported"];
 const WITHDRAWAL_STATUS = ["pending", "completed", "failed", "cancelled"];
@@ -71,6 +71,79 @@ async function getPendingProducts(req, res) {
     return sendSuccess(res, 200, products);
   } catch (error) {
     return sendError(res, 500, error.message);
+  }
+}
+
+async function approvePendingProduct(req, res) {
+  try {
+    const { id } = req.params;
+    const validationError = ensureObjectId(id, "Mã sản phẩm");
+    if (validationError) return sendError(res, 400, validationError);
+
+    const product = await moderatorService.approvePendingProduct(id);
+    return sendSuccess(res, 200, product, "Đã duyệt tin đăng thành công");
+  } catch (error) {
+    return sendError(res, 400, error.message);
+  }
+}
+
+async function rejectPendingProduct(req, res) {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    const validationError = ensureObjectId(id, "Mã sản phẩm");
+    if (validationError) return sendError(res, 400, validationError);
+
+    if (!reason || String(reason).trim().length < 10) {
+      return sendError(res, 400, "Lý do từ chối phải có ít nhất 10 ký tự");
+    }
+
+    const product = await moderatorService.rejectPendingProduct(id, String(reason).trim());
+    return sendSuccess(res, 200, product, "Đã từ chối tin đăng");
+  } catch (error) {
+    return sendError(res, 400, error.message);
+  }
+}
+
+async function getPendingKYCRequests(req, res) {
+  try {
+    const users = await moderatorService.getPendingKYCRequests();
+    return sendSuccess(res, 200, users);
+  } catch (error) {
+    return sendError(res, 500, error.message);
+  }
+}
+
+async function approveKYC(req, res) {
+  try {
+    const { userId } = req.params;
+    const validationError = ensureObjectId(userId, "Mã người dùng");
+    if (validationError) return sendError(res, 400, validationError);
+
+    const user = await moderatorService.approveKYC(userId);
+    return sendSuccess(res, 200, user, "Đã cấp tích xanh cho người dùng");
+  } catch (error) {
+    return sendError(res, 400, error.message);
+  }
+}
+
+async function rejectKYC(req, res) {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body || {};
+
+    const validationError = ensureObjectId(userId, "Mã người dùng");
+    if (validationError) return sendError(res, 400, validationError);
+
+    if (!reason || String(reason).trim().length < 10) {
+      return sendError(res, 400, "Lý do từ chối KYC phải có ít nhất 10 ký tự");
+    }
+
+    const user = await moderatorService.rejectKYC(userId, String(reason).trim());
+    return sendSuccess(res, 200, user, "Đã từ chối hồ sơ KYC");
+  } catch (error) {
+    return sendError(res, 400, error.message);
   }
 }
 
@@ -360,13 +433,13 @@ async function resolveDispute(req, res) {
     const resolutionError = ensureInList(resolution, DISPUTE_RESOLUTION, "resolution");
     if (resolutionError) return sendError(res, 400, resolutionError);
 
-    if (!moderatorNotes || String(moderatorNotes).trim().length < 10) {
-      return sendError(res, 400, "moderatorNotes tối thiểu 10 ký tự");
+    if (moderatorNotes && String(moderatorNotes).trim().length > 500) {
+      return sendError(res, 400, "moderatorNotes không được vượt quá 500 ký tự");
     }
 
     const dispute = await moderatorService.resolveDispute(disputeId, req.user.userId, {
       resolution,
-      moderatorNotes: String(moderatorNotes).trim()
+      moderatorNotes: String(moderatorNotes || "").trim()
     });
 
     return sendSuccess(res, 200, dispute, "Đã xử lý khiếu nại thành công");
@@ -403,6 +476,11 @@ async function markDisputeInvestigating(req, res) {
 module.exports = {
   getDashboardStats,
   getPendingProducts,
+  approvePendingProduct,
+  rejectPendingProduct,
+  getPendingKYCRequests,
+  approveKYC,
+  rejectKYC,
   banUser,
   getReports,
   getReportById,

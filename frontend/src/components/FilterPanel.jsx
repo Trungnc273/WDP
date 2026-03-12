@@ -29,7 +29,7 @@ function FilterPanel({ onFilterChange, initialFilters = {} }) {
     'Buôn Ma Thuột'
   ];
 
-  // Fetch categories on mount
+  // Tai danh muc khi component mount
   useEffect(() => {
     fetchCategories();
   }, []);

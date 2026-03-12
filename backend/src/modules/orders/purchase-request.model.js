@@ -51,6 +51,14 @@ const purchaseRequestSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'rejected'],
     default: 'pending'
   },
+
+  // Which side initiated this request
+  initiatedBy: {
+    type: String,
+    enum: ['buyer', 'seller'],
+    default: 'buyer',
+    index: true
+  },
   
   // Response from seller
   sellerResponse: {
@@ -74,6 +82,7 @@ const purchaseRequestSchema = new mongoose.Schema({
 // Indexes for efficient queries
 purchaseRequestSchema.index({ sellerId: 1, status: 1 });
 purchaseRequestSchema.index({ buyerId: 1, status: 1 });
+purchaseRequestSchema.index({ initiatedBy: 1, status: 1 });
 purchaseRequestSchema.index({ createdAt: -1 });
 
 // Virtual for checking if request is still pending

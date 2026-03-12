@@ -7,7 +7,7 @@ const connectDB = async () => {
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     console.log(`Database: ${conn.connection.name}`);
 
-    // Handle connection events
+    // Xu ly cac su kien ket noi
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
     });
@@ -22,7 +22,7 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error('Error connecting to MongoDB:', error.message);
-    // Retry connection after 5 seconds
+    // Thu ket noi lai sau 5 giay
     setTimeout(connectDB, 5000);
   }
 };

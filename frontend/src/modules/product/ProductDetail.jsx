@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
 import chatService from '../../services/chat.service';
 import favoriteService from '../../services/favorite.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import PurchaseRequest from '../order/PurchaseRequest';
 import ReportProduct from '../report/ReportProduct';
 import './ProductDetail.css';
@@ -11,6 +12,7 @@ import './ProductDetail.css';
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   
   const [product, setProduct] = useState(null);
@@ -19,8 +21,12 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPurchaseRequest, setShowPurchaseRequest] = useState(false);
+  const [isQuickBuy, setIsQuickBuy] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+
+  const getCurrentUserId = () => user?._id || user?.userId || null;
+  const getSellerId = (productData) => productData?.seller?._id || productData?.sellerId?._id || productData?.sellerId || null;
 
   useEffect(() => {
     fetchProduct();
@@ -28,6 +34,18 @@ const ProductDetail = () => {
       checkIfFavorited();
     }
   }, [id, user]);
+
+  useEffect(() => {
+    if (!product) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('openPurchase') !== '1') return;
+
+    const sellerId = getSellerId(product);
+    const isOwnerProduct = !!(sellerId && getCurrentUserId() && sellerId.toString() === getCurrentUserId().toString());
+    if (!isOwnerProduct) {
+      setShowPurchaseRequest(true);
+    }
+  }, [location.search, product]);
 
   const checkIfFavorited = async () => {
     try {
@@ -83,7 +101,7 @@ const ProductDetail = () => {
     setShowDeleteModal(false);
   };
 
-  const handlePurchaseRequest = () => {
+  const handlePurchaseRequest = (quickBuy = false) => {
     if (!user) {
       alert('Vui lòng đăng nhập để mua hàng');
       navigate('/login');
@@ -95,6 +113,7 @@ const ProductDetail = () => {
       return;
     }
     
+    setIsQuickBuy(quickBuy);
     setShowPurchaseRequest(true);
   };
 
@@ -136,19 +155,40 @@ const ProductDetail = () => {
     }
     
     try {
+      const sellerId = getSellerId(product);
+      if (!sellerId) {
+        alert('Không xác định được người bán cho sản phẩm này. Vui lòng tải lại trang.');
+        return;
+      }
+
       const conversation = await chatService.createConversation(
-        product.seller._id, 
+        sellerId,
         product._id
       );
       navigate(`/chat/${conversation._id}`);
     } catch (error) {
       console.error('Error creating conversation:', error);
-      // If conversation already exists, try to navigate to chat anyway
-      if (error.message && error.message.includes('đã tồn tại')) {
-        navigate('/chat');
-      } else {
-        alert('Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+      const backendMessage = error?.response?.data?.message || error?.message;
+
+      // Fallback: neu tao conversation that bai, thu chuyen den conversation da ton tai cua san pham/nguoi ban nay.
+      try {
+        const sellerId = getSellerId(product)?.toString();
+        const result = await chatService.getConversations(1, 50);
+        const matched = (result?.conversations || []).find((conv) => {
+          const convSellerId = (conv.seller?._id || conv.sellerId?._id || conv.sellerId || '').toString();
+          const convProductId = (conv.product?._id || conv.productId?._id || conv.productId || '').toString();
+          return convSellerId === sellerId && convProductId === product._id?.toString();
+        });
+
+        if (matched?._id) {
+          navigate(`/chat/${matched._id}`);
+          return;
+        }
+      } catch (fallbackError) {
+        console.error('Error finding existing conversation:', fallbackError);
       }
+
+      alert(backendMessage || 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
     }
   };
 
@@ -226,7 +266,10 @@ const ProductDetail = () => {
     return null;
   }
 
-  const isOwner = user && product.seller && user._id === product.seller._id;
+  const sellerId = getSellerId(product);
+  const isOwner = !!(sellerId && getCurrentUserId() && sellerId.toString() === getCurrentUserId().toString());
+  const sellerCreatedAt = product?.seller?.createdAt;
+  const sellerJoinYear = sellerCreatedAt ? new Date(sellerCreatedAt).getFullYear() : null;
 
   return (
     <div className="product-detail-container">
@@ -250,7 +293,7 @@ const ProductDetail = () => {
           <div className="product-gallery">
             <div className="main-image">
               <img 
-                src={product.images[selectedImage] || '/images/placeholder.png'} 
+                src={getImageUrl(product.images?.[selectedImage]) || '/images/placeholder.png'} 
                 alt={product.title}
               />
               <button 
@@ -269,7 +312,7 @@ const ProductDetail = () => {
                     className={`thumbnail ${selectedImage === index ? 'active' : ''}`}
                     onClick={() => setSelectedImage(index)}
                   >
-                    <img src={image} alt={`${product.title} ${index + 1}`} />
+                    <img src={getImageUrl(image) || '/images/placeholder.png'} alt={`${product.title} ${index + 1}`} />
                   </div>
                 ))}
               </div>
@@ -341,7 +384,7 @@ const ProductDetail = () => {
                 </button>
                 <button 
                   className="btn btn-buy"
-                  onClick={handlePurchaseRequest}
+                  onClick={() => handlePurchaseRequest(true)}
                 >
                   <span className="btn-icon">🛒</span>
                   Mua ngay
@@ -370,7 +413,7 @@ const ProductDetail = () => {
             <div className="seller-info">
               <div className="seller-avatar">
                 {product.seller?.avatar ? (
-                  <img src={product.seller.avatar} alt={product.seller.fullName} />
+                  <img src={getImageUrl(product.seller.avatar)} alt={product.seller.fullName} />
                 ) : (
                   <div className="avatar-placeholder">
                     {product.seller?.fullName?.charAt(0).toUpperCase()}
@@ -387,12 +430,16 @@ const ProductDetail = () => {
                 <div className="seller-stats">
                   <div className="stat-item">
                     <span className="stat-icon">👤</span>
-                    <span>Thành viên từ {new Date(product.seller?.createdAt).getFullYear()}</span>
+                    <span>
+                      {sellerJoinYear && !Number.isNaN(sellerJoinYear)
+                        ? `Thành viên từ ${sellerJoinYear}`
+                        : 'Thành viên ReFlow'}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
-            <Link to={`/user/${product.seller?._id}`} className="btn btn-view-profile">
+            <Link to={`/user/${sellerId || ''}`} className="btn btn-view-profile">
               Xem trang cá nhân
             </Link>
           </div>
@@ -444,6 +491,7 @@ const ProductDetail = () => {
           product={product}
           onClose={() => setShowPurchaseRequest(false)}
           onSuccess={handlePurchaseSuccess}
+          isQuickBuy={isQuickBuy}
         />
       )}
 

@@ -1,17 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import AppRoutes from './routes';
 import MobileMenu from './components/MobileMenu';
 import Footer from './components/Footer';
+import NotificationPanel from './components/NotificationPanel';
+import notificationService from './services/notification.service';
+import chatService from './services/chat.service';
 
 function AppShell() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, token } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
+  const socketRef = useRef(null);
+  const notificationRef = useRef(null);
   const location = useLocation();
 
   const isModeratorRoute = location.pathname.startsWith('/moderator');
+
+  // Dong dropdown thong bao khi bam ra ngoai
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotification(false);
+      }
+    };
+    if (showNotification) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotification]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -26,6 +46,40 @@ function AppShell() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Khoi tao socket va lang nghe thong bao
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+
+    try {
+      socketRef.current = chatService.connectSocket(token);
+
+      // Lay so thong bao chua doc ban dau
+      fetchUnreadCount();
+
+      // Lang nghe thong bao moi
+      socketRef.current.on('new_notification', ({ notification }) => {
+        setUnreadCount(prev => prev + 1);
+      });
+    } catch (error) {
+      console.error('Error initializing notification socket:', error);
+    }
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [isAuthenticated, token]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
@@ -36,7 +90,7 @@ function AppShell() {
       {!isModeratorRoute && (
         <nav className={`navbar ${isScrolled ? 'navbar--scrolled' : 'navbar--transparent'}`}>
           <div className="navbar__container">
-            {/* Left: Logo + Mobile Menu */}
+            {/* Ben trai: Logo + menu mobile */}
             <div className="navbar__left">
               <MobileMenu />
               <Link to="/" className="navbar__logo navbar__logo--large">
@@ -48,7 +102,7 @@ function AppShell() {
               </Link>
             </div>
 
-            {/* Center: Main Menu */}
+            {/* O giua: Menu chinh */}
             <div className="navbar__center">
               <Link to="/" className="navbar__menu-item">
                 Trang chủ
@@ -58,18 +112,41 @@ function AppShell() {
               </Link>
             </div>
 
-            {/* Right: Actions */}
+            {/* Ben phai: Nhom hanh dong */}
             <div className="navbar__right">
               {isAuthenticated ? (
                 <>
                   <button className="navbar__icon-btn" title="Yêu thích">
                     <span className="icon">❤️</span>
                   </button>
-                  <button className="navbar__icon-btn" title="Thông báo">
-                    <span className="icon">🔔</span>
-                  </button>
+                  <div className="notification-dropdown-wrapper" ref={notificationRef}>
+                    <button 
+                      className="navbar__icon-btn" 
+                      title="Thông báo"
+                      onClick={() => setShowNotification(!showNotification)}
+                    >
+                      <span className="icon">🔔</span>
+                      {unreadCount > 0 && (
+                        <span className="notification-badge">{unreadCount}</span>
+                      )}
+                    </button>
+                    {showNotification && (
+                      <NotificationPanel 
+                        isOpen={showNotification} 
+                        onClose={() => setShowNotification(false)}
+                      />
+                    )}
+                  </div>
                   <Link to="/chat" className="navbar__icon-btn" title="Chat">
                     <span className="icon">💬</span>
+                  </Link>
+
+                  <Link to="/orders" className="navbar__btn-orders">
+                    Đơn mua
+                  </Link>
+
+                  <Link to="/seller-orders" className="navbar__btn-orders navbar__btn-orders--seller">
+                    Đơn bán
                   </Link>
                   
                   <Link to="/my-products" className="navbar__btn-manage">
@@ -80,7 +157,7 @@ function AppShell() {
                     Đăng tin
                   </Link>
                   
-                  {/* User Avatar Dropdown */}
+                  {/* Dropdown avatar nguoi dung */}
                   <div className="navbar__user-dropdown">
                     <button 
                       className="navbar__user-avatar"
@@ -117,10 +194,6 @@ function AppShell() {
                           <Link to="/wallet" className="user-dropdown-menu__item">
                             <span className="icon">💰</span>
                             Ví của tôi
-                          </Link>
-                          <Link to="/orders" className="user-dropdown-menu__item">
-                            <span className="icon">📦</span>
-                            Đơn hàng
                           </Link>
                           <Link to="/chat" className="user-dropdown-menu__item">
                             <span className="icon">💬</span>

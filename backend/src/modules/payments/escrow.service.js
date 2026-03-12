@@ -2,6 +2,7 @@ const EscrowHold = require('./escrow-hold.model');
 const Order = require('../orders/order.model');
 const walletService = require('./wallet.service');
 const mongoose = require('mongoose');
+const notificationService = require('../notifications/notification.service');
 
 /**
  * Escrow Service
@@ -39,14 +40,37 @@ async function holdFunds(orderId, buyerId, amount) {
       throw new Error('Đơn hàng này đã được thanh toán rồi');
     }
     
-    // Deduct from buyer's wallet
+    const totalToPay = Number(amount || order.totalToPay);
+    if (!Number.isFinite(totalToPay) || totalToPay <= 0) {
+      throw new Error('Số tiền thanh toán không hợp lệ');
+    }
+
+    // Deduct total payment (product amount + platform fee) from buyer wallet
     await walletService.decrementBalance(
       buyerId,
-      amount,
+      totalToPay,
       'payment',
       `Thanh toán đơn hàng #${orderId}`,
       { orderId: orderId }
     );
+
+    // Platform fee is moved to revenue wallet immediately after payment.
+    const platformFee = Number(order.platformFee || 0);
+    const revenueUserId = process.env.PLATFORM_REVENUE_USER_ID;
+    if (
+      platformFee > 0 &&
+      revenueUserId &&
+      mongoose.Types.ObjectId.isValid(revenueUserId) &&
+      revenueUserId !== String(buyerId)
+    ) {
+      await walletService.incrementBalance(
+        revenueUserId,
+        platformFee,
+        'fee',
+        `Phí nền tảng từ đơn hàng #${orderId}`,
+        { orderId: orderId }
+      );
+    }
     
     // Create escrow hold
     const escrowHold = await EscrowHold.create([{
@@ -64,6 +88,27 @@ async function holdFunds(orderId, buyerId, amount) {
     await order.save({ session });
     
     await session.commitTransaction();
+
+    try {
+      await Promise.all([
+        notificationService.createNotification(order.buyerId, {
+          type: 'payment_success',
+          orderId: order._id,
+          senderId: order.sellerId,
+          title: 'Chuyển tiền thành công',
+          message: `Bạn đã thanh toán thành công ${totalToPay.toLocaleString('vi-VN')}đ cho đơn hàng này.`
+        }),
+        notificationService.createNotification(order.sellerId, {
+          type: 'payment_success',
+          orderId: order._id,
+          senderId: order.buyerId,
+          title: 'Đơn hàng đã được thanh toán',
+          message: 'Người mua đã chuyển tiền thành công. Bạn có thể chuẩn bị giao hàng.'
+        })
+      ]);
+    } catch (notificationError) {
+      console.error('Error sending escrow payment notifications:', notificationError);
+    }
     
     return escrowHold[0];
   } catch (error) {
@@ -77,7 +122,7 @@ async function holdFunds(orderId, buyerId, amount) {
 /**
  * Release funds from escrow to seller (without updating order status)
  */
-async function releaseFunds(orderId, reason = 'Buyer confirmed receipt', isAuto = false) {
+async function releaseFunds(orderId, reason = 'Người mua đã xác nhận nhận hàng', isAuto = false) {
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -94,15 +139,14 @@ async function releaseFunds(orderId, reason = 'Buyer confirmed receipt', isAuto 
       throw new Error('Tiền ký quỹ đã được xử lý rồi');
     }
     
-    // For now, simulate releasing funds without wallet integration
-    // TODO: Integrate with wallet service when wallet routes are fixed
-    // await walletService.incrementBalance(
-    //   escrowHold.sellerId,
-    //   escrowHold.amount,
-    //   'earning',
-    //   `Thu nhập từ đơn hàng #${orderId}`,
-    //   { orderId: orderId }
-    // );
+    // Move held amount (95% agreed amount) to seller wallet.
+    await walletService.incrementBalance(
+      escrowHold.sellerId,
+      escrowHold.amount,
+      'earning',
+      `Thu nhập từ đơn hàng #${orderId}`,
+      { orderId: orderId }
+    );
     
     // Update escrow hold status
     escrowHold.status = 'released';
@@ -125,7 +169,7 @@ async function releaseFunds(orderId, reason = 'Buyer confirmed receipt', isAuto 
 /**
  * Refund funds from escrow to buyer
  */
-async function refundFunds(orderId, reason = 'Dispute resolved in favor of buyer') {
+async function refundFunds(orderId, reason = 'Tranh chấp đã xử lý: Hoàn tiền cho người mua') {
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -159,7 +203,10 @@ async function refundFunds(orderId, reason = 'Dispute resolved in favor of buyer
     );
     
     // Update escrow hold status
-    await escrowHold.refund(reason);
+    escrowHold.status = 'refunded';
+    escrowHold.refundedAt = new Date();
+    escrowHold.refundReason = reason;
+    await escrowHold.save({ session });
     
     // Update order status
     order.status = 'cancelled';

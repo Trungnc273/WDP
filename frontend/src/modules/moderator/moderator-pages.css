@@ -120,15 +120,122 @@
 }
 
 /* ─── Dashboard ─── */
+.mod-dashboard {
+  max-width: 1220px;
+  margin: 18px auto 0;
+}
+
+.mod-dashboard-frame {
+  padding: 14px;
+}
+
+.mod-dashboard-header {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
 .mod-dashboard-title {
   margin: 0 0 2px 0 !important;
 }
 
 .mod-dashboard-subtitle {
   display: block;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
+/* Overview grid - 1 card per sidebar section */
+.mod-overview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.mod-overview-card {
+  width: 100%;
+  max-width: 334px;
+  min-width: 285px;
+  border-radius: 12px;
+  border: 1px solid var(--mod-border);
+  padding: 18px 20px 12px;
+  box-shadow: var(--mod-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow 0.2s;
+}
+
+.mod-overview-card:hover {
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.1);
+}
+
+.mod-overview-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mod-overview-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.mod-overview-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mod-overview-card-label {
+  font-size: 13px;
+  color: var(--mod-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mod-overview-card-count {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.mod-overview-count-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64708a;
+}
+
+.mod-overview-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mod-overview-link {
+  padding: 0;
+  font-size: 13px;
+  height: auto;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.mod-table .ant-table-content {
+  overflow-x: auto !important;
+}
+
+.mod-table table {
+  min-width: 760px;
+}
+
+/* Legacy stat cards (kept for compat) */
 .mod-stat-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -167,12 +274,40 @@
 }
 
 @media (max-width: 768px) {
+  .mod-dashboard {
+    max-width: 100%;
+    margin-top: 8px;
+  }
+
+  .mod-dashboard-frame {
+    padding: 0;
+  }
+
+  .mod-dashboard-header {
+    text-align: left;
+    margin-bottom: 10px;
+  }
+
   .mod-panel {
     border-radius: 10px;
   }
 
   .mod-filter-row {
     width: 100%;
+  }
+
+  .mod-filter-row .ant-input-affix-wrapper,
+  .mod-filter-row .ant-select,
+  .mod-filter-row .ant-picker,
+  .mod-filter-actions,
+  .mod-filter-actions .ant-btn {
+    width: 100% !important;
+  }
+
+  .mod-filter-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .mod-filter-actions {
@@ -189,5 +324,18 @@
 
   .mod-stat-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mod-overview-grid {
+    justify-content: center;
+  }
+
+  .mod-overview-card {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .mod-table table {
+    min-width: 680px;
   }
 }
