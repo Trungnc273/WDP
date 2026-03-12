@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { getOrderById, payOrder } from '../../services/order.service';
-import walletService from '../../services/wallet.service';
-import './OrderPayment.css';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { getOrderById, payOrder } from "../../services/order.service";
+import walletService from "../../services/wallet.service";
+import "./OrderPayment.css";
 
 const OrderPayment = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [order, setOrder] = useState(null);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -17,71 +17,75 @@ const OrderPayment = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const fetchOrderAndBalance = async () => {
+      try {
+        setLoading(true);
+        const [orderResponse, balanceData] = await Promise.all([
+          getOrderById(id),
+          walletService.getBalance(),
+        ]);
+
+        const actualOrder = orderResponse.data || orderResponse;
+
+        setOrder(actualOrder);
+        setBalance(balanceData.balance);
+        setError(null);
+      } catch (err) {
+        setError(err.message || "Không thể tải thông tin đơn hàng");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchOrderAndBalance();
   }, [id]);
-
-  const fetchOrderAndBalance = async () => {
-    try {
-      setLoading(true);
-      const [orderData, balanceData] = await Promise.all([
-        getOrderById(id),
-        walletService.getBalance()
-      ]);
-      
-      setOrder(orderData);
-      setBalance(balanceData.balance);
-      setError(null);
-    } catch (err) {
-      setError(err.message || 'Không thể tải thông tin đơn hàng');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePayment = async () => {
     if (balance < order.totalAmount) {
       const confirmTopUp = window.confirm(
-        'Số dư ví không đủ để thanh toán. Bạn có muốn nạp tiền không?'
+        "Số dư ví không đủ để thanh toán. Bạn có muốn nạp tiền không?",
       );
       if (confirmTopUp) {
-        navigate('/wallet/topup');
+        navigate("/wallet/topup");
       }
       return;
     }
 
     const confirmPayment = window.confirm(
-      `Bạn có chắc chắn muốn thanh toán ${formatPrice(order.totalAmount)} cho đơn hàng này?`
+      `Bạn có chắc chắn muốn thanh toán ${formatPrice(order.totalAmount)} cho đơn hàng này?`,
     );
-    
+
     if (!confirmPayment) return;
 
     setPaymentLoading(true);
-    
+
     try {
       await payOrder(id);
-      alert('Thanh toán thành công! Tiền đã được chuyển vào ký quỹ và sẽ được chuyển cho người bán khi bạn xác nhận đã nhận hàng.');
-      navigate('/orders');
+      alert(
+        "Thanh toán thành công! Tiền đã được chuyển vào ký quỹ và sẽ được chuyển cho người bán khi bạn xác nhận đã nhận hàng.",
+      );
+      navigate("/orders");
     } catch (err) {
-      alert(err.message || 'Không thể thực hiện thanh toán');
+      alert(err.message || "Không thể thực hiện thanh toán");
     } finally {
       setPaymentLoading(false);
     }
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
     }).format(price);
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(date).toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -97,7 +101,7 @@ const OrderPayment = () => {
     return (
       <div className="order-payment-container">
         <div className="error-message">{error}</div>
-        <button onClick={() => navigate('/orders')} className="btn btn-primary">
+        <button onClick={() => navigate("/orders")} className="btn btn-primary">
           Quay lại danh sách đơn hàng
         </button>
       </div>
@@ -108,12 +112,26 @@ const OrderPayment = () => {
     return null;
   }
 
-  // Check if user is the buyer
-  if (!user || order.buyer._id !== user._id) {
+  const currentBuyer = order.buyer || order.buyerId || {};
+  const currentSeller = order.seller || order.sellerId || {};
+
+  const getSafeId = (userObj) => {
+    if (!userObj) return null;
+    if (typeof userObj === "string") return userObj;
+    return userObj._id || userObj.id || null;
+  };
+
+  const buyerIdStr = String(getSafeId(currentBuyer));
+  const currentUserIdStr = String(user?._id || user?.id || user?.userId);
+
+  // Check if user is the buyer (Đã khôi phục tính năng bảo mật an toàn)
+  if (!user || buyerIdStr !== currentUserIdStr) {
     return (
       <div className="order-payment-container">
-        <div className="error-message">Bạn không có quyền truy cập trang này</div>
-        <button onClick={() => navigate('/')} className="btn btn-primary">
+        <div className="error-message">
+          Bạn không có quyền truy cập trang này
+        </div>
+        <button onClick={() => navigate("/")} className="btn btn-primary">
           Quay lại trang chủ
         </button>
       </div>
@@ -121,13 +139,16 @@ const OrderPayment = () => {
   }
 
   // Check if order is already paid
-  if (order.status !== 'pending') {
+  if (order.status !== "pending") {
     return (
       <div className="order-payment-container">
         <div className="info-message">
           Đơn hàng này đã được thanh toán hoặc không thể thanh toán.
         </div>
-        <button onClick={() => navigate(`/orders/${id}`)} className="btn btn-primary">
+        <button
+          onClick={() => navigate(`/orders/${id}`)}
+          className="btn btn-primary"
+        >
           Xem chi tiết đơn hàng
         </button>
       </div>
@@ -147,13 +168,15 @@ const OrderPayment = () => {
         {/* Order Information */}
         <div className="order-info-card">
           <h2>Thông tin đơn hàng</h2>
-          
+
           <div className="order-details">
             <div className="order-id">
               <span className="label">Mã đơn hàng:</span>
-              <span className="value">#{order._id.slice(-8).toUpperCase()}</span>
+              <span className="value">
+                #{order._id?.slice(-8).toUpperCase()}
+              </span>
             </div>
-            
+
             <div className="order-date">
               <span className="label">Ngày tạo:</span>
               <span className="value">{formatDate(order.createdAt)}</span>
@@ -162,8 +185,8 @@ const OrderPayment = () => {
 
           <div className="product-info">
             <div className="product-image">
-              <img 
-                src={order.listing?.images?.[0] || '/placeholder-image.jpg'} 
+              <img
+                src={order.listing?.images?.[0] || "/placeholder-image.jpg"}
                 alt={order.listing?.title}
               />
             </div>
@@ -173,7 +196,8 @@ const OrderPayment = () => {
                 Tình trạng: {order.listing?.condition}
               </p>
               <p className="product-location">
-                Khu vực: {order.listing?.location?.district}, {order.listing?.location?.city}
+                Khu vực: {order.listing?.location?.district},{" "}
+                {order.listing?.location?.city}
               </p>
             </div>
           </div>
@@ -182,24 +206,27 @@ const OrderPayment = () => {
             <h4>Thông tin người bán</h4>
             <div className="seller-details">
               <div className="seller-avatar">
-                {order.seller?.avatar ? (
-                  <img src={order.seller.avatar} alt={order.seller.fullName} />
+                {currentSeller?.avatar ? (
+                  <img
+                    src={currentSeller.avatar}
+                    alt={currentSeller.fullName}
+                  />
                 ) : (
                   <div className="avatar-placeholder">
-                    {order.seller?.fullName?.charAt(0).toUpperCase()}
+                    {currentSeller?.fullName?.charAt(0).toUpperCase() || "?"}
                   </div>
                 )}
               </div>
               <div className="seller-info-text">
                 <div className="seller-name">
-                  {order.seller?.fullName}
-                  {order.seller?.isVerified && (
-                    <span className="verified-badge" title="Đã xác thực">✓</span>
+                  {currentSeller?.fullName}
+                  {currentSeller?.isVerified && (
+                    <span className="verified-badge" title="Đã xác thực">
+                      ✓
+                    </span>
                   )}
                 </div>
-                <div className="seller-contact">
-                  {order.seller?.email}
-                </div>
+                <div className="seller-contact">{currentSeller?.email}</div>
               </div>
             </div>
           </div>
@@ -208,18 +235,18 @@ const OrderPayment = () => {
         {/* Payment Summary */}
         <div className="payment-summary-card">
           <h2>Chi tiết thanh toán</h2>
-          
+
           <div className="price-breakdown">
             <div className="price-item">
               <span className="label">Giá sản phẩm:</span>
               <span className="value">{formatPrice(order.agreedPrice)}</span>
             </div>
-            
+
             <div className="price-item">
               <span className="label">Phí dịch vụ (5%):</span>
               <span className="value">{formatPrice(order.platformFee)}</span>
             </div>
-            
+
             <div className="price-item total">
               <span className="label">Tổng cần thanh toán:</span>
               <span className="value">{formatPrice(order.totalAmount)}</span>
@@ -230,15 +257,18 @@ const OrderPayment = () => {
             <h4>Thông tin ví</h4>
             <div className="balance-info">
               <span className="label">Số dư hiện tại:</span>
-              <span className={`balance ${isInsufficientBalance ? 'insufficient' : 'sufficient'}`}>
+              <span
+                className={`balance ${isInsufficientBalance ? "insufficient" : "sufficient"}`}
+              >
                 {formatPrice(balance)}
               </span>
             </div>
-            
+
             {isInsufficientBalance && (
               <div className="insufficient-notice">
                 <i className="fas fa-exclamation-triangle"></i>
-                Số dư không đủ để thanh toán. Cần nạp thêm {formatPrice(order.totalAmount - balance)}
+                Số dư không đủ để thanh toán. Cần nạp thêm{" "}
+                {formatPrice(order.totalAmount - balance)}
               </div>
             )}
           </div>
@@ -246,15 +276,15 @@ const OrderPayment = () => {
           <div className="payment-actions">
             {isInsufficientBalance ? (
               <>
-                <button 
-                  onClick={() => navigate('/wallet/topup')}
+                <button
+                  onClick={() => navigate("/wallet/topup")}
                   className="btn btn-primary"
                 >
                   <i className="fas fa-plus"></i>
                   Nạp tiền vào ví
                 </button>
-                <button 
-                  onClick={() => navigate('/orders')}
+                <button
+                  onClick={() => navigate("/orders")}
                   className="btn btn-secondary"
                 >
                   Quay lại
@@ -262,14 +292,14 @@ const OrderPayment = () => {
               </>
             ) : (
               <>
-                <button 
-                  onClick={() => navigate('/orders')}
+                <button
+                  onClick={() => navigate("/orders")}
                   className="btn btn-secondary"
                   disabled={paymentLoading}
                 >
                   Hủy
                 </button>
-                <button 
+                <button
                   onClick={handlePayment}
                   className="btn btn-primary"
                   disabled={paymentLoading}
@@ -296,10 +326,21 @@ const OrderPayment = () => {
       <div className="payment-notice">
         <h4>Lưu ý quan trọng:</h4>
         <ul>
-          <li>Tiền sẽ được giữ trong ký quỹ và chỉ chuyển cho người bán khi bạn xác nhận đã nhận hàng</li>
-          <li>Nếu có tranh chấp, tiền sẽ được giữ cho đến khi giải quyết xong</li>
-          <li>Sau 5 ngày kể từ khi người bán xác nhận giao hàng, tiền sẽ tự động được chuyển</li>
-          <li>Bạn có thể liên hệ với người bán qua tính năng chat để thỏa thuận chi tiết</li>
+          <li>
+            Tiền sẽ được giữ trong ký quỹ và chỉ chuyển cho người bán khi bạn
+            xác nhận đã nhận hàng
+          </li>
+          <li>
+            Nếu có tranh chấp, tiền sẽ được giữ cho đến khi giải quyết xong
+          </li>
+          <li>
+            Sau 5 ngày kể từ khi người bán xác nhận giao hàng, tiền sẽ tự động
+            được chuyển
+          </li>
+          <li>
+            Bạn có thể liên hệ với người bán qua tính năng chat để thỏa thuận
+            chi tiết
+          </li>
         </ul>
       </div>
     </div>

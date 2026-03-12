@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { getOrderById, cancelOrder } from "../../services/order.service"; // Modified
@@ -50,17 +50,48 @@ const OrderDetail = () => {
     disputed: "status-disputed",
   };
 
-  useEffect(() => {
-    fetchOrder();
+  // Sử dụng useCallback để không bị lỗi warning dependency
+  const fetchOrder = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getOrderById(id);
+      const actualOrder = response.data || response;
+      setOrder(actualOrder);
+      setError(null);
+    } catch (err) {
+      setError(err.message || "Không thể tải thông tin đơn hàng");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
   useEffect(() => {
-    if (order && isBuyer()) {
-      checkReviewStatus();
-    }
-  }, [order]);
+    fetchOrder();
+  }, [fetchOrder]);
 
-  const checkReviewStatus = async () => {
+  const getSafeId = (userObj) => {
+    if (!userObj) return null;
+    if (typeof userObj === "string") return userObj;
+    return userObj._id || userObj.id || null;
+  };
+
+  // Chuyển isBuyer thành useCallback để đưa vào dependency
+  const isBuyer = useCallback(() => {
+    if (!user || !order) return false;
+    const currentUserIdStr = String(user?._id || user?.id || user?.userId);
+    const buyerIdStr = String(getSafeId(order.buyer) || getSafeId(order.buyerId));
+    return currentUserIdStr === buyerIdStr;
+  }, [user, order]);
+
+  const isSeller = () => {
+    if (!user || !order) return false;
+    const currentUserIdStr = String(user?._id || user?.id || user?.userId);
+    const sellerIdStr = String(getSafeId(order.seller) || getSafeId(order.sellerId));
+    return currentUserIdStr === sellerIdStr;
+  };
+
+  const checkReviewStatus = useCallback(async () => {
+    if (!order) return;
     try {
       // Check if user can review
       const canReviewResponse = await canReviewOrder(order._id);
@@ -72,20 +103,13 @@ const OrderDetail = () => {
     } catch (error) {
       console.error("Error checking review status:", error);
     }
-  };
+  }, [order]);
 
-  const fetchOrder = async () => {
-    try {
-      setLoading(true);
-      const response = await getOrderById(id);
-      setOrder(response.data);
-      setError(null);
-    } catch (err) {
-      setError(err.message || "Không thể tải thông tin đơn hàng");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (order && isBuyer()) {
+      checkReviewStatus();
     }
-  };
+  }, [order, isBuyer, checkReviewStatus]);
 
   const handleShipSuccess = () => {
     setShowShipModal(false);
@@ -109,12 +133,9 @@ const OrderDetail = () => {
   const handleDisputeSuccess = () => {
     setShowDisputeModal(false);
     fetchOrder(); // Refresh order data
-    alert(
-      "Khiếu nại đã được tạo thành công. Chúng tôi sẽ xem xét và phản hồi trong 3-7 ngày làm việc.",
-    );
+    alert("Khiếu nại đã được tạo thành công. Chúng tôi sẽ xem xét và phản hồi trong 3-7 ngày làm việc.");
   };
 
-  // MỚI THÊM: Logic Hủy đơn
   const handleCancelOrder = async () => {
     if (!cancelReason.trim()) {
       alert("Vui lòng nhập lý do hủy đơn");
@@ -184,15 +205,12 @@ const OrderDetail = () => {
 
   const canUserAccess = () => {
     if (!user || !order) return false;
-    return order.buyer._id === user._id || order.seller._id === user._id;
-  };
 
-  const isBuyer = () => {
-    return user && order && order.buyer._id === user._id;
-  };
+    const currentUserIdStr = String(user?._id || user?.id || user?.userId);
+    const buyerIdStr = String(getSafeId(order.buyer) || getSafeId(order.buyerId));
+    const sellerIdStr = String(getSafeId(order.seller) || getSafeId(order.sellerId));
 
-  const isSeller = () => {
-    return user && order && order.seller._id === user._id;
+    return currentUserIdStr === buyerIdStr || currentUserIdStr === sellerIdStr;
   };
 
   const getActionButtons = () => {
@@ -209,7 +227,7 @@ const OrderDetail = () => {
       >
         <i className="fas fa-comment"></i>
         Chat
-      </button>,
+      </button>
     );
 
     if (isBuyer()) {
@@ -228,7 +246,7 @@ const OrderDetail = () => {
               key="cancel"
               className="btn btn-danger btn-outline"
               onClick={() => setShowCancelModal(true)}
-              style={{ marginLeft: '10px' }}
+              style={{ marginLeft: "10px" }}
             >
               <i className="fas fa-times"></i>
               Hủy đơn
@@ -245,9 +263,6 @@ const OrderDetail = () => {
               <i className="fas fa-check-circle"></i>
               Xác nhận nhận hàng
             </button>,
-          );
-          // Add dispute button for shipped orders
-          buttons.push(
             <button
               key="dispute"
               className="btn btn-danger"
@@ -255,11 +270,10 @@ const OrderDetail = () => {
             >
               <i className="fas fa-exclamation-triangle"></i>
               Khiếu nại
-            </button>,
+            </button>
           );
           break;
         case "completed":
-          // Add rating button if user can review and hasn't reviewed yet
           if (canReview && !existingReview) {
             buttons.push(
               <button
@@ -269,9 +283,11 @@ const OrderDetail = () => {
               >
                 <i className="fas fa-star"></i>
                 Đánh giá người bán
-              </button>,
+              </button>
             );
           }
+          break;
+        default:
           break;
       }
     }
@@ -287,22 +303,23 @@ const OrderDetail = () => {
             >
               <i className="fas fa-shipping-fast"></i>
               Xác nhận giao hàng
-            </button>,
+            </button>
           );
           break;
-        // Cho phép seller hủy nếu người mua chậm thanh toán (pending)
         case "pending":
           buttons.push(
             <button
               key="cancel"
               className="btn btn-danger btn-outline"
               onClick={() => setShowCancelModal(true)}
-              style={{ marginLeft: '10px' }}
+              style={{ marginLeft: "10px" }}
             >
               <i className="fas fa-times"></i>
               Hủy đơn
             </button>
           );
+          break;
+        default:
           break;
       }
     }
@@ -346,6 +363,9 @@ const OrderDetail = () => {
     );
   }
 
+  const currentBuyer = order.buyer || order.buyerId || {};
+  const currentSeller = order.seller || order.sellerId || {};
+
   return (
     <div className="order-detail-container">
       <div className="page-header">
@@ -375,9 +395,7 @@ const OrderDetail = () => {
             </div>
             <div className="product-details">
               <h3>{order.listing?.title}</h3>
-              <p className="product-description">
-                {order.listing?.description}
-              </p>
+              <p className="product-description">{order.listing?.description}</p>
               <div className="product-meta">
                 <div className="meta-item">
                   <span className="label">Tình trạng:</span>
@@ -390,8 +408,7 @@ const OrderDetail = () => {
                 <div className="meta-item">
                   <span className="label">Khu vực:</span>
                   <span className="value">
-                    {order.listing?.location?.district},{" "}
-                    {order.listing?.location?.city}
+                    {order.listing?.location?.district}, {order.listing?.location?.city}
                   </span>
                 </div>
               </div>
@@ -407,15 +424,15 @@ const OrderDetail = () => {
               <span className="label">Người mua:</span>
               <div className="user-info">
                 <div className="user-avatar">
-                  {order.buyer?.avatar ? (
-                    <img src={order.buyer.avatar} alt={order.buyer.fullName} />
+                  {currentBuyer?.avatar ? (
+                    <img src={currentBuyer.avatar} alt={currentBuyer.fullName} />
                   ) : (
                     <div className="avatar-placeholder">
-                      {order.buyer?.fullName?.charAt(0).toUpperCase()}
+                      {currentBuyer?.fullName?.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <span className="user-name">{order.buyer?.fullName}</span>
+                <span className="user-name">{currentBuyer?.fullName}</span>
               </div>
             </div>
 
@@ -423,18 +440,15 @@ const OrderDetail = () => {
               <span className="label">Người bán:</span>
               <div className="user-info">
                 <div className="user-avatar">
-                  {order.seller?.avatar ? (
-                    <img
-                      src={order.seller.avatar}
-                      alt={order.seller.fullName}
-                    />
+                  {currentSeller?.avatar ? (
+                    <img src={currentSeller.avatar} alt={currentSeller.fullName} />
                   ) : (
                     <div className="avatar-placeholder">
-                      {order.seller?.fullName?.charAt(0).toUpperCase()}
+                      {currentSeller?.fullName?.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <span className="user-name">{order.seller?.fullName}</span>
+                <span className="user-name">{currentSeller?.fullName}</span>
               </div>
             </div>
 
@@ -463,11 +477,13 @@ const OrderDetail = () => {
                 <span className="value">{formatDate(order.completedAt)}</span>
               </div>
             )}
-            
-            {order.status === 'cancelled' && order.cancellationReason && (
-              <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+
+            {order.status === "cancelled" && order.cancellationReason && (
+              <div className="info-item" style={{ gridColumn: "1 / -1" }}>
                 <span className="label">Lý do hủy:</span>
-                <span className="value" style={{ color: '#dc3545' }}>{order.cancellationReason}</span>
+                <span className="value" style={{ color: "#dc3545" }}>
+                  {order.cancellationReason}
+                </span>
               </div>
             )}
           </div>
@@ -533,9 +549,7 @@ const OrderDetail = () => {
                 className={`timeline-step ${step.completed ? "completed" : ""}`}
               >
                 <div className="timeline-marker">
-                  <i
-                    className={`fas ${step.completed ? "fa-check" : "fa-circle"}`}
-                  ></i>
+                  <i className={`fas ${step.completed ? "fa-check" : "fa-circle"}`}></i>
                 </div>
                 <div className="timeline-content">
                   <div className="timeline-label">{step.label}</div>
@@ -544,9 +558,7 @@ const OrderDetail = () => {
                   )}
                 </div>
                 {index < getStatusTimeline().length - 1 && (
-                  <div
-                    className={`timeline-line ${step.completed ? "completed" : ""}`}
-                  ></div>
+                  <div className={`timeline-line ${step.completed ? "completed" : ""}`}></div>
                 )}
               </div>
             ))}
@@ -615,40 +627,94 @@ const OrderDetail = () => {
           onCancel={() => setShowDisputeModal(false)}
         />
       )}
-      
+
       {/* Modal Hủy Đơn */}
       {showCancelModal && (
-        <div className="modal-overlay" onClick={() => setShowCancelModal(false)} style={{ zIndex: 1000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ backgroundColor: 'white', padding: '24px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Hủy đơn hàng</h3>
-            <p style={{ marginBottom: '16px' }}>Bạn có chắc chắn muốn hủy đơn hàng này không? Vui lòng cho biết lý do.</p>
-            
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <textarea 
-                rows="3" 
+        <div
+          className="modal-overlay"
+          onClick={() => setShowCancelModal(false)}
+          style={{
+            zIndex: 1000,
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              padding: "24px",
+              borderRadius: "8px",
+              maxWidth: "400px",
+              width: "90%",
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: "16px" }}>Hủy đơn hàng</h3>
+            <p style={{ marginBottom: "16px" }}>
+              Bạn có chắc chắn muốn hủy đơn hàng này không? Vui lòng cho biết lý do.
+            </p>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <textarea
+                rows="3"
                 placeholder="Nhập lý do hủy đơn (Vd: Tôi đổi ý, Đặt nhầm...)"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  resize: "vertical",
+                }}
               />
             </div>
 
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button 
-                className="btn btn-secondary" 
+            <div
+              className="modal-actions"
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+              }}
+            >
+              <button
+                className="btn btn-secondary"
                 onClick={() => setShowCancelModal(false)}
                 disabled={cancelLoading}
-                style={{ padding: '8px 16px', border: '1px solid #ccc', background: 'transparent', borderRadius: '4px', cursor: 'pointer' }}
+                style={{
+                  padding: "8px 16px",
+                  border: "1px solid #ccc",
+                  background: "transparent",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
               >
                 Đóng
               </button>
-              <button 
-                className="btn btn-danger" 
+              <button
+                className="btn btn-danger"
                 onClick={handleCancelOrder}
                 disabled={cancelLoading || !cancelReason.trim()}
-                style={{ padding: '8px 16px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: cancelReason.trim() ? 'pointer' : 'not-allowed', opacity: cancelReason.trim() ? 1 : 0.6 }}
+                style={{
+                  padding: "8px 16px",
+                  background: "#dc3545",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: cancelReason.trim() ? "pointer" : "not-allowed",
+                  opacity: cancelReason.trim() ? 1 : 0.6,
+                }}
               >
-                {cancelLoading ? 'Đang xử lý...' : 'Xác nhận hủy'}
+                {cancelLoading ? "Đang xử lý..." : "Xác nhận hủy"}
               </button>
             </div>
           </div>
