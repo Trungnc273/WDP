@@ -172,3 +172,169 @@ module.exports = {
   changePassword,
   getUserStats
 };
+
+/**
+ * Admin CRUD Operations
+ */
+
+/**
+ * Get all users (Admin only)
+ * GET /api/users/admin/users
+ */
+async function getAllUsers(req, res) {
+  try {
+    const { page = 1, limit = 10, search = '', role = '', status = '' } = req.query;
+    
+    const result = await userService.getAllUsers(page, limit, search, role, status);
+    
+    sendSuccess(res, 200, result);
+  } catch (error) {
+    console.error('Get all users error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Get user by ID (Admin view)
+ * GET /api/users/admin/users/:id
+ */
+async function getUserByIdAdmin(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await userService.getUserByIdAdmin(id);
+    
+    sendSuccess(res, 200, user);
+  } catch (error) {
+    console.error('Get user by ID admin error:', error);
+    sendError(res, 404, error.message);
+  }
+}
+
+/**
+ * Create new user (Admin only)
+ * POST /api/users/admin/users
+ */
+async function createUser(req, res) {
+  try {
+    const { email, password, fullName, phone, address, role } = req.body;
+    
+    const user = await userService.createUser({
+      email,
+      password,
+      fullName,
+      phone,
+      address,
+      role
+    });
+    
+    sendSuccess(res, 201, user, 'Tạo người dùng thành công');
+  } catch (error) {
+    console.error('Create user error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Update user (Admin only)
+ * PUT /api/users/admin/users/:id
+ */
+async function updateUserAdmin(req, res) {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    const user = await userService.updateUserAdmin(id, updateData);
+    
+    sendSuccess(res, 200, user, 'Cập nhật người dùng thành công');
+  } catch (error) {
+    console.error('Update user admin error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Delete user (Admin only)
+ * DELETE /api/users/admin/users/:id
+ */
+async function deleteUser(req, res) {
+  try {
+    const { id } = req.params;
+    
+    const result = await userService.deleteUser(id);
+    
+    sendSuccess(res, 200, null, result.message);
+  } catch (error) {
+    console.error('Delete user error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Suspend user (Admin only)
+ * POST /api/users/admin/users/:id/suspend
+ */
+async function suspendUser(req, res) {
+  try {
+    const { id } = req.params;
+    const { suspendedUntil, reason } = req.body;
+    
+    const user = await userService.suspendUser(id, suspendedUntil, reason);
+    
+    sendSuccess(res, 200, user, 'Khóa người dùng thành công');
+  } catch (error) {
+    console.error('Suspend user error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Unsuspend user (Admin only)
+ * POST /api/users/admin/users/:id/unsuspend
+ */
+async function unsuspendUser(req, res) {
+  try {
+    const { id } = req.params;
+    
+    const user = await userService.unsuspendUser(id);
+    
+    sendSuccess(res, 200, user, 'Mở khóa người dùng thành công');
+  } catch (error) {
+    console.error('Unsuspend user error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Get system statistics (Admin only)
+ * GET /api/users/admin/stats
+ */
+async function getSystemStats(req, res) {
+  try {
+    const stats = await userService.getSystemStats();
+    
+    sendSuccess(res, 200, stats);
+  } catch (error) {
+    console.error('Get system stats error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+module.exports = {
+  getProfile,
+  updateProfile,
+  uploadAvatar,
+  getPublicProfile,
+  submitKYC,
+  getKYCStatus,
+  changePassword,
+  getUserStats,
+  // Admin functions
+  getAllUsers,
+  getUserByIdAdmin,
+  createUser,
+  updateUserAdmin,
+  deleteUser,
+  suspendUser,
+  unsuspendUser,
+  getSystemStats
+};
