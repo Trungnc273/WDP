@@ -400,6 +400,7 @@ async function updateOrderStatus(orderId, newStatus, userId) {
   
   return order;
 }
+
 /**
  * Lấy danh sách toàn bộ đơn hàng (Dành cho Moderator/Admin)
  */
@@ -464,13 +465,16 @@ async function forceCancelOrder(orderId, moderatorId, reason) {
 
     // Cập nhật trạng thái đơn thành "Đã hủy"
     order.status = 'cancelled';
-    
-    // Nếu Model Order của bạn có trường ghi chú hủy đơn thì lưu lại
-    if (order.schema.paths.cancelReason !== undefined) {
-      order.cancelReason = reason;
-    }
+    order.cancellationReason = reason; // Cập nhật biến đúng theo Schema của model
 
     await order.save({ session });
+    
+    // Release the product back to the marketplace
+    const product = await Product.findById(order.productId).session(session);
+    if (product) {
+      product.status = 'active';
+      await product.save({ session });
+    }
     
     // Lưu thành công toàn bộ thay đổi
     await session.commitTransaction();
@@ -484,23 +488,7 @@ async function forceCancelOrder(orderId, moderatorId, reason) {
     session.endSession();
   }
 }
-module.exports = {
-  createPurchaseRequest,
-  getSentPurchaseRequests,
-  getReceivedPurchaseRequests,
-  acceptPurchaseRequest,
-  rejectPurchaseRequest,
-  calculatePlatformFee,
-  getOrderById,
-  getOrdersAsBuyer,
-  getOrdersAsSeller,
-  updateOrderStatus,
-  payOrder,
-  confirmShipment,
-  confirmReceipt,
-  getAllOrders,     
-  forceCancelOrder  
-};
+
 /**
  * Pay for an order (simplified version without wallet integration)
  */
@@ -532,9 +520,6 @@ async function payOrder(orderId, buyerId) {
     
     // Import escrow service
     const escrowService = require('../payments/escrow.service');
-    
-    // For now, simulate successful payment without wallet check
-    // TODO: Integrate with wallet service when wallet routes are fixed
     
     // Create escrow hold
     const escrowHold = await escrowService.createEscrowHold(
@@ -568,6 +553,7 @@ async function payOrder(orderId, buyerId) {
     session.endSession();
   }
 }
+
 /**
  * Confirm shipment (seller action)
  */
@@ -673,3 +659,170 @@ async function confirmReceipt(orderId, buyerId) {
     session.endSession();
   }
 }
+
+/**
+ * Create direct order (Buy Now - bypasses negotiation)
+ */
+async function createDirectOrder(buyerId, productId) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const product = await Product.findById(productId).session(session);
+
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    if (product.status !== "active") {
+      throw new Error("Product is no longer available");
+    }
+
+    if (product.seller.toString() === buyerId.toString()) {
+      throw new Error("You cannot buy your own product");
+    }
+
+    // 1. Create an auto-accepted purchase request
+    const purchaseRequest = await PurchaseRequest.create(
+      [
+        {
+          listingId: product._id,
+          buyerId: buyerId,
+          sellerId: product.seller,
+          message: "Direct purchase (Buy Now)",
+          agreedPrice: product.price,
+          status: "accepted",
+          acceptedAt: new Date(),
+        },
+      ],
+      { session }
+    );
+
+    // 2. Calculate fees based on the original product price
+    const agreedAmount = product.price;
+    const platformFee = calculatePlatformFee(agreedAmount);
+    const totalToPay = agreedAmount + platformFee;
+
+    // 3. Create the order
+    const order = await Order.create(
+      [
+        {
+          requestId: purchaseRequest[0]._id, 
+          buyerId: buyerId,
+          sellerId: product.seller,
+          productId: product._id,
+          agreedAmount: agreedAmount,
+          platformFee: platformFee,
+          totalToPay: totalToPay,
+          status: "awaiting_payment",
+          paymentStatus: "unpaid",
+        },
+      ],
+      { session }
+    );
+
+    // 4. Update product status to reserve it
+    product.status = "pending";
+    await product.save({ session });
+
+    await session.commitTransaction();
+
+    await order[0].populate([
+      { path: "buyerId", select: "fullName email avatar" },
+      { path: "sellerId", select: "fullName email avatar" },
+      { path: "productId", select: "title price images" },
+    ]);
+
+    return order[0];
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+}
+
+/**
+ * Cancel Order
+ */
+async function cancelOrder(orderId, userId, reason = "No reason provided") {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const order = await Order.findById(orderId).session(session);
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // Check authorization (only buyer or seller can cancel)
+    if (
+      order.buyerId.toString() !== userId.toString() &&
+      order.sellerId.toString() !== userId.toString()
+    ) {
+      throw new Error("You do not have permission to cancel this order");
+    }
+
+    // Check if order can be cancelled
+    if (
+      ["shipped", "completed", "cancelled", "disputed"].includes(order.status)
+    ) {
+      throw new Error(`Cannot cancel an order with status: ${order.status}`);
+    }
+
+    // Update payment status if it was already paid
+    if (order.paymentStatus === "paid") {
+      // Logic hoàn tiền (nếu có)
+      // order.paymentStatus = "refunded";
+    }
+
+    // Update order status
+    order.status = "cancelled";
+    order.cancelledAt = new Date();
+    order.cancellationReason = reason;
+    await order.save({ session });
+
+    // Release the product back to the marketplace
+    const product = await Product.findById(order.productId).session(session);
+    if (product) {
+      product.status = "active";
+      await product.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    await order.populate([
+      { path: "buyerId", select: "fullName email avatar" },
+      { path: "sellerId", select: "fullName email avatar" },
+      { path: "productId", select: "title price images" },
+    ]);
+
+    return order;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+}
+
+module.exports = {
+  createPurchaseRequest,
+  getSentPurchaseRequests,
+  getReceivedPurchaseRequests,
+  acceptPurchaseRequest,
+  rejectPurchaseRequest,
+  calculatePlatformFee,
+  getOrderById,
+  getOrdersAsBuyer,
+  getOrdersAsSeller,
+  updateOrderStatus,
+  payOrder,
+  confirmShipment,
+  confirmReceipt,
+  getAllOrders,     
+  forceCancelOrder,
+  createDirectOrder, 
+  cancelOrder
+};

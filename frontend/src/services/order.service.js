@@ -137,6 +137,31 @@ export const getOrderById = async (orderId) => {
   }
 };
 
+
+/**
+ * Create direct order (Buy Now - bypass negotiation)
+ */
+export const createDirectOrder = async (productId) => {
+  try {
+    const response = await api.post('/orders/buy-now', { productId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Cancel Order
+ */
+export const cancelOrder = async (orderId, reason = '') => {
+  try {
+    const response = await api.post(`/orders/${orderId}/cancel`, { reason });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default {
   createPurchaseRequest,
   getSentPurchaseRequests,
@@ -148,5 +173,7 @@ export default {
   confirmReceipt,
   getOrdersAsBuyer,
   getOrdersAsSeller,
-  getOrderById
+  getOrderById,
+  createDirectOrder,
+  cancelOrder
 };

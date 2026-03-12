@@ -1,6 +1,6 @@
-const chatService = require('./chat.service');
-const jwt = require('jsonwebtoken');
-const config = require('../../config/env');
+const chatService = require("./chat.service");
+const jwt = require("jsonwebtoken");
+const config = require("../../config/env");
 
 /**
  * Socket.io Chat Handler
@@ -17,146 +17,165 @@ function initializeChatSocket(io) {
   // Authentication middleware
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-      
+      const token =
+        socket.handshake.auth.token ||
+        socket.handshake.headers.authorization?.replace("Bearer ", "");
+
       if (!token) {
-        return next(new Error('Authentication error: No token provided'));
+        return next(new Error("Authentication error: No token provided"));
       }
-      
+
       // Verify JWT token
       const decoded = jwt.verify(token, config.jwt.secret);
       socket.userId = decoded.userId;
       socket.userEmail = decoded.email;
-      
+
       next();
     } catch (error) {
-      next(new Error('Authentication error: Invalid token'));
+      next(new Error("Authentication error: Invalid token"));
     }
   });
-  
+
   // Connection handler
-  io.on('connection', (socket) => {
+  io.on("connection", (socket) => {
     const userId = socket.userId;
-    
+
     console.log(`✅ User connected: ${userId} (${socket.id})`);
-    
+
     // Add user to online users
-    onlineUsers.set(userId, socket.id);
-    
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+    onlineUsers.get(userId).add(socket.id);
+
     // Broadcast user online status
-    socket.broadcast.emit('user_online', { userId });
-    
+    socket.emit('online_users', Array.from(onlineUsers.keys()));
+
     // Join conversation room
-    socket.on('join_conversation', async (data) => {
+    socket.on("join_conversation", async (data) => {
       try {
         const { conversationId } = data;
-        
+
         // Verify user has access to conversation
         await chatService.getConversationById(conversationId, userId);
-        
+
         // Join room
         socket.join(`conversation:${conversationId}`);
-        
+
         console.log(`User ${userId} joined conversation ${conversationId}`);
-        
+
         // Mark messages as read
         await chatService.markMessagesAsRead(conversationId, userId);
-        
-        socket.emit('joined_conversation', { conversationId });
+
+        socket.emit("joined_conversation", { conversationId });
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        socket.emit("error", { message: error.message });
       }
     });
-    
+
     // Leave conversation room
-    socket.on('leave_conversation', (data) => {
+    socket.on("leave_conversation", (data) => {
       const { conversationId } = data;
       socket.leave(`conversation:${conversationId}`);
       console.log(`User ${userId} left conversation ${conversationId}`);
     });
-    
+
     // Send message
-    socket.on('send_message', async (data) => {
+    socket.on("send_message", async (data) => {
       try {
         const { conversationId, content } = data;
-        
+
         // Create message
-        const message = await chatService.sendMessage(conversationId, userId, content);
-        
-        // Emit to conversation room
-        io.to(`conversation:${conversationId}`).emit('receive_message', {
+        const message = await chatService.sendMessage(
           conversationId,
-          message
+          userId,
+          content,
+        );
+
+        // Emit to conversation room
+        io.to(`conversation:${conversationId}`).emit("receive_message", {
+          conversationId,
+          message,
         });
-        
+
         // Get conversation to notify the other user
-        const conversation = await chatService.getConversationById(conversationId, userId);
-        const otherUserId = conversation.buyerId._id.toString() === userId 
-          ? conversation.sellerId._id.toString() 
-          : conversation.buyerId._id.toString();
-        
+        const conversation = await chatService.getConversationById(
+          conversationId,
+          userId,
+        );
+        const otherUserId =
+          conversation.buyerId._id.toString() === userId
+            ? conversation.sellerId._id.toString()
+            : conversation.buyerId._id.toString();
+
         // Send notification to other user if they're online but not in the conversation
-        const otherUserSocketId = onlineUsers.get(otherUserId);
-        if (otherUserSocketId) {
-          io.to(otherUserSocketId).emit('new_message_notification', {
-            conversationId,
-            message,
-            sender: {
-              _id: userId,
-              fullName: message.senderId.fullName,
-              avatar: message.senderId.avatar
-            }
+        const otherUserSockets = onlineUsers.get(otherUserId);
+        if (otherUserSockets && otherUserSockets.size > 0) {
+          otherUserSockets.forEach((socketId) => {
+            io.to(socketId).emit("new_message_notification", {
+              conversationId,
+              message,
+              sender: {
+                _id: userId,
+                fullName: message.senderId.fullName,
+                avatar: message.senderId.avatar,
+              },
+            });
           });
         }
-        
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        socket.emit("error", { message: error.message });
       }
     });
-    
+
     // Typing indicator
-    socket.on('typing', (data) => {
+    socket.on("typing", (data) => {
       const { conversationId } = data;
-      socket.to(`conversation:${conversationId}`).emit('user_typing', {
+      socket.to(`conversation:${conversationId}`).emit("user_typing", {
         conversationId,
-        userId
+        userId,
       });
     });
-    
+
     // Stop typing indicator
-    socket.on('stop_typing', (data) => {
+    socket.on("stop_typing", (data) => {
       const { conversationId } = data;
-      socket.to(`conversation:${conversationId}`).emit('user_stop_typing', {
+      socket.to(`conversation:${conversationId}`).emit("user_stop_typing", {
         conversationId,
-        userId
+        userId,
       });
     });
-    
+
     // Mark messages as read
-    socket.on('mark_as_read', async (data) => {
+    socket.on("mark_as_read", async (data) => {
       try {
         const { conversationId } = data;
         await chatService.markMessagesAsRead(conversationId, userId);
-        
-        socket.emit('marked_as_read', { conversationId });
+
+        socket.emit("marked_as_read", { conversationId });
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        socket.emit("error", { message: error.message });
       }
     });
-    
+
     // Disconnect handler
-    socket.on('disconnect', () => {
+    socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${userId} (${socket.id})`);
-      
+
       // Remove user from online users
-      onlineUsers.delete(userId);
-      
-      // Broadcast user offline status
-      socket.broadcast.emit('user_offline', { userId });
+      if (onlineUsers.has(userId)) {
+        const userSockets = onlineUsers.get(userId);
+        userSockets.delete(socket.id);
+
+        if (userSockets.size === 0) {
+          onlineUsers.delete(userId);
+          socket.broadcast.emit("user_offline", { userId });
+        }
+      }
     });
   });
-  
-  console.log('✅ Socket.io chat initialized');
+
+  console.log("✅ Socket.io chat initialized");
 }
 
 /**
@@ -176,5 +195,5 @@ function isUserOnline(userId) {
 module.exports = {
   initializeChatSocket,
   getOnlineUsers,
-  isUserOnline
+  isUserOnline,
 };

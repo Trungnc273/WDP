@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
 import chatService from '../../services/chat.service';
 import favoriteService from '../../services/favorite.service';
+import { createDirectOrder } from '../../services/order.service'; // Added
 import PurchaseRequest from '../order/PurchaseRequest';
 import ReportProduct from '../report/ReportProduct';
 import './ProductDetail.css';
@@ -21,6 +22,7 @@ const ProductDetail = () => {
   const [showPurchaseRequest, setShowPurchaseRequest] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [buyLoading, setBuyLoading] = useState(false); // Added
 
   useEffect(() => {
     fetchProduct();
@@ -85,7 +87,7 @@ const ProductDetail = () => {
 
   const handlePurchaseRequest = () => {
     if (!user) {
-      alert('Vui lòng đăng nhập để mua hàng');
+      alert('Vui lòng đăng nhập để deal giá');
       navigate('/login');
       return;
     }
@@ -100,7 +102,33 @@ const ProductDetail = () => {
 
   const handlePurchaseSuccess = () => {
     setShowPurchaseRequest(false);
-    alert('Gửi yêu cầu mua hàng thành công! Người bán sẽ xem xét và phản hồi sớm.');
+    alert('Gửi yêu cầu deal giá thành công! Người bán sẽ xem xét và phản hồi sớm.');
+  };
+
+  // MỚI THÊM: Xử lý Mua Ngay
+  const handleBuyNow = async () => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để mua hàng');
+      navigate('/login');
+      return;
+    }
+    
+    if (isOwner) {
+      alert('Bạn không thể mua sản phẩm của chính mình');
+      return;
+    }
+
+    setBuyLoading(true);
+    try {
+      const response = await createDirectOrder(product._id);
+      // Giả sử API trả về order object ở response.data hoặc chính là response
+      const newOrder = response.data || response; 
+      navigate(`/orders/${newOrder._id}/pay`);
+    } catch (err) {
+      alert(err.message || 'Có lỗi xảy ra khi tạo đơn hàng');
+    } finally {
+      setBuyLoading(false);
+    }
   };
 
   const handleReportProduct = () => {
@@ -288,7 +316,7 @@ const ProductDetail = () => {
 
           {/* Product Specifications */}
           <div className="product-specs-card">
-            <h2>Thông tin chi tiết</h2>
+            <h2>Thôngত্তি chi tiết</h2>
             <div className="specs-list">
               <div className="spec-item">
                 <span className="spec-label">Danh mục</span>
@@ -337,14 +365,22 @@ const ProductDetail = () => {
                   onClick={handleStartChat}
                 >
                   <span className="btn-icon">💬</span>
-                  Chat với người bán
+                  Chat
+                </button>
+                <button 
+                  className="btn btn-outline"
+                  onClick={handlePurchaseRequest}
+                  style={{ flex: 1 }}
+                >
+                  Deal giá
                 </button>
                 <button 
                   className="btn btn-buy"
-                  onClick={handlePurchaseRequest}
+                  onClick={handleBuyNow}
+                  disabled={buyLoading}
                 >
                   <span className="btn-icon">🛒</span>
-                  Mua ngay
+                  {buyLoading ? 'Đang xử lý...' : 'Mua ngay'}
                 </button>
               </div>
             )}
