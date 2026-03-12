@@ -7,6 +7,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getModeratorReportById, resolveModeratorReport } from "../../../services/moderator.service";
+import { getImageUrl } from "../../../utils/imageHelper";
 
 const { TextArea } = Input;
 
@@ -30,6 +31,7 @@ const ModReportDetail = () => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
   const [reply, setReply] = useState("");
+  const [replyToReportedUser, setReplyToReportedUser] = useState("");
   const [decision, setDecision] = useState("warn_user");
   const [error, setError] = useState("");
 
@@ -41,6 +43,7 @@ const ModReportDetail = () => {
       const data = await getModeratorReportById(id);
       setReport(data);
       setReply(data?.moderatorReply || "");
+      setReplyToReportedUser(data?.moderatorReplyToReportedUser || "");
       setDecision(data?.moderatorDecision || "warn_user");
     } catch (err) {
       setError(err.message || "Không thể tải chi tiết báo cáo");
@@ -59,7 +62,8 @@ const ModReportDetail = () => {
       await resolveModeratorReport(id, {
         status,
         moderatorDecision: decision,
-        moderatorReply: reply
+        moderatorReply: reply,
+        moderatorReplyToReportedUser: replyToReportedUser
       });
       message.success("Đã xử lý báo cáo thành công");
       fetchDetail();
@@ -77,6 +81,9 @@ const ModReportDetail = () => {
   const isSuspended = Boolean(report?.reportedUserStats?.isSuspended);
   const shouldLockAccount = Boolean(report?.reportedUserStats?.shouldLockAccount);
   const warningLevel = getWarningLevel(warningCount, isSuspended);
+  const productWarningActions = Number(report?.productStats?.warningActions || 0);
+  const productTotalReports = Number(report?.productStats?.totalReports || 0);
+  const productIsRemoved = Boolean(report?.productStats?.isRemoved);
 
   return (
     <Space direction="vertical" style={{ width: "100%" }} size="large">
@@ -111,6 +118,19 @@ const ModReportDetail = () => {
               </Tag>
             </Descriptions.Item>
           )}
+          {report?.reportType === "product" && (
+            <Descriptions.Item label="Mức vi phạm sản phẩm">
+              <Space size={8} wrap>
+                <Tag className="mod-status-pill" color={productWarningActions >= 3 ? "red" : productWarningActions >= 1 ? "gold" : "green"}>
+                  {productWarningActions} cảnh báo
+                </Tag>
+                <Tag className="mod-status-pill" color={productTotalReports >= 6 ? "red" : productTotalReports >= 3 ? "volcano" : productTotalReports >= 1 ? "gold" : "default"}>
+                  {productTotalReports} lần bị báo
+                </Tag>
+                {productIsRemoved && <Tag className="mod-status-pill" color="red">Bài đã bị gỡ</Tag>}
+              </Space>
+            </Descriptions.Item>
+          )}
           <Descriptions.Item label="Ảnh bằng chứng (tối đa 4)">
             {report?.evidenceImages?.length ? (
               <Image.PreviewGroup>
@@ -118,7 +138,7 @@ const ModReportDetail = () => {
                   {report.evidenceImages.slice(0, 4).map((imageUrl, index) => (
                     <Image
                       key={`${imageUrl}-${index}`}
-                      src={imageUrl}
+                      src={getImageUrl(imageUrl)}
                       width={84}
                       height={84}
                       style={{ objectFit: "cover", borderRadius: 8 }}
@@ -131,7 +151,8 @@ const ModReportDetail = () => {
               <span>Không có ảnh bằng chứng</span>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="Phản hồi tới người dùng">{report?.moderatorReply || "Chưa có phản hồi"}</Descriptions.Item>
+          <Descriptions.Item label="Phản hồi tới người báo cáo">{report?.moderatorReply || "Chưa có phản hồi"}</Descriptions.Item>
+          <Descriptions.Item label="Phản hồi tới người bị báo cáo">{report?.moderatorReplyToReportedUser || "Chưa có phản hồi"}</Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
             {report?.status === "pending" && <Tag className="mod-status-pill" color="warning">Chờ xử lý</Tag>}
             {report?.status === "reviewing" && <Tag className="mod-status-pill" color="processing">Đang xem xét</Tag>}
@@ -155,37 +176,55 @@ const ModReportDetail = () => {
         )}
 
         {(report?.status === "pending" || report?.status === "reviewing") && (
-          <div className="mod-action-row">
-            <Select
-              value={decision}
-              style={{ width: 220 }}
-              onChange={setDecision}
-              options={[
-                { value: "warn_user", label: "Cảnh báo người dùng" },
-                { value: "reply_feedback", label: "Trả lời phản hồi" },
-                { value: "ban_user", label: "Khóa tài khoản" },
-                { value: "remove_content", label: "Gỡ nội dung" }
-              ]}
-            />
-            <TextArea
-              rows={3}
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              placeholder="Phản hồi gửi cho người dùng báo cáo (tùy chọn)"
-              style={{ minWidth: 320, flex: 1 }}
-            />
+          <div className="mod-action-row mod-action-grid">
+            <div className="mod-action-field">
+              <span className="mod-action-label">Quyết định xử lý</span>
+              <Select
+                value={decision}
+                style={{ width: "100%" }}
+                onChange={setDecision}
+                options={[
+                  { value: "warn_user", label: "Cảnh báo người dùng" },
+                  { value: "reply_feedback", label: "Trả lời phản hồi" },
+                  { value: "ban_user", label: "Khóa tài khoản" },
+                  { value: "remove_content", label: "Gỡ nội dung" }
+                ]}
+              />
+            </div>
 
-            <Popconfirm title="Xác nhận đã giải quyết báo cáo này?" onConfirm={() => handleAction("resolved")}>
-              <Button type="primary" style={{ background: "#52c41a" }} icon={<CheckCircleOutlined />}>
-                Đánh dấu Đã giải quyết
-              </Button>
-            </Popconfirm>
+            <div className="mod-action-field">
+              <span className="mod-action-label">Phản hồi tới người báo cáo</span>
+              <TextArea
+                rows={3}
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder="Nhập phản hồi cho người báo cáo (tùy chọn)"
+              />
+            </div>
 
-            <Popconfirm title="Bỏ qua báo cáo này (báo cáo sai)?" onConfirm={() => handleAction("dismissed")}>
-              <Button icon={<CloseCircleOutlined />}>
-                Bỏ qua báo cáo
-              </Button>
-            </Popconfirm>
+            <div className="mod-action-field">
+              <span className="mod-action-label">Phản hồi tới người bị báo cáo</span>
+              <TextArea
+                rows={3}
+                value={replyToReportedUser}
+                onChange={(e) => setReplyToReportedUser(e.target.value)}
+                placeholder="Nhập phản hồi cho người bị báo cáo (tùy chọn)"
+              />
+            </div>
+
+            <div className="mod-action-buttons">
+              <Popconfirm title="Xác nhận đã giải quyết báo cáo này?" onConfirm={() => handleAction("resolved")}>
+                <Button type="primary" style={{ background: "#52c41a" }} icon={<CheckCircleOutlined />}>
+                  Đánh dấu Đã giải quyết
+                </Button>
+              </Popconfirm>
+
+              <Popconfirm title="Bỏ qua báo cáo này (báo cáo sai)?" onConfirm={() => handleAction("dismissed")}>
+                <Button icon={<CloseCircleOutlined />}>
+                  Bỏ qua báo cáo
+                </Button>
+              </Popconfirm>
+            </div>
           </div>
         )}
       </Card>

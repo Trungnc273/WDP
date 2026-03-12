@@ -6,19 +6,20 @@
 const axios = require('axios');
 
 const BASE_URL = 'http://localhost:5000/api';
+const RUN_ID = Date.now();
 
 // Test users
 const testUsers = {
   buyer: {
     fullName: 'Complete Flow Buyer',
-    email: 'flow.buyer@example.com',
-    password: 'password123',
+    email: `flow.buyer.${RUN_ID}@example.com`,
+    password: 'StrongPass123!',
     token: null
   },
   seller: {
     fullName: 'Complete Flow Seller', 
-    email: 'flow.seller@example.com',
-    password: 'password123',
+    email: `flow.seller.${RUN_ID}@example.com`,
+    password: 'StrongPass123!',
     token: null
   }
 };
@@ -73,7 +74,10 @@ async function testCompleteOrderFlow() {
       price: 250000,
       category: 'electronics',
       condition: 'new',
-      location: 'Ho Chi Minh City',
+      location: {
+        city: 'Hồ Chí Minh',
+        district: 'Quận 1'
+      },
       images: ['test-flow.jpg']
     }, {
       headers: { Authorization: `Bearer ${testUsers.seller.token}` }
@@ -182,7 +186,10 @@ async function testErrorScenarios() {
       price: 100000,
       category: 'electronics',
       condition: 'new',
-      location: 'Ho Chi Minh City',
+      location: {
+        city: 'Hồ Chí Minh',
+        district: 'Quận 1'
+      },
       images: ['error-test.jpg']
     }, {
       headers: { Authorization: `Bearer ${testUsers.seller.token}` }

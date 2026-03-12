@@ -1,6 +1,9 @@
 const User = require('./user.model');
 const bcrypt = require('bcryptjs');
 
+const PHONE_REGEX = /^0\d{9,10}$/;
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
 /**
  * User Service
  * Handles user profile and KYC operations
@@ -52,13 +55,34 @@ async function updateProfile(userId, updateData) {
     throw new Error('Không có dữ liệu để cập nhật');
   }
   
+  // Chuẩn hóa dữ liệu đầu vào trước khi validate/lưu.
+  if (filteredData.fullName !== undefined) {
+    filteredData.fullName = String(filteredData.fullName).trim();
+  }
+
+  if (filteredData.phone !== undefined) {
+    filteredData.phone = String(filteredData.phone).trim();
+  }
+
+  if (filteredData.address !== undefined) {
+    filteredData.address = String(filteredData.address).trim();
+  }
+
   // Validate required fields
-  if (filteredData.fullName && filteredData.fullName.trim().length < 2) {
+  if (filteredData.fullName && filteredData.fullName.length < 2) {
     throw new Error('Họ tên phải có ít nhất 2 ký tự');
   }
+
+  if (filteredData.fullName && filteredData.fullName.length > 80) {
+    throw new Error('Họ tên không được vượt quá 80 ký tự');
+  }
   
-  if (filteredData.phone && !/^[0-9]{10,11}$/.test(filteredData.phone)) {
-    throw new Error('Số điện thoại không hợp lệ');
+  if (filteredData.phone && !PHONE_REGEX.test(filteredData.phone)) {
+    throw new Error('Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số');
+  }
+
+  if (filteredData.address && filteredData.address.length > 255) {
+    throw new Error('Địa chỉ không được vượt quá 255 ký tự');
   }
   
   const user = await User.findByIdAndUpdate(
@@ -171,8 +195,9 @@ async function changePassword(userId, currentPassword, newPassword) {
     throw new Error('Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới');
   }
   
-  if (newPassword.length < 6) {
-    throw new Error('Mật khẩu mới phải có ít nhất 6 ký tự');
+  // Chính sách mật khẩu mạnh cho khu vực quản trị.
+  if (!STRONG_PASSWORD_REGEX.test(newPassword)) {
+    throw new Error('Mật khẩu mới phải tối thiểu 8 ký tự và gồm chữ hoa, chữ thường, số, ký tự đặc biệt');
   }
   
   const user = await User.findById(userId);

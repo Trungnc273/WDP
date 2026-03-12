@@ -260,7 +260,7 @@ async function resolveReport(req, res) {
   try {
     const { reportId } = req.params;
     // Lấy các quyết định từ body của request do Moderator gửi lên
-    const { status, moderatorDecision, moderatorNotes, moderatorReply } = req.body;
+    const { status, moderatorDecision, moderatorNotes, moderatorReply, moderatorReplyToReportedUser } = req.body;
     // Lấy ID của Moderator đang thao tác
     const moderatorId = req.user.userId;
 
@@ -276,7 +276,8 @@ async function resolveReport(req, res) {
       status, 
       moderatorDecision, 
       moderatorNotes,
-      moderatorReply
+      moderatorReply,
+      moderatorReplyToReportedUser
     );
 
     sendSuccess(res, 200, report, 'Đã xử lý báo cáo thành công');

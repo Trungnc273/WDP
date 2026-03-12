@@ -96,3 +96,23 @@ export const addSellerResponse = async (disputeId, response, evidenceImages = []
   });
   return response_data.data;
 };
+
+/**
+ * Upload evidence images and return stored backend paths
+ * @param {File[]} files - Image files
+ * @returns {Promise<string[]>} Array of stored image paths
+ */
+export const uploadEvidenceImages = async (files = []) => {
+  if (!files.length) return [];
+
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+
+  const response = await api.post('/upload/images', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+
+  return (response.data?.data || []).map((item) => item.path).filter(Boolean);
+};

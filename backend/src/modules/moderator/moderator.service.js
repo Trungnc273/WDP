@@ -89,18 +89,90 @@ async function buildReportedUserStatsMap(reportedUserIds = []) {
   }, {});
 }
 
+async function buildProductStatsMap(productIds = []) {
+  const uniqueIds = Array.from(
+    new Set(
+      productIds
+        .filter(Boolean)
+        .map((id) => String(id))
+    )
+  );
+
+  if (!uniqueIds.length) {
+    return {};
+  }
+
+  const objectIds = uniqueIds.map((id) => new mongoose.Types.ObjectId(id));
+
+  const [reportCountAgg, warnResolvedAgg, products] = await Promise.all([
+    Report.aggregate([
+      { $match: { productId: { $in: objectIds } } },
+      { $group: { _id: "$productId", totalReports: { $sum: 1 } } }
+    ]),
+    Report.aggregate([
+      {
+        $match: {
+          productId: { $in: objectIds },
+          status: 'resolved',
+          moderatorDecision: 'warn_user'
+        }
+      },
+      { $group: { _id: "$productId", warningActions: { $sum: 1 } } }
+    ]),
+    Product.find({ _id: { $in: objectIds } })
+      .select('_id status')
+      .lean()
+  ]);
+
+  const totalReportMap = reportCountAgg.reduce((acc, item) => {
+    acc[String(item._id)] = Number(item.totalReports || 0);
+    return acc;
+  }, {});
+
+  const warningMap = warnResolvedAgg.reduce((acc, item) => {
+    acc[String(item._id)] = Number(item.warningActions || 0);
+    return acc;
+  }, {});
+
+  const productMap = products.reduce((acc, product) => {
+    acc[String(product._id)] = product;
+    return acc;
+  }, {});
+
+  return uniqueIds.reduce((acc, id) => {
+    const product = productMap[id] || {};
+    const warningActions = Number(warningMap[id] || 0);
+
+    acc[id] = {
+      totalReports: Number(totalReportMap[id] || 0),
+      warningActions,
+      shouldRemoveContent: warningActions >= 3,
+      isRemoved: ['rejected', 'hidden', 'deleted'].includes(product.status),
+      currentStatus: product.status || 'unknown'
+    };
+
+    return acc;
+  }, {});
+}
+
 async function attachReportedUserStats(reports = []) {
   const ids = reports
     .map((report) => report?.reportedUserId?._id || report?.reportedUserId)
     .filter(Boolean);
 
   const statsMap = await buildReportedUserStatsMap(ids);
+  const productIds = reports
+    .map((report) => report?.productId?._id || report?.productId)
+    .filter(Boolean);
+  const productStatsMap = await buildProductStatsMap(productIds);
 
   return reports.map((report) => {
     const userId = String(report?.reportedUserId?._id || report?.reportedUserId || "");
+    const productId = String(report?.productId?._id || report?.productId || "");
     return {
       ...report,
-      reportedUserStats: userId ? (statsMap[userId] || null) : null
+      reportedUserStats: userId ? (statsMap[userId] || null) : null,
+      productStats: productId ? (productStatsMap[productId] || null) : null
     };
   });
 }
@@ -212,14 +284,15 @@ async function getReportById(reportId) {
 }
 
 async function resolveReport(reportId, moderatorId, payload) {
-  const { status, moderatorDecision, moderatorNotes, moderatorReply } = payload;
+  const { status, moderatorDecision, moderatorNotes, moderatorReply, moderatorReplyToReportedUser } = payload;
   return reportService.resolveReport(
     reportId,
     moderatorId,
     status,
     moderatorDecision,
     moderatorNotes,
-    moderatorReply
+    moderatorReply,
+    moderatorReplyToReportedUser
   );
 }
 

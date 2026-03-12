@@ -1,5 +1,5 @@
 import { Card, Table, Tag, Button, Typography, Space, Select, Input, message } from "antd";
-import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
+import { EyeOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getModeratorReports } from "../../../services/moderator.service";
@@ -32,6 +32,19 @@ function getReportMeta(totalReports) {
   return { color: "default", text: "Chưa bị báo" };
 }
 
+function getProductWarningMeta(warningActions, isRemoved) {
+  if (isRemoved) {
+    return { color: "red", text: "Bài đã bị gỡ" };
+  }
+  if (warningActions >= 3) {
+    return { color: "red", text: `${warningActions} cảnh báo - Cần gỡ bài` };
+  }
+  if (warningActions >= 1) {
+    return { color: "gold", text: `${warningActions} cảnh báo` };
+  }
+  return { color: "green", text: "0 cảnh báo" };
+}
+
 const ModReportList = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -39,16 +52,28 @@ const ModReportList = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [filters, setFilters] = useState({ status: "", reportType: "", keyword: "" });
 
+  // Chuẩn hóa và kiểm tra từ khóa ngay tại UI trước khi gọi API.
+  const sanitizeKeyword = (keyword) => String(keyword || "").trim();
+
+  const validateKeyword = (keyword) => {
+    if (keyword.length > 100) {
+      throw new Error("Từ khóa tìm kiếm không được vượt quá 100 ký tự");
+    }
+  };
+
   // Tập trung gọi API danh sách tại một nơi để bộ lọc và phân trang luôn đồng nhất.
   const fetchReports = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
+      const keyword = sanitizeKeyword(filters.keyword);
+      validateKeyword(keyword);
+
       const result = await getModeratorReports({
         page,
         limit: pageSize,
         status: filters.status || undefined,
         reportType: filters.reportType || undefined,
-        keyword: filters.keyword || undefined
+        keyword: keyword || undefined
       });
 
       setReports(result.items);
@@ -62,6 +87,12 @@ const ModReportList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetFilters = () => {
+    // Đưa bộ lọc về mặc định và tải lại toàn bộ dữ liệu.
+    setFilters({ status: "", reportType: "", keyword: "" });
+    fetchReports(1, pagination.pageSize);
   };
 
   useEffect(() => {
@@ -87,26 +118,41 @@ const ModReportList = () => {
       render: (_, record) => record.reportedUserId?.fullName || record.productId?.title || "N/A"
     },
     {
-      title: "Mức vi phạm user",
+      title: "Mức vi phạm",
       key: "risk",
       width: 260,
       render: (_, record) => {
-        if (record.reportType !== "user" || !record.reportedUserStats) {
-          return <span style={{ color: "#8c8c8c" }}>-</span>;
+        if (record.reportType === "user" && record.reportedUserStats) {
+          const warningCount = Number(record.reportedUserStats.warningCount || 0);
+          const totalReports = Number(record.reportedUserStats.totalReports || 0);
+          const isSuspended = Boolean(record.reportedUserStats.isSuspended);
+          const warningMeta = getWarningMeta(warningCount, isSuspended);
+          const reportMeta = getReportMeta(totalReports);
+
+          return (
+            <Space direction="vertical" size={4}>
+              <Tag className="mod-status-pill" color={warningMeta.color}>{warningMeta.text}</Tag>
+              <Tag className="mod-status-pill" color={reportMeta.color}>{reportMeta.text}</Tag>
+            </Space>
+          );
         }
 
-        const warningCount = Number(record.reportedUserStats.warningCount || 0);
-        const totalReports = Number(record.reportedUserStats.totalReports || 0);
-        const isSuspended = Boolean(record.reportedUserStats.isSuspended);
-        const warningMeta = getWarningMeta(warningCount, isSuspended);
-        const reportMeta = getReportMeta(totalReports);
+        if (record.reportType === "product" && record.productStats) {
+          const warningActions = Number(record.productStats.warningActions || 0);
+          const totalReports = Number(record.productStats.totalReports || 0);
+          const isRemoved = Boolean(record.productStats.isRemoved);
+          const warningMeta = getProductWarningMeta(warningActions, isRemoved);
+          const reportMeta = getReportMeta(totalReports);
 
-        return (
-          <Space direction="vertical" size={4}>
-            <Tag className="mod-status-pill" color={warningMeta.color}>{warningMeta.text}</Tag>
-            <Tag className="mod-status-pill" color={reportMeta.color}>{reportMeta.text}</Tag>
-          </Space>
-        );
+          return (
+            <Space direction="vertical" size={4}>
+              <Tag className="mod-status-pill" color={warningMeta.color}>{warningMeta.text}</Tag>
+              <Tag className="mod-status-pill" color={reportMeta.color}>{reportMeta.text}</Tag>
+            </Space>
+          );
+        }
+
+        return <span style={{ color: "#8c8c8c" }}>-</span>;
       }
     },
     {
@@ -145,7 +191,7 @@ const ModReportList = () => {
     <Card className="mod-panel">
       <div className="mod-toolbar">
         <Title level={4} style={{ margin: 0 }}>Danh sách Báo cáo</Title>
-        <Space wrap>
+        <div className="mod-filter-row">
           <Input
             placeholder="Tìm theo nội dung..."
             prefix={<SearchOutlined />}
@@ -176,8 +222,11 @@ const ModReportList = () => {
               { value: "user", label: "Người dùng" }
             ]}
           />
-          <Button type="primary" onClick={() => fetchReports(1, pagination.pageSize)}>Lọc</Button>
-        </Space>
+          <div className="mod-filter-actions">
+            <Button type="primary" onClick={() => fetchReports(1, pagination.pageSize)}>Lọc</Button>
+            <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilters}>Reset</Button>
+          </div>
+        </div>
       </div>
       <Table 
         className="mod-table"
