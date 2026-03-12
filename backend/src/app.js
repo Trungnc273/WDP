@@ -5,6 +5,12 @@ const routes = require("./routes");
 
 const app = express();
 
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true
+}));
+
 // Middleware
 app.use(
 	cors({

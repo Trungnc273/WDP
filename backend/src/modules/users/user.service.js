@@ -253,3 +253,262 @@ module.exports = {
   changePassword,
   getUserStats
 };
+
+/**
+ * Admin CRUD Operations
+ */
+
+/**
+ * Get all users with pagination (Admin only)
+ */
+async function getAllUsers(page = 1, limit = 10, search = '', role = '', status = '') {
+  const skip = (page - 1) * limit;
+  
+  // Build query
+  const query = {};
+  
+  if (search) {
+    query.$or = [
+      { fullName: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+      { phone: { $regex: search, $options: 'i' } }
+    ];
+  }
+  
+  if (role && role !== 'all') {
+    query.role = role;
+  }
+  
+  if (status === 'suspended') {
+    query.isSuspended = true;
+  } else if (status === 'active') {
+    query.isSuspended = false;
+  }
+  
+  const users = await User.find(query)
+    .select('-password -kycDocuments')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+  
+  const total = await User.countDocuments(query);
+  
+  return {
+    users,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      totalUsers: total,
+      hasNext: page * limit < total,
+      hasPrev: page > 1
+    }
+  };
+}
+
+/**
+ * Get user by ID (Admin view with full details)
+ */
+async function getUserByIdAdmin(userId) {
+  const user = await User.findById(userId).select('-password');
+  
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+  
+  return user;
+}
+
+/**
+ * Create new user (Admin only)
+ */
+async function createUser(userData) {
+  const { email, password, fullName, phone, address, role = 'user' } = userData;
+  
+  // Validate required fields
+  if (!email || !password || !fullName) {
+    throw new Error('Email, mật khẩu và họ tên là bắt buộc');
+  }
+  
+  if (password.length < 6) {
+    throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
+  }
+  
+  // Check if email already exists
+  const existingUser = await User.findOne({ email: email.toLowerCase() });
+  if (existingUser) {
+    throw new Error('Email đã được sử dụng');
+  }
+  
+  // Hash password
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  const user = new User({
+    email: email.toLowerCase(),
+    password: hashedPassword,
+    fullName,
+    phone,
+    address,
+    role,
+    isVerified: true // Admin created users are auto-verified
+  });
+  
+  await user.save();
+  
+  // Return user without password
+  return await User.findById(user._id).select('-password');
+}
+
+/**
+ * Update user (Admin only)
+ */
+async function updateUserAdmin(userId, updateData) {
+  const allowedFields = ['fullName', 'phone', 'address', 'role', 'isVerified', 'isSuspended', 'kycStatus'];
+  const filteredData = {};
+  
+  // Only allow specific fields to be updated
+  allowedFields.forEach(field => {
+    if (updateData[field] !== undefined) {
+      filteredData[field] = updateData[field];
+    }
+  });
+  
+  if (Object.keys(filteredData).length === 0) {
+    throw new Error('Không có dữ liệu để cập nhật');
+  }
+  
+  // Handle suspension
+  if (filteredData.isSuspended === false) {
+    filteredData.suspendedUntil = undefined;
+  }
+  
+  const user = await User.findByIdAndUpdate(
+    userId,
+    filteredData,
+    { new: true, runValidators: true }
+  ).select('-password');
+  
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+  
+  return user;
+}
+
+/**
+ * Delete user (Admin only)
+ */
+async function deleteUser(userId) {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+  
+  // Don't allow deleting admin users
+  if (user.role === 'admin') {
+    throw new Error('Không thể xóa tài khoản admin');
+  }
+  
+  await User.findByIdAndDelete(userId);
+  
+  return { message: 'Xóa người dùng thành công' };
+}
+
+/**
+ * Suspend user (Admin only)
+ */
+async function suspendUser(userId, suspendedUntil, reason) {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+  
+  if (user.role === 'admin') {
+    throw new Error('Không thể khóa tài khoản admin');
+  }
+  
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      isSuspended: true,
+      suspendedUntil: suspendedUntil ? new Date(suspendedUntil) : undefined,
+      violationCount: user.violationCount + 1
+    },
+    { new: true }
+  ).select('-password');
+  
+  return updatedUser;
+}
+
+/**
+ * Unsuspend user (Admin only)
+ */
+async function unsuspendUser(userId) {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    {
+      isSuspended: false,
+      suspendedUntil: undefined
+    },
+    { new: true }
+  ).select('-password');
+  
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+  
+  return user;
+}
+
+/**
+ * Get system statistics (Admin only)
+ */
+async function getSystemStats() {
+  const totalUsers = await User.countDocuments();
+  const activeUsers = await User.countDocuments({ isSuspended: false });
+  const suspendedUsers = await User.countDocuments({ isSuspended: true });
+  const verifiedUsers = await User.countDocuments({ isVerified: true });
+  const pendingKYC = await User.countDocuments({ kycStatus: 'pending' });
+  
+  const usersByRole = await User.aggregate([
+    {
+      $group: {
+        _id: '$role',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+  
+  return {
+    totalUsers,
+    activeUsers,
+    suspendedUsers,
+    verifiedUsers,
+    pendingKYC,
+    usersByRole: usersByRole.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {})
+  };
+}
+
+module.exports = {
+  getUserById,
+  getPublicProfile,
+  updateProfile,
+  uploadAvatar,
+  submitKYC,
+  getKYCStatus,
+  changePassword,
+  getUserStats,
+  // Admin functions
+  getAllUsers,
+  getUserByIdAdmin,
+  createUser,
+  updateUserAdmin,
+  deleteUser,
+  suspendUser,
+  unsuspendUser,
+  getSystemStats
+};

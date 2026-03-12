@@ -19,6 +19,7 @@ function AppShell() {
   const location = useLocation();
 
   const isModeratorRoute = location.pathname.startsWith('/moderator');
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   // Dong dropdown thong bao khi bam ra ngoai
   useEffect(() => {
@@ -87,7 +88,7 @@ function AppShell() {
 
   return (
     <div className="App">
-      {!isModeratorRoute && (
+      {!isModeratorRoute && !isAdminRoute && (
         <nav className={`navbar ${isScrolled ? 'navbar--scrolled' : 'navbar--transparent'}`}>
           <div className="navbar__container">
             {/* Ben trai: Logo + menu mobile */}
@@ -252,7 +253,7 @@ function AppShell() {
 
       <AppRoutes />
         
-      {!isModeratorRoute && <Footer />}
+      {!isModeratorRoute && !isAdminRoute && <Footer />}
     </div>
   );
 }
