@@ -306,7 +306,7 @@ const EditProduct = () => {
                   />
                   <div className="upload-placeholder">
                     <span>+</span>
-                    <span>Thêm ảnh</span>
+                    <span>Up ảnh</span>
                   </div>
                 </label>
               )}

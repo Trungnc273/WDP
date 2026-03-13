@@ -29,11 +29,27 @@ const ProductDetail = () => {
 
   const getCurrentUserId = () => user?._id || user?.userId || null;
   const getSellerId = (productData) => productData?.seller?._id || productData?.sellerId?._id || productData?.sellerId || null;
+  // Luon lay thong tin moi nhat tu localStorage de tranh bi stale tu context
+  // Lay thong tin profile moi nhat tu server khi mo modal mua ngay
+  const [profileData, setProfileData] = useState(null);
   const hasPurchaseProfile = () => {
-    const phone = String(user?.phone || '').trim();
-    const address = String(user?.address || '').trim();
+    const profile = profileData || user || {};
+    const phone = String(profile?.phone || '').trim();
+    const address = String(profile?.address || '').trim();
     return Boolean(phone && address);
   };
+  useEffect(() => {
+    if (showPurchaseRequest) {
+      // Khi mo modal mua ngay, luon reload profile tu server
+      import('../../services/user.service').then(({ getProfile }) => {
+        getProfile().then(res => {
+          setProfileData(res.data);
+        }).catch(() => {
+          setProfileData(user || {});
+        });
+      });
+    }
+  }, [showPurchaseRequest]);
 
   const requirePurchaseProfile = () => {
     if (hasPurchaseProfile()) {
@@ -60,9 +76,25 @@ const ProductDetail = () => {
 
     const sellerId = getSellerId(product);
     const isOwnerProduct = !!(sellerId && getCurrentUserId() && sellerId.toString() === getCurrentUserId().toString());
-    if (!isOwnerProduct && requirePurchaseProfile()) {
-      setIsQuickBuy(true);
-      setShowPurchaseRequest(true);
+    if (!isOwnerProduct) {
+      // Luon fetch profile truoc khi mo modal
+      import('../../services/user.service').then(({ getProfile }) => {
+        getProfile().then(res => {
+          const profile = res.data;
+          const phone = String(profile?.phone || '').trim();
+          const address = String(profile?.address || '').trim();
+          if (phone && address) {
+            setProfileData(profile);
+            setIsQuickBuy(true);
+            setShowPurchaseRequest(true);
+          } else {
+            alert('Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng');
+            navigate('/profile');
+          }
+        }).catch(() => {
+          alert('Không thể kiểm tra thông tin hồ sơ. Vui lòng thử lại.');
+        });
+      });
     }
   }, [location.search, product, user]);
 
@@ -120,24 +152,34 @@ const ProductDetail = () => {
     setShowDeleteModal(false);
   };
 
-  const handlePurchaseRequest = (quickBuy = false) => {
+  const handlePurchaseRequest = async (quickBuy = false) => {
     if (!user) {
       alert('Vui lòng đăng nhập để mua hàng');
       navigate('/login');
       return;
     }
-    
     if (isOwner) {
       alert('Bạn không thể mua sản phẩm của chính mình');
       return;
     }
-
-    if (!requirePurchaseProfile()) {
-      return;
+    // Luon fetch profile truoc khi mo modal
+    try {
+      const { getProfile } = await import('../../services/user.service');
+      const res = await getProfile();
+      const profile = res.data;
+      const phone = String(profile?.phone || '').trim();
+      const address = String(profile?.address || '').trim();
+      if (phone && address) {
+        setProfileData(profile);
+        setIsQuickBuy(quickBuy);
+        setShowPurchaseRequest(true);
+      } else {
+        alert('Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng');
+        navigate('/profile');
+      }
+    } catch {
+      alert('Không thể kiểm tra thông tin hồ sơ. Vui lòng thử lại.');
     }
-    
-    setIsQuickBuy(quickBuy);
-    setShowPurchaseRequest(true);
   };
 
   const handlePurchaseSuccess = () => {

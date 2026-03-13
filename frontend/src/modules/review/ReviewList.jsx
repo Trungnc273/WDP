@@ -64,17 +64,14 @@ const ReviewList = ({ userId, showStats = true }) => {
   };
 
   const renderRatingDistribution = () => {
-    if (!stats || !stats.distribution) return null;
-
-    const total = stats.totalReviews;
-    if (total === 0) return null;
-
+    if (!stats) return null;
+    const total = stats.totalReviews || 0;
+    // Luon hien 5 hang sao, ke ca khi khong co review nao
     return (
       <div className="rating-distribution">
         {[5, 4, 3, 2, 1].map(rating => {
-          const count = stats.distribution[rating] || 0;
+          const count = stats.distribution && typeof stats.distribution[rating] === 'number' ? stats.distribution[rating] : 0;
           const percentage = total > 0 ? (count / total) * 100 : 0;
-          
           return (
             <div key={rating} className="rating-bar">
               <span className="rating-label">{rating} sao</span>

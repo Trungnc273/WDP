@@ -306,7 +306,7 @@ const CreateProduct = () => {
                     </div>
                   ))}
                   {imageFiles.length < 5 && (
-                    <label className="image-upload-button">
+                    <label className="upload-pill-button">
                       <input
                         type="file"
                         accept="image/*"
@@ -314,10 +314,9 @@ const CreateProduct = () => {
                         onChange={handleImageChange}
                         style={{ display: 'none' }}
                       />
-                      <div className="upload-placeholder">
-                        <span>+</span>
-                        <strong>Thêm ảnh</strong>
-                        <small>Kéo thả hoặc bấm để chọn</small>
+                      <div className="upload-pill-content">
+                        <span className="upload-pill-icon">+</span>
+                        <span className="upload-pill-text">Up ảnh</span>
                       </div>
                     </label>
                   )}

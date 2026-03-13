@@ -134,7 +134,7 @@ function Profile() {
               <h3>{profile?.fullName}</h3>
               <p className="user-email">{profile?.email}</p>
               <div className="user-stats">
-                <div className="stat-item">
+                <div className="stat-item" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                   <span className="stat-label">Đánh giá:</span>
                   <span className="stat-value">
                     {profile?.rating > 0 ? `${profile.rating.toFixed(1)}/5` : 'Chưa có'}
@@ -142,6 +142,11 @@ function Profile() {
                       <span className="review-count"> ({profile.totalReviews} đánh giá)</span>
                     )}
                   </span>
+                  {profile?._id && (
+                    <Link to={`/user/${profile._id}/reviews`} className="btn btn-outline btn-sm" style={{marginLeft: '8px'}}>
+                      Xem chi tiết đánh giá
+                    </Link>
+                  )}
                 </div>
                 <div className="stat-item">
                   <span className="stat-label">Thành viên từ:</span>

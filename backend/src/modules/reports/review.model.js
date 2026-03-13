@@ -97,11 +97,12 @@ reviewSchema.virtual('isActive').get(function() {
 });
 
 // Static method to calculate average rating for a user
+// Sửa lại aggregate để luôn trả về đúng điểm trung bình và số lượng review active cho seller
 reviewSchema.statics.calculateAverageRating = async function(userId) {
   const result = await this.aggregate([
     {
       $match: {
-        reviewedUserId: userId,
+        reviewedUserId: new mongoose.Types.ObjectId(userId),
         status: 'active'
       }
     },
@@ -113,14 +114,12 @@ reviewSchema.statics.calculateAverageRating = async function(userId) {
       }
     }
   ]);
-  
-  if (result.length > 0) {
+  if (result.length > 0 && typeof result[0].averageRating === 'number') {
     return {
-      averageRating: Math.round(result[0].averageRating * 10) / 10, // Round to 1 decimal
+      averageRating: Math.round(result[0].averageRating * 10) / 10,
       totalReviews: result[0].totalReviews
     };
   }
-  
   return {
     averageRating: 0,
     totalReviews: 0

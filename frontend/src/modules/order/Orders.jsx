@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getOrdersAsBuyer, getOrdersAsSeller, confirmOrderBySeller } from '../../services/order.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import Dispute from '../report/Dispute';
+import ShipOrder from './ShipOrder';
 import './Orders.css';
 
 const Orders = () => {
@@ -245,17 +246,19 @@ const Orders = () => {
             </button>
           );
         case 'paid':
-          return (
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Xu ly giao hang
-              }}
-            >
-              Xác nhận giao hàng
-            </button>
-          );
+              return (
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedOrder(order);
+                    setDisputeMode('shipment');
+                    setShowDisputeModal(true);
+                  }}
+                >
+                  Xác nhận giao hàng
+                </button>
+              );
         case 'disputed':
           return (
             <button
@@ -483,7 +486,21 @@ const Orders = () => {
         </div>
       )}
 
-      {showDisputeModal && selectedOrder && (
+      {showDisputeModal && selectedOrder && disputeMode === 'shipment' && (
+        <ShipOrder
+          order={selectedOrder}
+          onClose={() => {
+            setShowDisputeModal(false);
+            setSelectedOrder(null);
+          }}
+          onSuccess={async () => {
+            setShowDisputeModal(false);
+            setSelectedOrder(null);
+            await fetchOrders();
+          }}
+        />
+      )}
+      {showDisputeModal && selectedOrder && disputeMode !== 'shipment' && (
         <Dispute
           order={selectedOrder}
           initialReason={disputeMode === 'return' ? 'return_request' : ''}
