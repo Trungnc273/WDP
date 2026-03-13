@@ -299,14 +299,14 @@ const Orders = () => {
           onClick={() => handleTabChange('buying')}
         >
           <i className="fas fa-shopping-cart"></i>
-          Đang mua ({activeTab === 'buying' ? pagination.totalOrders : '...'})
+          Đơn mua ({activeTab === 'buying' ? pagination.totalOrders : '...'})
         </button>
         <button
           className={`tab-button ${activeTab === 'selling' ? 'active' : ''}`}
           onClick={() => handleTabChange('selling')}
         >
           <i className="fas fa-store"></i>
-          Đang bán ({activeTab === 'selling' ? pagination.totalOrders : '...'})
+          Đơn bán ({activeTab === 'selling' ? pagination.totalOrders : '...'})
         </button>
       </div>
 

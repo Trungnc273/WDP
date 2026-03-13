@@ -19,8 +19,9 @@
 
 .overall-rating {
   display: flex;
-  gap: 32px;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .rating-score {
@@ -54,44 +55,6 @@
   font-size: 14px;
 }
 
-.rating-distribution {
-  flex: 1;
-  max-width: 300px;
-}
-
-.rating-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.rating-label {
-  min-width: 50px;
-  font-size: 14px;
-  color: #666;
-}
-
-.bar-container {
-  flex: 1;
-  height: 8px;
-  background: #f0f0f0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  background: #ffc107;
-  transition: width 0.3s ease;
-}
-
-.rating-count {
-  min-width: 30px;
-  font-size: 12px;
-  color: #666;
-  text-align: right;
-}
 
 .review-filters {
   margin-bottom: 20px;

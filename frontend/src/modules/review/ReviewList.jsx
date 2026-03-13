@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getReviews, getRatingStats } from '../../services/review.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './ReviewList.css';
 
 const ReviewList = ({ userId, showStats = true }) => {
@@ -63,31 +64,7 @@ const ReviewList = ({ userId, showStats = true }) => {
     });
   };
 
-  const renderRatingDistribution = () => {
-    if (!stats) return null;
-    const total = stats.totalReviews || 0;
-    // Luon hien 5 hang sao, ke ca khi khong co review nao
-    return (
-      <div className="rating-distribution">
-        {[5, 4, 3, 2, 1].map(rating => {
-          const count = stats.distribution && typeof stats.distribution[rating] === 'number' ? stats.distribution[rating] : 0;
-          const percentage = total > 0 ? (count / total) * 100 : 0;
-          return (
-            <div key={rating} className="rating-bar">
-              <span className="rating-label">{rating} sao</span>
-              <div className="bar-container">
-                <div 
-                  className="bar-fill" 
-                  style={{ width: `${percentage}%` }}
-                ></div>
-              </div>
-              <span className="rating-count">({count})</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+
 
   if (loading && currentPage === 1) {
     return <div className="loading">Đang tải đánh giá...</div>;
@@ -107,7 +84,6 @@ const ReviewList = ({ userId, showStats = true }) => {
                 ({stats.totalReviews} đánh giá)
               </span>
             </div>
-            {renderRatingDistribution()}
           </div>
         </div>
       )}
@@ -173,7 +149,7 @@ const ReviewList = ({ userId, showStats = true }) => {
               {review.productId && (
                 <div className="reviewed-product">
                   <img 
-                    src={review.productId.images?.[0] || '/placeholder-image.jpg'} 
+                    src={getImageUrl(review.productId.images?.[0]) || '/images/placeholder.png'} 
                     alt={review.productId.title}
                     className="product-thumb"
                   />

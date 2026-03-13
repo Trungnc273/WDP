@@ -9,7 +9,7 @@ const { generateJWT } = require('../../common/utils/jwt.util');
  * @param {String} fullName - User full name
  * @returns {Object} { user, token }
  */
-async function registerUser(email, password, fullName) {
+async function registerUser(email, password, fullName, phone, address) {
   // Check if email already exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
@@ -26,6 +26,8 @@ async function registerUser(email, password, fullName) {
     email: email.toLowerCase(),
     password: hashedPassword,
     fullName: fullName.trim(),
+    phone: phone.trim(),
+    address: address.trim(),
     role: 'user'
   });
 
@@ -41,6 +43,8 @@ async function registerUser(email, password, fullName) {
     id: user._id,
     email: user.email,
     fullName: user.fullName,
+    phone: user.phone,
+    address: user.address,
     role: user.role,
     isVerified: user.isVerified
   };
@@ -119,6 +123,8 @@ async function loginUser(email, password) {
     id: user._id,
     email: user.email,
     fullName: user.fullName,
+    phone: user.phone,
+    address: user.address,
     role: user.role,
     isVerified: user.isVerified
   };

@@ -287,6 +287,20 @@
   border-radius: 50%;
 }
 
+.user-card-avatar a {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.user-card-avatar a img {
+  cursor: pointer;
+}
+
+.user-card-avatar a:hover img {
+  opacity: 0.92;
+}
+
 .user-card-name {
   color: #1a1a2e;
   font-weight: 700;

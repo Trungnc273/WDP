@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import './Auth.css';
 
 function Login() {
@@ -10,6 +11,7 @@ function Login() {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Lấy hàm login và biến user từ AuthContext thông qua hook useAuth
   const { login } = useAuth();
@@ -77,7 +79,7 @@ function Login() {
           navigate('/admin');
         } else if (currentUser.role === 'moderator') {
           // Nếu là Moderator thì đưa vào trang moderator
-          navigate('/moderator/reports');
+          navigate('/moderator/dashboard');
         } else {
           // Nếu là khách hàng bình thường thì về trang chủ
           navigate('/');
@@ -115,16 +117,27 @@ function Login() {
           {/* Ô nhập Mật khẩu */}
           <div className="form-group">
             <label htmlFor="password">Mật khẩu</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Nhập mật khẩu"
-              disabled={loading}
-              className={errors.password ? 'input-error' : ''}
-            />
+            <div className="password-input-container">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Nhập mật khẩu"
+                disabled={loading}
+                className={errors.password ? 'input-error' : ''}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {showPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </button>
+            </div>
             {errors.password && <span className="error-text">{errors.password}</span>}
           </div>
 

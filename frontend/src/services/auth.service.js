@@ -1,12 +1,14 @@
 import api from './api';
 
 export const authService = {
-  async register(email, password, fullName) {
+  async register(email, password, fullName, phone, address) {
     try {
       const response = await api.post('/auth/register', {
         email,
         password,
         fullName,
+        phone,
+        address,
       });
       
       if (response.data.success) {

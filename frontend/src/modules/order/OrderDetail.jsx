@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrderById } from '../../services/order.service';
 import { canReviewOrder, getReviewByOrderId } from '../../services/review.service';
@@ -13,16 +13,25 @@ import './OrderDetail.css';
 
 const AVATAR_PLACEHOLDER = '/images/placeholders/avatar-placeholder.svg';
 
-const UserAvatar = ({ avatar, fullName }) => {
+const UserAvatar = ({ avatar, fullName, userId }) => {
   const [imgError, setImgError] = useState(false);
   const src = (!avatar || imgError) ? AVATAR_PLACEHOLDER : getImageUrl(avatar);
 
-  return (
+  const image = (
     <img
       src={src}
       alt={fullName || 'Người dùng'}
       onError={() => setImgError(true)}
+      className={userId ? 'clickable-avatar' : undefined}
     />
+  );
+
+  if (!userId) return image;
+
+  return (
+    <Link to={`/user/${userId}`} className="user-avatar-link">
+      {image}
+    </Link>
   );
 };
 
@@ -140,10 +149,8 @@ const OrderDetail = () => {
   }, [id]);
 
   useEffect(() => {
-    if (order && isBuyer()) {
-      checkReviewStatus();
-    }
     if (order) {
+      checkReviewStatus();
       fetchDispute();
     }
   }, [order]);
@@ -764,7 +771,11 @@ const OrderDetail = () => {
             <div className="info-item user-card-item">
               <span className="user-card-role">Người mua</span>
               <div className="user-card-avatar">
-                <UserAvatar avatar={order.buyer?.avatar} fullName={order.buyer?.fullName} />
+                <UserAvatar
+                  avatar={order.buyer?.avatar}
+                  fullName={order.buyer?.fullName}
+                  userId={getNormalizedUserId(order.buyer)}
+                />
               </div>
               <span className="user-card-name">{order.buyer?.fullName}</span>
             </div>
@@ -772,7 +783,11 @@ const OrderDetail = () => {
             <div className="info-item user-card-item">
               <span className="user-card-role">Người bán</span>
               <div className="user-card-avatar">
-                <UserAvatar avatar={order.seller?.avatar} fullName={order.seller?.fullName} />
+                <UserAvatar
+                  avatar={order.seller?.avatar}
+                  fullName={order.seller?.fullName}
+                  userId={getNormalizedUserId(order.seller)}
+                />
               </div>
               <span className="user-card-name">{order.seller?.fullName}</span>
             </div>
@@ -898,7 +913,7 @@ const OrderDetail = () => {
         {/* Existing Review Display */}
         {existingReview && (
           <div className="detail-card">
-            <h2>Đánh giá của bạn</h2>
+            <h2>{isBuyer() ? 'Đánh giá của bạn' : 'Đánh giá của người mua'}</h2>
             <div className="existing-review">
               <div className="existing-review__top">
                 <div className="review-rating">

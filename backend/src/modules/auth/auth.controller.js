@@ -7,10 +7,10 @@ const { sendSuccess, sendError } = require('../../common/utils/response.util');
  */
 async function register(req, res, next) {
   try {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, phone, address } = req.body;
 
     // Validate required fields
-    if (!email || !password || !fullName) {
+    if (!email || !password || !fullName || !phone || !address) {
       return sendError(res, 400, 'Vui lòng điền đầy đủ thông tin');
     }
 
@@ -30,8 +30,19 @@ async function register(req, res, next) {
       return sendError(res, 400, 'Họ tên không được để trống');
     }
 
+    // Validate phone
+    const phoneRegex = /^0\d{9,10}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      return sendError(res, 400, 'Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số');
+    }
+
+    // Validate address not empty
+    if (address.trim().length === 0) {
+      return sendError(res, 400, 'Địa chỉ không được để trống');
+    }
+
     // Call service to register user
-    const result = await authService.registerUser(email, password, fullName);
+    const result = await authService.registerUser(email, password, fullName, phone, address);
 
     return sendSuccess(res, 201, result, 'Đăng ký thành công');
   } catch (error) {

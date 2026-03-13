@@ -418,29 +418,29 @@ const Chat = () => {
     const buyerId = getConversationBuyerId(conversation);
     const sellerId = getConversationSellerId(conversation);
     if (!currentUserId) return 'Không xác định';
-    if (buyerId?.toString() === currentUserId.toString()) return 'Người mua';
-    if (sellerId?.toString() === currentUserId.toString()) return 'Người bán';
+    if (buyerId?.toString() === currentUserId.toString()) return 'Người Mua';
+    if (sellerId?.toString() === currentUserId.toString()) return 'Người Bán';
     return 'Không xác định';
   };
 
   const getOtherRoleInConversation = (conversation) => {
     const myRole = getMyRoleInConversation(conversation);
-    if (myRole === 'Người mua') return 'Người bán';
-    if (myRole === 'Người bán') return 'Người mua';
+    if (myRole === 'Người Mua') return 'Người Bán';
+    if (myRole === 'Người Bán') return 'Người Mua';
     return 'Không xác định';
   };
 
   const getUnreadCount = (conversation) => {
     if (!conversation) return 0;
     const role = getMyRoleInConversation(conversation);
-    if (role === 'Người mua') return Number(conversation.buyerUnreadCount || 0);
-    if (role === 'Người bán') return Number(conversation.sellerUnreadCount || 0);
+    if (role === 'Người Mua') return Number(conversation.buyerUnreadCount || 0);
+    if (role === 'Người Bán') return Number(conversation.sellerUnreadCount || 0);
     return 0;
   };
 
   const getRoleClassName = (role) => {
-    if (role === 'Người mua') return 'buyer';
-    if (role === 'Người bán') return 'seller';
+    if (role === 'Người Mua') return 'buyer';
+    if (role === 'Người Bán') return 'seller';
     return 'unknown';
   };
 
@@ -464,9 +464,9 @@ const Chat = () => {
 
   const getOtherUserId = (conversation) => getEntityId(getOtherUser(conversation));
 
-  const isBuyerInCurrentConversation = () => getMyRoleInConversation(currentConversation) === 'Người mua';
+  const isBuyerInCurrentConversation = () => getMyRoleInConversation(currentConversation) === 'Người Mua';
 
-  const isSellerInCurrentConversation = () => getMyRoleInConversation(currentConversation) === 'Người bán';
+  const isSellerInCurrentConversation = () => getMyRoleInConversation(currentConversation) === 'Người Bán';
 
   const canShowDealActions = () => getConversationProductStatus(currentConversation) === 'active';
 
@@ -483,11 +483,11 @@ const Chat = () => {
     setConversations((prev) => prev.map((conv) => {
       if (conv._id !== conversationIdValue) return conv;
 
-      if (role === 'Người mua') {
+      if (role === 'Người Mua') {
         return { ...conv, buyerUnreadCount: 0 };
       }
 
-      if (role === 'Người bán') {
+      if (role === 'Người Bán') {
         return { ...conv, sellerUnreadCount: 0 };
       }
 
@@ -933,7 +933,15 @@ const Chat = () => {
                   className={`conversation-item ${isActive ? 'active' : ''} ${isUnread ? 'conversation-item--unread' : ''}`}
                   onClick={() => handleConversationClick(conversation)}
                 >
-                  <div className="conversation-avatar">
+                  <div 
+                    className="conversation-avatar" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      const userId = getEntityId(otherUser);
+                      if (userId) navigate(`/user/${userId}`);
+                    }} 
+                    style={{ cursor: 'pointer' }}
+                  >
                     {otherUser?.avatar ? (
                       <img src={otherUser.avatar} alt={otherUser.fullName} />
                     ) : (
@@ -997,7 +1005,14 @@ const Chat = () => {
             {/* Chat Header */}
             <div className="chat-header">
               <div className="chat-user-info">
-                <div className="chat-avatar">
+                <div 
+                  className="chat-avatar" 
+                  onClick={() => {
+                    const userId = getEntityId(getOtherUser(currentConversation));
+                    if (userId) navigate(`/user/${userId}`);
+                  }} 
+                  style={{ cursor: 'pointer' }}
+                >
                   {getOtherUser(currentConversation)?.avatar ? (
                     <img 
                       src={getOtherUser(currentConversation).avatar} 
@@ -1063,7 +1078,14 @@ const Chat = () => {
                     
                     <div className={`message ${isOwn ? 'own' : 'other'}`}>
                       {!isOwn && (
-                        <div className="message-avatar-left">
+                        <div 
+                          className="message-avatar-left" 
+                          onClick={() => {
+                            const userId = getEntityId(getOtherUser(currentConversation));
+                            if (userId) navigate(`/user/${userId}`);
+                          }} 
+                          style={{ cursor: 'pointer' }}
+                        >
                           {getOtherUser(currentConversation)?.avatar ? (
                             <img
                               src={getOtherUser(currentConversation)?.avatar}

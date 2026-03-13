@@ -138,28 +138,6 @@ const ModOrderDetail = () => {
           </Descriptions.Item>
         </Descriptions>
 
-        <Card type="inner" title="Cập nhật trạng thái đơn hàng" className="mod-panel" style={{ marginBottom: 16 }}>
-          <Space direction="vertical" style={{ width: "100%" }}>
-            <Select
-              value={nextStatus}
-              onChange={setNextStatus}
-              placeholder="Chỉ cho phép chuyển sang Đang giao"
-              options={shipOnlyOptions}
-            />
-            <TextArea
-              rows={3}
-              value={statusNote}
-              onChange={(e) => setStatusNote(e.target.value)}
-              placeholder="Ghi chú khi chuyển trạng thái sang Đang giao"
-            />
-            <Popconfirm title="Xác nhận cập nhật trạng thái đơn hàng?" onConfirm={handleUpdateStatus}>
-              <Button type="primary" disabled={!shipOnlyOptions.length}>
-                Cập nhật trạng thái
-              </Button>
-            </Popconfirm>
-          </Space>
-        </Card>
-
         <Card type="inner" title="Thao tác của Moderator" className="mod-panel">
           <Space direction="vertical" style={{ width: "100%" }}>
             <TextArea

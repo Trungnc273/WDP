@@ -271,7 +271,7 @@ function Profile() {
               <span>Ví của tôi</span>
             </Link>
             
-            <Link to="/purchase-requests" className="action-item">
+            <Link to="/orders" className="action-item">
               <i className="fas fa-handshake"></i>
               <span>Yêu cầu mua hàng</span>
             </Link>
