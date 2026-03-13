@@ -741,7 +741,6 @@ async function resolveDispute(disputeId, moderatorId, payload) {
     } else if (escrowHold.status === "released") {
       throw new Error("Tiền đã nhả cho người bán, không thể hoàn tiền cho người mua");
     }
-    await increaseViolationAndMaybeSuspend(dispute.sellerId);
   } else if (resolution === "release") {
     if (escrowHold.status === "held") {
       await escrowService.releaseFunds(orderId, "Tranh chấp đã xử lý: Nhả tiền cho người bán", false);
@@ -760,8 +759,6 @@ async function resolveDispute(disputeId, moderatorId, payload) {
         await Product.findByIdAndUpdate(order.productId, { status: "sold" });
       }
     }
-
-    await increaseViolationAndMaybeSuspend(dispute.buyerId);
   }
 
   dispute.status = "resolved";

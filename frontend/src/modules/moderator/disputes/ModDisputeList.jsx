@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Card, Table, Tag, Button, Typography, Select, Space, message } from "antd";
+import { Card, Table, Tag, Button, Typography, Select, message } from "antd";
 import { EyeOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getModeratorDisputes } from "../../../services/moderator.service";
