@@ -83,9 +83,20 @@ const ModOrderList = () => {
 
   // Cấu hình cột bảng để tách phần dữ liệu và phần render UI.
   const columns = [
-    { title: "Mã ĐH", dataIndex: "_id", key: "_id", render: (text) => <b>{String(text).slice(-8).toUpperCase()}</b> },
+    {
+      title: "Mã ĐH",
+      dataIndex: "orderCode",
+      key: "orderCode",
+      render: (_, record) => <b>{record?.orderCode || String(record?._id || '').slice(-8).toUpperCase()}</b>
+    },
     { title: "Người mua", dataIndex: ["buyerId", "fullName"], key: "buyer" },
     { title: "Người bán", dataIndex: ["sellerId", "fullName"], key: "seller" },
+    {
+      title: "Mã vận đơn",
+      dataIndex: "trackingNumber",
+      key: "trackingNumber",
+      render: (value) => value || "-"
+    },
     {
       title: "Tổng tiền",
       dataIndex: "totalToPay",

@@ -6,17 +6,21 @@ import { getModeratorReports } from "../../../services/moderator.service";
 
 const { Title } = Typography;
 
-function getWarningMeta(warningCount, isSuspended) {
-  if (isSuspended || warningCount >= 3) {
-    return { color: "red", text: `${warningCount} cảnh báo - Đã khóa` };
+function getWarningMeta(warningCount, isSuspended, shouldLockAccount) {
+  if (isSuspended) {
+    return { color: "red", text: `${warningCount} cảnh báo - Đang bị khóa` };
   }
-  if (warningCount === 2) {
-    return { color: "volcano", text: "2 cảnh báo - Cận ngưỡng khóa" };
+
+  if (shouldLockAccount) {
+    return { color: "volcano", text: `${warningCount} cảnh báo - Đạt mốc khóa` };
   }
-  if (warningCount === 1) {
-    return { color: "gold", text: "1 cảnh báo" };
+
+  if (warningCount === 0) {
+    return { color: "green", text: "0 cảnh báo" };
   }
-  return { color: "green", text: "0 cảnh báo" };
+
+  const remain = 3 - (warningCount % 3);
+  return { color: remain === 1 ? "gold" : "geekblue", text: `${warningCount} cảnh báo - Còn ${remain} lần tới mốc khóa` };
 }
 
 function getReportMeta(totalReports) {
@@ -126,7 +130,8 @@ const ModReportList = () => {
           const warningCount = Number(record.reportedUserStats.warningCount || 0);
           const totalReports = Number(record.reportedUserStats.totalReports || 0);
           const isSuspended = Boolean(record.reportedUserStats.isSuspended);
-          const warningMeta = getWarningMeta(warningCount, isSuspended);
+          const shouldLockAccount = Boolean(record.reportedUserStats.shouldLockAccount);
+          const warningMeta = getWarningMeta(warningCount, isSuspended, shouldLockAccount);
           const reportMeta = getReportMeta(totalReports);
 
           return (

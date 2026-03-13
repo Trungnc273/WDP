@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import walletService from '../../services/wallet.service';
@@ -9,6 +10,7 @@ const Withdrawal = () => {
   const { user } = useAuth();
 
   const [balance, setBalance] = useState(null);
+  const [recentWithdrawals, setRecentWithdrawals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchingBalance, setFetchingBalance] = useState(true);
   const [errors, setErrors] = useState({});
@@ -39,8 +41,12 @@ const Withdrawal = () => {
   const fetchBalance = async () => {
     try {
       setFetchingBalance(true);
-      const balanceData = await walletService.getBalance();
+      const [balanceData, withdrawalData] = await Promise.all([
+        walletService.getBalance(),
+        walletService.getTransactions({ type: 'withdrawal', page: 1, limit: 5 })
+      ]);
       setBalance(balanceData);
+      setRecentWithdrawals(withdrawalData.transactions || []);
     } catch (error) {
       console.error('Error fetching balance:', error);
     } finally {
@@ -82,7 +88,7 @@ const Withdrawal = () => {
       newErrors.amount = 'Vui lòng nhập số tiền hợp lệ';
     } else if (amount < 50000) {
       newErrors.amount = 'Số tiền rút tối thiểu là 50,000 VNĐ';
-    } else if (balance && amount > balance.balance) {
+    } else if (balance && amount > (balance.availableWithdrawalBalance || 0)) {
       newErrors.amount = 'Số tiền rút không được vượt quá số dư khả dụng';
     }
 
@@ -144,6 +150,29 @@ const Withdrawal = () => {
     return amount - calculateFee(amount);
   };
 
+  const formatDate = (date) => {
+    if (!date) return 'Chưa cập nhật';
+
+    return new Date(date).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusMeta = (status) => {
+    const statusMap = {
+      pending: { label: 'Chờ duyệt', className: 'status-pending' },
+      completed: { label: 'Đã chuyển khoản', className: 'status-completed' },
+      failed: { label: 'Từ chối', className: 'status-failed' },
+      cancelled: { label: 'Đã hủy', className: 'status-cancelled' }
+    };
+
+    return statusMap[status] || { label: status, className: '' };
+  };
+
   if (fetchingBalance) {
     return (
       <div className="withdrawal-container">
@@ -168,7 +197,11 @@ const Withdrawal = () => {
           <div className="balance-info">
             <h3>Số dư khả dụng</h3>
             <div className="balance-amount">
-              {formatPrice(balance?.balance || 0)} VNĐ
+              {formatPrice(balance?.availableWithdrawalBalance || 0)} VNĐ
+            </div>
+            <div className="balance-submeta">
+              <span>Số dư ví: {formatPrice(balance?.balance || 0)} VNĐ</span>
+              <span>Đang chờ rút: {formatPrice(balance?.pendingWithdrawalAmount || 0)} VNĐ</span>
             </div>
           </div>
 
@@ -193,6 +226,11 @@ const Withdrawal = () => {
               <p className="help-text">
                 Số tiền rút tối thiểu: 50,000 VNĐ
               </p>
+              {Number(balance?.pendingWithdrawalAmount || 0) > 0 && (
+                <p className="help-text warning-text">
+                  Hiện có {formatPrice(balance?.pendingWithdrawalAmount || 0)} VNĐ đang chờ moderator xử lý nên chưa thể rút tiếp.
+                </p>
+              )}
             </div>
 
             {/* Quick Amount Buttons */}
@@ -213,9 +251,9 @@ const Withdrawal = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setFormData(prev => ({ ...prev, amount: balance?.balance?.toString() || '0' }))}
+                onClick={() => setFormData(prev => ({ ...prev, amount: (balance?.availableWithdrawalBalance || 0).toString() }))}
                 className="quick-btn"
-                disabled={!balance?.balance}
+                disabled={!balance?.availableWithdrawalBalance}
               >
                 Tất cả
               </button>
@@ -329,6 +367,45 @@ const Withdrawal = () => {
             <li>Không thể hủy yêu cầu sau khi đã gửi</li>
             <li>Liên hệ hỗ trợ nếu có vấn đề</li>
           </ul>
+
+          <div className="withdrawal-notice__link">
+            <Link to="/wallet">Xem toàn bộ lịch sử ví</Link>
+          </div>
+
+          <div className="withdrawal-history">
+            <div className="withdrawal-history__header">
+              <h4>Yêu cầu gần đây</h4>
+              <span>{recentWithdrawals.length} giao dịch</span>
+            </div>
+
+            {recentWithdrawals.length === 0 ? (
+              <p className="withdrawal-history__empty">Bạn chưa tạo yêu cầu rút tiền nào.</p>
+            ) : (
+              <div className="withdrawal-history__list">
+                {recentWithdrawals.map((item) => {
+                  const statusMeta = getStatusMeta(item.status);
+                  return (
+                    <div key={item._id} className="withdrawal-history__item">
+                      <div className="withdrawal-history__top">
+                        <strong>{formatPrice(item.amount)} VNĐ</strong>
+                        <span className={`withdrawal-history__status ${statusMeta.className}`}>
+                          {statusMeta.label}
+                        </span>
+                      </div>
+                      <p>
+                        {item.metadata?.bankName || 'Ngân hàng'} - {item.metadata?.bankAccount || '---'}
+                      </p>
+                      <p>Chủ TK: {item.metadata?.accountHolder || '---'}</p>
+                      <p>Gửi lúc: {formatDate(item.metadata?.requestedAt || item.createdAt)}</p>
+                      {item.failureReason && (
+                        <p className="withdrawal-history__reason">Lý do: {item.failureReason}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

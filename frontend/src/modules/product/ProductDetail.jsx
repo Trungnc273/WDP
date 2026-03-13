@@ -4,9 +4,10 @@ import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
 import chatService from '../../services/chat.service';
 import favoriteService from '../../services/favorite.service';
-import { getImageUrl } from '../../utils/imageHelper';
+import { getImageUrl, getUserAvatarUrl, handleImageError } from '../../utils/imageHelper';
 import PurchaseRequest from '../order/PurchaseRequest';
 import ReportProduct from '../report/ReportProduct';
+import ReportUser from '../report/ReportUser';
 import './ProductDetail.css';
 
 const ProductDetail = () => {
@@ -23,10 +24,26 @@ const ProductDetail = () => {
   const [showPurchaseRequest, setShowPurchaseRequest] = useState(false);
   const [isQuickBuy, setIsQuickBuy] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showUserReportModal, setShowUserReportModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
   const getCurrentUserId = () => user?._id || user?.userId || null;
   const getSellerId = (productData) => productData?.seller?._id || productData?.sellerId?._id || productData?.sellerId || null;
+  const hasPurchaseProfile = () => {
+    const phone = String(user?.phone || '').trim();
+    const address = String(user?.address || '').trim();
+    return Boolean(phone && address);
+  };
+
+  const requirePurchaseProfile = () => {
+    if (hasPurchaseProfile()) {
+      return true;
+    }
+
+    alert('Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng');
+    navigate('/profile');
+    return false;
+  };
 
   useEffect(() => {
     fetchProduct();
@@ -39,13 +56,15 @@ const ProductDetail = () => {
     if (!product) return;
     const params = new URLSearchParams(location.search);
     if (params.get('openPurchase') !== '1') return;
+    if (!user) return;
 
     const sellerId = getSellerId(product);
     const isOwnerProduct = !!(sellerId && getCurrentUserId() && sellerId.toString() === getCurrentUserId().toString());
-    if (!isOwnerProduct) {
+    if (!isOwnerProduct && requirePurchaseProfile()) {
+      setIsQuickBuy(true);
       setShowPurchaseRequest(true);
     }
-  }, [location.search, product]);
+  }, [location.search, product, user]);
 
   const checkIfFavorited = async () => {
     try {
@@ -112,6 +131,10 @@ const ProductDetail = () => {
       alert('Bạn không thể mua sản phẩm của chính mình');
       return;
     }
+
+    if (!requirePurchaseProfile()) {
+      return;
+    }
     
     setIsQuickBuy(quickBuy);
     setShowPurchaseRequest(true);
@@ -140,6 +163,26 @@ const ProductDetail = () => {
   const handleReportSuccess = () => {
     setShowReportModal(false);
     alert('Báo cáo đã được gửi thành công! Chúng tôi sẽ xem xét và xử lý trong thời gian sớm nhất.');
+  };
+
+  const handleReportUser = () => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để báo cáo người dùng');
+      navigate('/login');
+      return;
+    }
+
+    if (isOwner) {
+      alert('Bạn không thể báo cáo chính mình');
+      return;
+    }
+
+    setShowUserReportModal(true);
+  };
+
+  const handleUserReportSuccess = () => {
+    setShowUserReportModal(false);
+    alert('Báo cáo người dùng đã được gửi thành công!');
   };
 
   const handleStartChat = async () => {
@@ -413,7 +456,11 @@ const ProductDetail = () => {
             <div className="seller-info">
               <div className="seller-avatar">
                 {product.seller?.avatar ? (
-                  <img src={getImageUrl(product.seller.avatar)} alt={product.seller.fullName} />
+                  <img
+                    src={getUserAvatarUrl(product.seller)}
+                    alt={product.seller.fullName}
+                    onError={(event) => handleImageError(event, 'avatar')}
+                  />
                 ) : (
                   <div className="avatar-placeholder">
                     {product.seller?.fullName?.charAt(0).toUpperCase()}
@@ -442,6 +489,11 @@ const ProductDetail = () => {
             <Link to={`/user/${sellerId || ''}`} className="btn btn-view-profile">
               Xem trang cá nhân
             </Link>
+            {!isOwner && (
+              <button type="button" className="btn btn-report-user" onClick={handleReportUser}>
+                Báo cáo người dùng
+              </button>
+            )}
           </div>
 
           {/* Safety Tips */}
@@ -501,6 +553,14 @@ const ProductDetail = () => {
           product={product}
           onSuccess={handleReportSuccess}
           onCancel={() => setShowReportModal(false)}
+        />
+      )}
+
+      {showUserReportModal && product?.seller && (
+        <ReportUser
+          reportedUser={product.seller}
+          onSuccess={handleUserReportSuccess}
+          onCancel={() => setShowUserReportModal(false)}
         />
       )}
     </div>

@@ -155,7 +155,7 @@ const OrderPayment = () => {
           <div className="order-details">
             <div className="order-id">
               <span className="label">Mã đơn hàng:</span>
-              <span className="value">#{order._id.slice(-8).toUpperCase()}</span>
+              <span className="value">#{order.orderCode || order._id.slice(-8).toUpperCase()}</span>
             </div>
             
             <div className="order-date">

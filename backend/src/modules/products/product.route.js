@@ -30,6 +30,9 @@ router.put('/:id', authenticate, productController.updateProduct);
 // DELETE /api/products/:id - Delete product (protected, owner only)
 router.delete('/:id', authenticate, productController.deleteProduct);
 
+// PATCH /api/products/:id/visibility - Hide/show product (protected, owner only)
+router.patch('/:id/visibility', authenticate, productController.updateProductVisibility);
+
 // GET /api/products/:id - Get product by ID
 router.get('/:id', productController.getProductById);
 

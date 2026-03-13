@@ -15,7 +15,8 @@ async function getProducts(req, res, next) {
       search: req.query.search,
       minPrice: req.query.minPrice ? parseFloat(req.query.minPrice) : null,
       maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice) : null,
-      city: req.query.city
+      city: req.query.city,
+      sellerId: req.query.seller
     };
     
     // Handle category - convert slug to ID if provided
@@ -190,6 +191,36 @@ async function deleteProduct(req, res, next) {
 }
 
 /**
+ * Update product visibility (active/hidden)
+ * PATCH /api/products/:id/visibility
+ * Body: { status: 'active' | 'hidden' }
+ * Requires authentication and ownership
+ */
+async function updateProductVisibility(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    const nextStatus = String(req.body?.status || '').trim();
+
+    if (!nextStatus) {
+      return sendError(res, 400, 'Thiếu trạng thái cập nhật');
+    }
+
+    const product = await productService.setProductVisibility(id, userId, nextStatus);
+
+    return sendSuccess(res, 200, product, 'Trạng thái hiển thị đã được cập nhật');
+  } catch (error) {
+    if (error.message.includes('không tồn tại')) {
+      return sendError(res, 404, error.message);
+    }
+    if (error.message.includes('không có quyền') || error.message.includes('Không thể') || error.message.includes('không hợp lệ')) {
+      return sendError(res, 403, error.message);
+    }
+    next(error);
+  }
+}
+
+/**
  * Get user's products
  * GET /api/products/my-products
  * Query params: status, page, limit
@@ -223,5 +254,6 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  updateProductVisibility,
   getMyProducts
 };

@@ -39,10 +39,28 @@ const chatService = {
   },
 
   // Gửi tin nhắn qua REST (dùng khi socket không khả dụng).
-  sendMessage: async (conversationId, content) => {
+  sendMessage: async (conversationId, messageData) => {
+    const payload = typeof messageData === 'string'
+      ? { content: messageData }
+      : messageData;
+
     const response = await api.post('/chat/messages', {
       conversationId,
-      content
+      ...payload
+    });
+    return response.data.data;
+  },
+
+  // Upload ảnh để gửi trong chat.
+  uploadChatImage: async (conversationId, imageFile) => {
+    const formData = new FormData();
+    formData.append('conversationId', conversationId);
+    formData.append('image', imageFile);
+
+    const response = await api.post(`/chat/messages/upload-image?targetId=${conversationId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     });
     return response.data.data;
   },

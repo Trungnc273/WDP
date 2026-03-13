@@ -31,9 +31,38 @@ async function authenticate(req, res, next) {
       return sendError(res, 401, 'User không tồn tại');
     }
 
-    // Check if user account is suspended
+    // Check if user account is suspended (auto-unlock when suspension time has passed)
     if (user.isSuspended) {
-      return sendError(res, 403, 'Tài khoản đã bị khóa');
+      const isModeratorReviewSuspension = String(user.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
+      const belowModeratorThreshold = Number(user.modBadReviewCount || 0) < 3;
+      const isLegacyUnknownSuspension = !String(user.suspendedReason || '').trim();
+      const belowViolationThreshold = Number(user.violationCount || 0) < 3;
+
+      if (
+        (isModeratorReviewSuspension && belowModeratorThreshold) ||
+        (isLegacyUnknownSuspension && belowModeratorThreshold && belowViolationThreshold)
+      ) {
+        user.isSuspended = false;
+        user.suspendedUntil = undefined;
+        user.suspendedReason = undefined;
+        await user.save();
+      }
+
+      const suspensionExpired = user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
+      if (!user.isSuspended || suspensionExpired) {
+        user.isSuspended = false;
+        user.suspendedUntil = undefined;
+        user.suspendedReason = undefined;
+        await user.save();
+      } else {
+        const suspendedUntilText = user.suspendedUntil
+          ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
+          : '';
+        const reasonText = user.suspendedReason
+          ? ` Lý do: ${user.suspendedReason}`
+          : ' Lý do: vi phạm chính sách của hệ thống.';
+        return sendError(res, 403, `Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+      }
     }
 
     // Attach user info to request object (without password)
@@ -70,6 +99,29 @@ async function optionalAuthenticate(req, res, next) {
       const decoded = verifyToken(token);
       const user = await User.findById(decoded.userId);
       
+      const isModeratorReviewSuspension = String(user?.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
+      const belowModeratorThreshold = Number(user?.modBadReviewCount || 0) < 3;
+      const isLegacyUnknownSuspension = !String(user?.suspendedReason || '').trim();
+      const belowViolationThreshold = Number(user?.violationCount || 0) < 3;
+      if (
+        user?.isSuspended && (
+          (isModeratorReviewSuspension && belowModeratorThreshold) ||
+          (isLegacyUnknownSuspension && belowModeratorThreshold && belowViolationThreshold)
+        )
+      ) {
+        user.isSuspended = false;
+        user.suspendedUntil = undefined;
+        user.suspendedReason = undefined;
+        await user.save();
+      }
+
+      if (user?.isSuspended && user.suspendedUntil && new Date(user.suspendedUntil) <= new Date()) {
+        user.isSuspended = false;
+        user.suspendedUntil = undefined;
+        user.suspendedReason = undefined;
+        await user.save();
+      }
+
       if (user && !user.isSuspended) {
         req.user = {
           userId: user._id,

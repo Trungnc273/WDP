@@ -74,6 +74,16 @@
   margin: 0;
 }
 
+.balance-submeta {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
 /* Form Sections */
 .form-section {
   padding: 30px;
@@ -154,6 +164,10 @@
   font-size: 14px;
   color: #7f8c8d;
   margin: 8px 0 0 0;
+}
+
+.warning-text {
+  color: #b45309;
 }
 
 .error-text {
@@ -313,6 +327,113 @@
   font-weight: 600;
 }
 
+.withdrawal-notice__link {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #eef2f7;
+}
+
+.withdrawal-notice__link a {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.withdrawal-notice__link a:hover {
+  text-decoration: underline;
+}
+
+.withdrawal-history {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #eef2f7;
+}
+
+.withdrawal-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.withdrawal-history__header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.withdrawal-history__header span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.withdrawal-history__empty {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.withdrawal-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.withdrawal-history__item {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.withdrawal-history__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.withdrawal-history__item strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+.withdrawal-history__item p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.withdrawal-history__status {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.withdrawal-history__status.status-completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.withdrawal-history__status.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.withdrawal-history__status.status-failed,
+.withdrawal-history__status.status-cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.withdrawal-history__reason {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .withdrawal-content {
@@ -322,6 +443,11 @@
 
   .balance-amount {
     font-size: 24px;
+  }
+
+  .balance-submeta {
+    flex-direction: column;
+    gap: 6px;
   }
 
   .form-section {

@@ -354,6 +354,34 @@ async function hideReview(req, res) {
   }
 }
 
+async function markSellerBadByReview(req, res) {
+  try {
+    const { reviewId } = req.params;
+    const { note } = req.body || {};
+
+    const idError = ensureObjectId(reviewId, "Mã đánh giá");
+    if (idError) return sendError(res, 400, idError);
+
+    const normalizedNote = String(note || '').trim();
+    if (normalizedNote.length < 10) {
+      return sendError(res, 400, "Vui lòng nhập ghi chú tối thiểu 10 ký tự");
+    }
+    if (normalizedNote.length > 500) {
+      return sendError(res, 400, "Ghi chú không được vượt quá 500 ký tự");
+    }
+
+    const result = await moderatorService.markSellerBadByReview(
+      reviewId,
+      req.user.userId,
+      normalizedNote
+    );
+
+    return sendSuccess(res, 200, result, "Đã đánh giá xấu và áp dụng xử lý cho người bán");
+  } catch (error) {
+    return sendError(res, 400, error.message);
+  }
+}
+
 async function getWithdrawals(req, res) {
   try {
     const { status, page, limit } = req.query;
@@ -491,6 +519,7 @@ module.exports = {
   updateOrderStatus,
   getReviews,
   hideReview,
+  markSellerBadByReview,
   getWithdrawals,
   updateWithdrawalStatus,
   getDisputes,

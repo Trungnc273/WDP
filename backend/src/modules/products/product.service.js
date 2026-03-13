@@ -1,4 +1,20 @@
 const Product = require('./product.model');
+const Order = require('../orders/order.model');
+
+const ACTIVE_ORDER_STATUSES = [
+  'awaiting_seller_confirmation',
+  'awaiting_payment',
+  'paid',
+  'shipped',
+  'disputed'
+];
+
+async function hasActiveOrderForProduct(productId) {
+  return Order.exists({
+    productId,
+    status: { $in: ACTIVE_ORDER_STATUSES }
+  });
+}
 
 /**
  * Build MongoDB query from filters
@@ -7,6 +23,10 @@ const Product = require('./product.model');
  */
 function buildProductQuery(filters) {
   const query = { status: 'active' };
+
+  if (filters.sellerId) {
+    query.seller = filters.sellerId;
+  }
   
   // Apply search filter (Req 6)
   if (filters.search && filters.search.trim().length > 0) {
@@ -213,10 +233,18 @@ async function updateProduct(productId, userId, updateData) {
     if (product.seller.toString() !== userId.toString()) {
       throw new Error('Bạn không có quyền chỉnh sửa sản phẩm này');
     }
-    
-    // Cannot update if product is sold
+
     if (product.status === 'sold') {
-      throw new Error('Không thể chỉnh sửa sản phẩm đã bán');
+      throw new Error('Sản phẩm đã bán, chỉ có thể xem');
+    }
+
+    if (product.status === 'pending') {
+      throw new Error('Sản phẩm đang trong giao dịch, chỉ có thể xem');
+    }
+
+    const isInActiveOrder = await hasActiveOrderForProduct(product._id);
+    if (isInActiveOrder) {
+      throw new Error('Sản phẩm đang trong đơn hàng, chỉ có thể xem');
     }
     
     // Update allowed fields
@@ -257,10 +285,18 @@ async function deleteProduct(productId, userId) {
     if (product.seller.toString() !== userId.toString()) {
       throw new Error('Bạn không có quyền xóa sản phẩm này');
     }
-    
-    // Cannot delete if product is sold or has active orders
+
     if (product.status === 'sold') {
-      throw new Error('Không thể xóa sản phẩm đã bán');
+      throw new Error('Sản phẩm đã bán, chỉ có thể xem');
+    }
+
+    if (product.status === 'pending') {
+      throw new Error('Sản phẩm đang trong giao dịch, chỉ có thể xem');
+    }
+
+    const isInActiveOrder = await hasActiveOrderForProduct(product._id);
+    if (isInActiveOrder) {
+      throw new Error('Sản phẩm đang trong đơn hàng, chỉ có thể xem');
     }
     
     // Soft delete - set status to 'deleted'
@@ -270,6 +306,58 @@ async function deleteProduct(productId, userId) {
     return product;
   } catch (error) {
     throw new Error(`Error deleting product: ${error.message}`);
+  }
+}
+
+/**
+ * Toggle product visibility (hide/show)
+ * @param {String} productId - Product ID
+ * @param {String} userId - User ID (must be owner)
+ * @param {String} nextStatus - active | hidden
+ * @returns {Promise<Object>} Updated product
+ */
+async function setProductVisibility(productId, userId, nextStatus) {
+  try {
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      throw new Error('Sản phẩm không tồn tại');
+    }
+
+    if (product.seller.toString() !== userId.toString()) {
+      throw new Error('Bạn không có quyền cập nhật trạng thái sản phẩm này');
+    }
+
+    if (!['active', 'hidden'].includes(nextStatus)) {
+      throw new Error('Trạng thái hiển thị không hợp lệ');
+    }
+
+    if (product.status === 'sold') {
+      throw new Error('Sản phẩm đã bán, chỉ có thể xem');
+    }
+
+    if (product.status === 'pending') {
+      throw new Error('Sản phẩm đang trong giao dịch, chỉ có thể xem');
+    }
+
+    if (product.status === 'deleted') {
+      throw new Error('Không thể thay đổi trạng thái sản phẩm đã xóa');
+    }
+
+    const isInActiveOrder = await hasActiveOrderForProduct(product._id);
+    if (isInActiveOrder) {
+      throw new Error('Sản phẩm đang trong đơn hàng, chỉ có thể xem');
+    }
+
+    product.status = nextStatus;
+    await product.save();
+
+    await product.populate('seller', 'fullName isVerified');
+    await product.populate('category', 'name slug');
+
+    return product;
+  } catch (error) {
+    throw new Error(`Error updating product visibility: ${error.message}`);
   }
 }
 
@@ -304,12 +392,36 @@ async function getMyProducts(userId, filters = {}, pagination = {}) {
       .skip(skip)
       .limit(limit);
     
+    const productIds = products.map((item) => item._id);
+    const activeOrderAgg = await Order.aggregate([
+      {
+        $match: {
+          productId: { $in: productIds },
+          status: { $in: ACTIVE_ORDER_STATUSES }
+        }
+      },
+      { $group: { _id: '$productId', count: { $sum: 1 } } }
+    ]);
+
+    const activeOrderMap = activeOrderAgg.reduce((acc, item) => {
+      acc[String(item._id)] = Number(item.count || 0);
+      return acc;
+    }, {});
+
+    const productsWithOrderFlag = products.map((item) => {
+      const plain = item.toObject();
+      const activeOrderCount = Number(activeOrderMap[String(item._id)] || 0);
+      plain.activeOrderCount = activeOrderCount;
+      plain.isInActiveOrder = activeOrderCount > 0;
+      return plain;
+    });
+
     // Get total count
     const total = await Product.countDocuments(query);
     const totalPages = Math.ceil(total / limit);
     
     return {
-      products,
+      products: productsWithOrderFlag,
       total,
       page,
       totalPages,
@@ -330,5 +442,6 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  setProductVisibility,
   getMyProducts
 };

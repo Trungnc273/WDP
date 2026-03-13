@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import chatService from '../../services/chat.service';
+import {
+  getImageUrl,
+  validateImageFile,
+  createImagePreview,
+  revokeImagePreview
+} from '../../utils/imageHelper';
 import './Chat.css';
 
 const Chat = () => {
@@ -13,6 +19,9 @@ const Chat = () => {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedImagePreviews, setSelectedImagePreviews] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -29,6 +38,7 @@ const Chat = () => {
   const [conversationSearch, setConversationSearch] = useState('');
   
   const socketRef = useRef(null);
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const activeConversationIdRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -77,6 +87,12 @@ const Chat = () => {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      selectedImagePreviews.forEach((previewUrl) => revokeImagePreview(previewUrl));
+    };
+  }, [selectedImagePreviews]);
+
   const initializeSocket = () => {
     socketRef.current = chatService.connectSocket(token);
 
@@ -91,8 +107,14 @@ const Chat = () => {
     socketRef.current.on('receive_message', ({ message }) => {
       const normalizedMessage = normalizeMessage(message);
       const messageConversationId = normalizedMessage.conversation;
+      const currentUserId = getCurrentUserId();
+      const senderId = getMessageSenderId(normalizedMessage)?.toString?.();
+      const isIncomingFromOtherUser = Boolean(
+        senderId && currentUserId && senderId !== currentUserId.toString()
+      );
+      const isActiveConversation = messageConversationId === activeConversationIdRef.current;
 
-      if (messageConversationId === activeConversationIdRef.current) {
+      if (isActiveConversation) {
         setMessages(prev => {
           const existingIndex = prev.findIndex((m) => m._id === normalizedMessage._id);
           if (existingIndex >= 0) {
@@ -109,16 +131,50 @@ const Chat = () => {
       }
       
       // Cap nhat danh sach doan chat voi tin nhan moi nhat
-      setConversations(prev => prev.map(conv => 
-        conv._id === messageConversationId
-          ? {
-              ...conv,
-              lastMessage: normalizedMessage.content,
-              lastMessageAt: normalizedMessage.createdAt,
-              updatedAt: normalizedMessage.createdAt
-            }
-          : conv
-      ));
+      setConversations(prev => prev.map((conv) => {
+        if (conv._id !== messageConversationId) return conv;
+
+        const buyerId = getConversationBuyerId(conv)?.toString?.();
+        const sellerId = getConversationSellerId(conv)?.toString?.();
+        const baseConversation = {
+          ...conv,
+          lastMessage: normalizedMessage.content,
+          lastMessageAt: normalizedMessage.createdAt,
+          updatedAt: normalizedMessage.createdAt
+        };
+
+        if (!isIncomingFromOtherUser) {
+          return baseConversation;
+        }
+
+        if (isActiveConversation) {
+          if (currentUserId && buyerId === currentUserId.toString()) {
+            return { ...baseConversation, buyerUnreadCount: 0 };
+          }
+
+          if (currentUserId && sellerId === currentUserId.toString()) {
+            return { ...baseConversation, sellerUnreadCount: 0 };
+          }
+
+          return baseConversation;
+        }
+
+        if (currentUserId && buyerId === currentUserId.toString()) {
+          return {
+            ...baseConversation,
+            buyerUnreadCount: Number(conv.buyerUnreadCount || 0) + 1
+          };
+        }
+
+        if (currentUserId && sellerId === currentUserId.toString()) {
+          return {
+            ...baseConversation,
+            sellerUnreadCount: Number(conv.sellerUnreadCount || 0) + 1
+          };
+        }
+
+        return baseConversation;
+      }));
     });
 
     socketRef.current.on('user_typing', ({ conversationId: typingConversationId, userId }) => {
@@ -193,7 +249,9 @@ const Chat = () => {
   const sendMessage = async (e) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || !currentConversation || sendingMessage) {
+    const trimmedMessage = newMessage.trim();
+
+    if ((!trimmedMessage && selectedImages.length === 0) || !currentConversation || sendingMessage || uploadingImage) {
       return;
     }
 
@@ -201,23 +259,64 @@ const Chat = () => {
     stopTyping();
     
     try {
-      // Gui qua socket de cap nhat theo thoi gian thuc
-      if (socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit('send_message', {
-          conversationId: currentConversation._id,
-          content: newMessage.trim()
-        });
+      if (selectedImages.length > 0) {
+        setUploadingImage(true);
+        const uploadedImages = await Promise.all(
+          selectedImages.map((imageFile) => chatService.uploadChatImage(currentConversation._id, imageFile))
+        );
+
+        const imagePayloads = uploadedImages.map((uploadedImage, index) => ({
+          type: 'image',
+          content: index === 0 ? trimmedMessage : '',
+          metadata: {
+            imageUrl: uploadedImage?.imageUrl,
+            fileName: uploadedImage?.fileName,
+            mimeType: uploadedImage?.mimeType,
+            size: uploadedImage?.size
+          }
+        }));
+
+        if (socketRef.current && socketRef.current.connected) {
+          imagePayloads.forEach((payload) => {
+            socketRef.current.emit('send_message', {
+              conversationId: currentConversation._id,
+              ...payload
+            });
+          });
+        } else {
+          await Promise.all(
+            imagePayloads.map((payload) => chatService.sendMessage(currentConversation._id, payload))
+          );
+        }
       } else {
-        // Neu socket khong san sang thi fallback sang REST API
-        await chatService.sendMessage(currentConversation._id, newMessage.trim());
+        const messagePayload = {
+          type: 'text',
+          content: trimmedMessage
+        };
+
+        // Gui qua socket de cap nhat theo thoi gian thuc
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('send_message', {
+            conversationId: currentConversation._id,
+            ...messagePayload
+          });
+        } else {
+          // Neu socket khong san sang thi fallback sang REST API
+          await chatService.sendMessage(currentConversation._id, messagePayload);
+        }
       }
       
       setNewMessage('');
+      selectedImagePreviews.forEach((previewUrl) => revokeImagePreview(previewUrl));
+      setSelectedImages([]);
+      setSelectedImagePreviews([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
     } finally {
       setSendingMessage(false);
+      setUploadingImage(false);
     }
   };
 
@@ -253,9 +352,14 @@ const Chat = () => {
     const seller = conversation.seller || conversation.sellerId;
     if (!buyer || !seller) return null;
 
-    const buyerId = getEntityId(buyer);
     const currentUserId = getCurrentUserId();
-    return buyerId === currentUserId ? seller : buyer;
+    const buyerId = getEntityId(buyer);
+    const sellerId = getEntityId(seller);
+
+    if (!currentUserId) return null;
+    if (buyerId?.toString() === currentUserId.toString()) return seller;
+    if (sellerId?.toString() === currentUserId.toString()) return buyer;
+    return null;
   };
 
   const isUserOnline = (userId) => {
@@ -290,11 +394,13 @@ const Chat = () => {
     user?._id?.toString?.() || user?.id?.toString?.() || user?.userId?.toString?.() || null;
 
   const getConversationBuyerId = (conversation) =>
-    conversation?.buyer?._id ||
-    conversation?.buyer?.id ||
-    conversation?.buyerId?._id ||
-    conversation?.buyerId?.id ||
-    conversation?.buyerId ||
+    getEntityId(conversation?.buyer) ||
+    getEntityId(conversation?.buyerId) ||
+    null;
+
+  const getConversationSellerId = (conversation) =>
+    getEntityId(conversation?.seller) ||
+    getEntityId(conversation?.sellerId) ||
     null;
 
   const getConversationProductId = (conversation) =>
@@ -306,8 +412,18 @@ const Chat = () => {
   const getMyRoleInConversation = (conversation) => {
     const currentUserId = getCurrentUserId();
     const buyerId = getConversationBuyerId(conversation);
-    if (!currentUserId || !buyerId) return 'Không xác định';
-    return buyerId.toString() === currentUserId.toString() ? 'Người mua' : 'Người bán';
+    const sellerId = getConversationSellerId(conversation);
+    if (!currentUserId) return 'Không xác định';
+    if (buyerId?.toString() === currentUserId.toString()) return 'Người mua';
+    if (sellerId?.toString() === currentUserId.toString()) return 'Người bán';
+    return 'Không xác định';
+  };
+
+  const getOtherRoleInConversation = (conversation) => {
+    const myRole = getMyRoleInConversation(conversation);
+    if (myRole === 'Người mua') return 'Người bán';
+    if (myRole === 'Người bán') return 'Người mua';
+    return 'Không xác định';
   };
 
   const getUnreadCount = (conversation) => {
@@ -355,6 +471,28 @@ const Chat = () => {
     return `${value.toLocaleString('vi-VN')}đ`;
   };
 
+  const handleConversationClick = (conversation) => {
+    const conversationIdValue = conversation?._id;
+    if (!conversationIdValue) return;
+
+    const role = getMyRoleInConversation(conversation);
+    setConversations((prev) => prev.map((conv) => {
+      if (conv._id !== conversationIdValue) return conv;
+
+      if (role === 'Người mua') {
+        return { ...conv, buyerUnreadCount: 0 };
+      }
+
+      if (role === 'Người bán') {
+        return { ...conv, sellerUnreadCount: 0 };
+      }
+
+      return conv;
+    }));
+
+    navigate(`/chat/${conversationIdValue}`);
+  };
+
   const startTyping = () => {
     if (!currentConversation || !socketRef.current?.connected) return;
 
@@ -381,6 +519,66 @@ const Chat = () => {
   const handleChangeNewMessage = (e) => {
     setNewMessage(e.target.value);
     startTyping();
+  };
+
+  const handleSelectImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageFileChange = (e) => {
+    const incomingFiles = Array.from(e.target.files || []);
+    if (!incomingFiles.length) return;
+
+    const MAX_SELECTED_IMAGES = 6;
+    const currentCount = selectedImages.length;
+    const remainingSlots = Math.max(MAX_SELECTED_IMAGES - currentCount, 0);
+
+    if (remainingSlots === 0) {
+      alert(`Bạn chỉ có thể chọn tối đa ${MAX_SELECTED_IMAGES} ảnh mỗi lần gửi.`);
+      e.target.value = '';
+      return;
+    }
+
+    const filesToProcess = incomingFiles.slice(0, remainingSlots);
+    const validFiles = [];
+
+    for (const file of filesToProcess) {
+      const validation = validateImageFile(file, {
+        maxSize: 20 * 1024 * 1024,
+        allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+      });
+
+      if (validation.valid) {
+        validFiles.push(file);
+      }
+    }
+
+    if (!validFiles.length) {
+      alert('Không có ảnh hợp lệ để gửi. Chỉ chấp nhận JPG, PNG, GIF và dung lượng <= 20MB.');
+      e.target.value = '';
+      return;
+    }
+
+    if (incomingFiles.length > remainingSlots) {
+      alert(`Chỉ thêm ${remainingSlots} ảnh đầu tiên do giới hạn tối đa ${MAX_SELECTED_IMAGES} ảnh.`);
+    }
+
+    const newPreviews = validFiles.map((file) => createImagePreview(file));
+    setSelectedImages((prev) => [...prev, ...validFiles]);
+    setSelectedImagePreviews((prev) => [...prev, ...newPreviews]);
+    e.target.value = '';
+  };
+
+  const handleRemoveSelectedImage = (indexToRemove) => {
+    setSelectedImagePreviews((prev) => {
+      const targetPreview = prev[indexToRemove];
+      if (targetPreview) revokeImagePreview(targetPreview);
+      return prev.filter((_, index) => index !== indexToRemove);
+    });
+
+    setSelectedImages((prev) => prev.filter((_, index) => index !== indexToRemove));
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleOpenSellerOfferModal = () => {
@@ -577,6 +775,23 @@ const Chat = () => {
   };
 
   const renderMessageBody = (messageItem, isOwnMessage) => {
+    if (messageItem.type === 'image') {
+      const imageUrl = messageItem?.metadata?.imageUrl;
+      const caption = (messageItem.content || '').trim();
+      const showCaption = caption && caption !== 'Đã gửi một ảnh';
+
+      return (
+        <div className={`message-content message-image ${isOwnMessage ? 'own' : 'other'}`}>
+          {imageUrl ? (
+            <img src={getImageUrl(imageUrl)} alt="Ảnh chat" loading="lazy" />
+          ) : (
+            <div className="message-image__fallback">Ảnh không khả dụng</div>
+          )}
+          {showCaption && <p className="message-image__caption">{caption}</p>}
+        </div>
+      );
+    }
+
     if (messageItem.type !== 'offer') {
       return <div className="message-content">{messageItem.content}</div>;
     }
@@ -702,16 +917,17 @@ const Chat = () => {
               const otherUser = getOtherUser(conversation);
               const isActive = conversationId === conversation._id;
               const isOnline = isUserOnline(getEntityId(otherUser));
-              const myRole = getMyRoleInConversation(conversation);
+              const otherRole = getOtherRoleInConversation(conversation);
               const unread = getUnreadCount(conversation);
+              const isUnread = unread > 0;
               const lastMessageText = getConversationLastMessageText(conversation);
               const lastMessageTime = getConversationLastMessageTime(conversation);
               
               return (
                 <div
                   key={conversation._id}
-                  className={`conversation-item ${isActive ? 'active' : ''}`}
-                  onClick={() => navigate(`/chat/${conversation._id}`)}
+                  className={`conversation-item ${isActive ? 'active' : ''} ${isUnread ? 'conversation-item--unread' : ''}`}
+                  onClick={() => handleConversationClick(conversation)}
                 >
                   <div className="conversation-avatar">
                     {otherUser?.avatar ? (
@@ -726,7 +942,9 @@ const Chat = () => {
                   
                   <div className="conversation-info">
                     <div className="conversation-header">
-                      <span className="user-name">{otherUser?.fullName || 'Người dùng'}</span>
+                      <div className="conversation-header-main">
+                        <span className="user-name">{otherUser?.fullName || 'Người dùng'}</span>
+                      </div>
                       {lastMessageTime && (
                         <span className="message-time">
                           {formatTime(lastMessageTime)}
@@ -735,7 +953,7 @@ const Chat = () => {
                     </div>
 
                     <div className="conversation-meta-line">
-                      <span className={`conversation-role role-${getRoleClassName(myRole)}`}>Bạn: {myRole}</span>
+                      <span className={`conversation-role role-${getRoleClassName(otherRole)}`}>{otherRole}</span>
                       {isOnline ? (
                         <span className="conversation-online">Đang hoạt động</span>
                       ) : (
@@ -746,14 +964,21 @@ const Chat = () => {
                     <div className="conversation-preview">
                       <span className="product-name">{conversation.product?.title}</span>
                       {lastMessageText && (
-                        <p className="last-message">
+                        <p className={`last-message ${isUnread ? 'last-message--unread' : ''}`}>
                           {lastMessageText}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {unread > 0 && <span className="unread-badge">{unread}</span>}
+                  {isUnread && (
+                    <span
+                      className="unread-fb-dot"
+                      title={`${unread} tin nhắn chưa đọc`}
+                      aria-label={`${unread} tin nhắn chưa đọc`}
+                    ></span>
+                  )}
+
                 </div>
               );
             })
@@ -790,7 +1015,7 @@ const Chat = () => {
                     Sản phẩm: {currentConversation.product?.title || 'Không xác định'}
                   </p>
                   <p className="role-context">
-                    Vai trò: <strong>{getMyRoleInConversation(currentConversation)}</strong>
+                    <strong>{getOtherRoleInConversation(currentConversation)}</strong>
                   </p>
                 </div>
               </div>
@@ -802,7 +1027,7 @@ const Chat = () => {
                 {isBuyerInCurrentConversation() && canShowDealActions() && (
                   <>
                     <button className="chat-create-order-btn" onClick={handleCreateOrderFromChat}>
-                      Tạo đơn
+                      Mua ngay
                     </button>
                     <button className="chat-price-offer-btn" onClick={handleOpenBuyerOfferModal}>
                       Đề nghị giá
@@ -868,22 +1093,55 @@ const Chat = () => {
 
             {/* Message Input */}
             <form onSubmit={sendMessage} className="message-input-form">
+              {selectedImagePreviews.length > 0 && (
+                <div className="chat-image-preview">
+                  {selectedImagePreviews.map((previewUrl, index) => (
+                    <div className="chat-image-preview__item" key={`${previewUrl}-${index}`}>
+                      <img src={previewUrl} alt={`Ảnh chuẩn bị gửi ${index + 1}`} />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSelectedImage(index)}
+                        title="Bỏ ảnh"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="input-container">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/jpg,image/gif"
+                  onChange={handleImageFileChange}
+                  style={{ display: 'none' }}
+                />
                 <input
                   type="text"
                   value={newMessage}
                   onChange={handleChangeNewMessage}
-                  placeholder="Nhập tin nhắn..."
-                  disabled={sendingMessage}
+                  placeholder={selectedImages.length > 0 ? 'Thêm chú thích cho ảnh đầu tiên (không bắt buộc)...' : 'Nhập tin nhắn...'}
+                  disabled={sendingMessage || uploadingImage}
                   maxLength={1000}
                 />
+                <button
+                  type="button"
+                  className="image-upload-button"
+                  onClick={handleSelectImageClick}
+                  disabled={sendingMessage || uploadingImage}
+                  title="Tải ảnh"
+                >
+                  <span className="image-upload-glyph">📷</span>
+                </button>
                 <button 
                   type="submit" 
-                  disabled={!newMessage.trim() || sendingMessage}
+                  disabled={(!newMessage.trim() && selectedImages.length === 0) || sendingMessage || uploadingImage}
                   className="send-button"
                   title="Gửi"
                 >
-                  {sendingMessage ? (
+                  {sendingMessage || uploadingImage ? (
                     <i className="fas fa-spinner fa-spin"></i>
                   ) : (
                     <span className="send-triangle">▶</span>

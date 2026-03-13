@@ -43,8 +43,10 @@ function initializeChatSocket(io) {
     
     console.log(`✅ User connected: ${userId} (${socket.id})`);
     
-    // Add user to online users
-    onlineUsers.set(userId, socket.id);
+    // Add user to online users (giu ket noi dau tien de tranh mat mapping khi mo them tab/trang chat)
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, socket.id);
+    }
     socket.emit('online_users', Array.from(onlineUsers.keys()));
     
     // Broadcast user online status
@@ -82,10 +84,14 @@ function initializeChatSocket(io) {
     // Send message
     socket.on('send_message', async (data) => {
       try {
-        const { conversationId, content } = data;
+        const { conversationId, content, type = 'text', metadata = null } = data;
         
         // Create message
-        const message = await chatService.sendMessage(conversationId, userId, content);
+        const message = await chatService.sendMessage(conversationId, userId, {
+          content,
+          type,
+          metadata
+        });
         
         // Emit to conversation room
         io.to(`conversation:${conversationId}`).emit('receive_message', {
@@ -155,8 +161,10 @@ function initializeChatSocket(io) {
     socket.on('disconnect', () => {
       console.log(`❌ User disconnected: ${userId} (${socket.id})`);
       
-      // Remove user from online users
-      onlineUsers.delete(userId);
+      // Chi xoa mapping neu socket dang ngat la socket dang duoc luu.
+      if (onlineUsers.get(userId) === socket.id) {
+        onlineUsers.delete(userId);
+      }
       
       // Broadcast user offline status
       socket.broadcast.emit('user_offline', { userId });

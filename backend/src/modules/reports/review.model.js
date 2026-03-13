@@ -57,6 +57,30 @@ const reviewSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'hidden', 'reported'],
     default: 'active'
+  },
+
+  // Moderator assessment used for seller penalty workflow
+  moderatorAssessment: {
+    isBad: {
+      type: Boolean,
+      default: false
+    },
+    moderatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    note: {
+      type: String,
+      trim: true,
+      maxlength: 500
+    },
+    markedAt: {
+      type: Date
+    },
+    penaltyLevel: {
+      type: Number,
+      default: 0
+    }
   }
 }, {
   timestamps: true // createdAt, updatedAt

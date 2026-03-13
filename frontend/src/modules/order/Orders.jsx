@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getOrdersAsBuyer, getOrdersAsSeller, confirmReceipt, confirmOrderBySeller } from '../../services/order.service';
+import { getOrdersAsBuyer, getOrdersAsSeller, confirmOrderBySeller } from '../../services/order.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import Dispute from '../report/Dispute';
 import './Orders.css';
@@ -100,22 +100,6 @@ const Orders = () => {
     navigate(`/orders/${orderId}`);
   };
 
-  const handleConfirmReceipt = async (order) => {
-    const accepted = window.confirm('Bạn xác nhận đã nhận được hàng và muốn hoàn tất đơn này?');
-    if (!accepted) return;
-
-    try {
-      setConfirmingOrderId(order._id);
-      await confirmReceipt(order._id);
-      await fetchOrders();
-      alert('Xác nhận nhận hàng thành công. Tiền đã được chuyển cho người bán.');
-    } catch (err) {
-      alert(err.message || 'Không thể xác nhận nhận hàng');
-    } finally {
-      setConfirmingOrderId(null);
-    }
-  };
-
   const handleConfirmOrderBySeller = async (order) => {
     const accepted = window.confirm('Bạn xác nhận đơn hàng này và chuyển cho người mua thanh toán?');
     if (!accepted) return;
@@ -191,13 +175,12 @@ const Orders = () => {
             <>
               <button 
                 className="btn btn-success btn-sm"
-                disabled={confirmingOrderId === order._id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleConfirmReceipt(order);
+                  navigate(`/orders/${order._id}?action=confirm-receipt`);
                 }}
               >
-                {confirmingOrderId === order._id ? 'Đang xử lý...' : 'Xác nhận nhận hàng'}
+                Xác nhận nhận hàng
               </button>
               <button
                 className="btn btn-danger btn-sm"
@@ -218,6 +201,18 @@ const Orders = () => {
                 Hoàn hàng
               </button>
             </>
+          );
+        case 'completed':
+          return (
+            <button
+              className="btn btn-warning btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/orders/${order._id}?action=rate`);
+              }}
+            >
+              Đánh giá người bán
+            </button>
           );
         case 'disputed':
           return (
@@ -369,7 +364,7 @@ const Orders = () => {
                 <div className="order-header">
                   <div className="order-id">
                     <span className="label">Mã đơn hàng:</span>
-                    <span className="value">#{order._id.slice(-8).toUpperCase()}</span>
+                    <span className="value">#{order.orderCode || order._id.slice(-8).toUpperCase()}</span>
                   </div>
                   <div className={`order-status ${statusColors[order.status] || ''}`}>
                     {orderStatuses[order.status] || order.status}

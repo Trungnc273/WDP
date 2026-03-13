@@ -1,11 +1,29 @@
 const mongoose = require('mongoose');
 
+function generateOrderCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'OD';
+  for (let i = 0; i < 8; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
+
 /**
  * Order Schema
  * Represents a formal order created after seller accepts purchase request
  * Includes escrow payment tracking and order lifecycle
  */
 const orderSchema = new mongoose.Schema({
+  // Public order code shown to users
+  orderCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true,
+    default: generateOrderCode
+  },
+
   // Reference to purchase request that created this order
   requestId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -119,6 +137,21 @@ const orderSchema = new mongoose.Schema({
   estimatedDelivery: {
     type: Date
   },
+
+  shippingRecipientName: {
+    type: String,
+    trim: true
+  },
+
+  shippingPhone: {
+    type: String,
+    trim: true
+  },
+
+  shippingAddress: {
+    type: String,
+    trim: true
+  },
   
   // Escrow hold reference
   escrowHoldId: {
@@ -134,6 +167,23 @@ orderSchema.index({ buyerId: 1, status: 1 });
 orderSchema.index({ sellerId: 1, status: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ status: 1, shippedAt: 1 }); // For auto-release cron job
+
+orderSchema.pre('validate', async function(next) {
+  if (this.orderCode) {
+    return next();
+  }
+
+  for (let i = 0; i < 5; i += 1) {
+    const candidate = generateOrderCode();
+    const existed = await this.constructor.exists({ orderCode: candidate });
+    if (!existed) {
+      this.orderCode = candidate;
+      return next();
+    }
+  }
+
+  return next(new Error('Không thể tạo mã đơn hàng duy nhất, vui lòng thử lại'));
+});
 
 // Virtual for checking if order can be paid
 orderSchema.virtual('canBePaid').get(function() {

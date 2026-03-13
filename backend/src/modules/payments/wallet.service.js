@@ -25,8 +25,28 @@ async function getOrCreateWallet(userId) {
  */
 async function getBalance(userId) {
   const wallet = await getOrCreateWallet(userId);
+  const pendingWithdrawalAmount = await Transaction.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(String(userId)),
+        type: 'withdrawal',
+        status: 'pending'
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: '$amount' }
+      }
+    }
+  ]);
+
+  const pendingAmount = pendingWithdrawalAmount[0]?.total || 0;
+
   return {
     balance: wallet.balance,
+    pendingWithdrawalAmount: pendingAmount,
+    availableWithdrawalBalance: Math.max(wallet.balance - pendingAmount, 0),
     totalDeposited: wallet.totalDeposited,
     totalWithdrawn: wallet.totalWithdrawn,
     totalSpent: wallet.totalSpent,
@@ -278,7 +298,7 @@ async function createWithdrawal(userId, withdrawalData) {
   
   // Check if user has sufficient balance
   const balance = await getBalance(userId);
-  if (balance.balance < normalizedAmount) {
+  if (balance.availableWithdrawalBalance < normalizedAmount) {
     throw new Error('Số dư không đủ để thực hiện giao dịch này');
   }
   
@@ -292,6 +312,7 @@ async function createWithdrawal(userId, withdrawalData) {
       bankAccount: String(bankAccount).trim(),
       bankName: String(bankName).trim(),
       accountHolder: String(accountHolder).trim(),
+      availableBalanceAtRequest: balance.availableWithdrawalBalance,
       requestedAt: new Date()
     }
   });

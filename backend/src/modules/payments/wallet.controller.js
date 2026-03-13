@@ -77,11 +77,20 @@ async function getTransactions(req, res, next) {
 async function createWithdrawal(req, res, next) {
   try {
     const userId = req.user.userId;
-    const { amount, bankAccount, bankName, accountHolder } = req.body;
+    const { amount, bankAccount, bankName, accountHolder, accountName } = req.body;
     const normalizedAmount = Number(amount);
+    const normalizedBankAccount = typeof bankAccount === 'object' && bankAccount !== null
+      ? bankAccount.accountNumber
+      : bankAccount;
+    const normalizedBankName = typeof bankAccount === 'object' && bankAccount !== null
+      ? bankAccount.bankName
+      : bankName;
+    const normalizedAccountHolder = typeof bankAccount === 'object' && bankAccount !== null
+      ? (bankAccount.accountName || bankAccount.accountHolder)
+      : (accountHolder || accountName);
     
     // Validate required fields
-    if (!amount || !bankAccount || !bankName || !accountHolder) {
+    if (!amount || !normalizedBankAccount || !normalizedBankName || !normalizedAccountHolder) {
       return sendError(res, 400, 'Thiếu thông tin bắt buộc');
     }
     
@@ -100,9 +109,9 @@ async function createWithdrawal(req, res, next) {
     
     const withdrawal = await walletService.createWithdrawal(userId, {
       amount: normalizedAmount,
-      bankAccount,
-      bankName,
-      accountHolder
+      bankAccount: normalizedBankAccount,
+      bankName: normalizedBankName,
+      accountHolder: normalizedAccountHolder
     });
     
     return sendSuccess(res, 201, withdrawal, 'Yêu cầu rút tiền đã được tạo thành công');

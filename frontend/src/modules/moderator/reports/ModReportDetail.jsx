@@ -11,17 +11,24 @@ import { getImageUrl } from "../../../utils/imageHelper";
 
 const { TextArea } = Input;
 
-function getWarningLevel(warningCount, isSuspended) {
-  if (isSuspended || warningCount >= 3) {
-    return { color: "error", message: "Tai khoan da bi khoa do vuot nguong 3 canh bao." };
+function getWarningLevel(warningCount, isSuspended, shouldLockAccount) {
+  if (isSuspended) {
+    return { color: "error", message: "Tài khoản đang bị khóa do vi phạm từ báo cáo." };
   }
-  if (warningCount === 2) {
-    return { color: "warning", message: "Canh bao lan 2: neu them 1 lan se bi khoa tai khoan." };
+
+  if (shouldLockAccount) {
+    return { color: "warning", message: `Đã đạt mốc ${warningCount} cảnh báo (mốc khóa 3/6/9).` };
   }
-  if (warningCount === 1) {
-    return { color: "info", message: "Da co 1 canh bao truoc do." };
+
+  if (warningCount === 0) {
+    return { color: "success", message: "Người dùng chưa có cảnh báo nào." };
   }
-  return { color: "success", message: "Nguoi dung chua co canh bao nao." };
+
+  const remain = 3 - (warningCount % 3);
+  return {
+    color: remain === 1 ? "warning" : "info",
+    message: `${warningCount} cảnh báo, còn ${remain} lần tới mốc khóa tiếp theo.`
+  };
 }
 
 const ModReportDetail = () => {
@@ -80,7 +87,7 @@ const ModReportDetail = () => {
   const totalReports = Number(report?.reportedUserStats?.totalReports || 0);
   const isSuspended = Boolean(report?.reportedUserStats?.isSuspended);
   const shouldLockAccount = Boolean(report?.reportedUserStats?.shouldLockAccount);
-  const warningLevel = getWarningLevel(warningCount, isSuspended);
+  const warningLevel = getWarningLevel(warningCount, isSuspended, shouldLockAccount);
   const productWarningActions = Number(report?.productStats?.warningActions || 0);
   const productTotalReports = Number(report?.productStats?.totalReports || 0);
   const productIsRemoved = Boolean(report?.productStats?.isRemoved);
@@ -106,7 +113,7 @@ const ModReportDetail = () => {
           <Descriptions.Item label="Chi tiết">{report?.description}</Descriptions.Item>
           {report?.reportType === "user" && (
             <Descriptions.Item label="Số lần bị cảnh báo">
-              <Tag className="mod-status-pill" color={isSuspended || shouldLockAccount ? "red" : warningCount >= 2 ? "volcano" : warningCount >= 1 ? "gold" : "green"}>
+              <Tag className="mod-status-pill" color={isSuspended ? "red" : shouldLockAccount ? "volcano" : warningCount > 0 ? "gold" : "green"}>
                 {warningCount} lần
               </Tag>
             </Descriptions.Item>
@@ -169,8 +176,8 @@ const ModReportDetail = () => {
             message={warningLevel.message}
             description={
               isSuspended || shouldLockAccount
-                ? "Nguoi dung nay dang o muc rui ro cao. He thong can theo doi chat cac phat sinh tiep theo."
-                : "Moc khoa tai khoan: 3 canh bao."
+                ? "Mốc khóa áp dụng theo chu kỳ 3/6/9 cảnh báo với mức khóa tăng dần 24h, 1 tuần, 1 năm."
+                : "Mốc khóa tài khoản: 3/6/9 cảnh báo."
             }
           />
         )}

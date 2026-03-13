@@ -152,29 +152,58 @@ async function getMessages(conversationId, userId, pagination = {}) {
 /**
  * Send a message
  */
-async function sendMessage(conversationId, senderId, content) {
-  // Validate content
-  if (!content || content.trim().length === 0) {
-    throw new Error('Nội dung tin nhắn không được để trống');
+async function sendMessage(conversationId, senderId, payload) {
+  const isPayloadObject = payload && typeof payload === 'object';
+  const messageType = isPayloadObject ? (payload.type || 'text') : 'text';
+  const rawContent = isPayloadObject ? payload.content : payload;
+  const content = String(rawContent || '').trim();
+  const metadata = isPayloadObject ? (payload.metadata || null) : null;
+
+  if (!['text', 'image'].includes(messageType)) {
+    throw new Error('Loại tin nhắn không hợp lệ');
   }
-  
-  if (content.length > 1000) {
-    throw new Error('Tin nhắn không được vượt quá 1000 ký tự');
+
+  if (messageType === 'text') {
+    if (!content) {
+      throw new Error('Nội dung tin nhắn không được để trống');
+    }
+
+    if (content.length > 1000) {
+      throw new Error('Tin nhắn không được vượt quá 1000 ký tự');
+    }
+  }
+
+  if (messageType === 'image') {
+    if (!metadata?.imageUrl) {
+      throw new Error('Thiếu đường dẫn ảnh để gửi');
+    }
+
+    if (content.length > 500) {
+      throw new Error('Chú thích ảnh không được vượt quá 500 ký tự');
+    }
   }
   
   // Get conversation
   const conversation = await getConversationById(conversationId, senderId);
   
   // Create message
+  const normalizedContent = messageType === 'image'
+    ? (content || 'Đã gửi một ảnh')
+    : content;
+
   const message = await Message.create({
     conversationId,
     senderId,
-    content: content.trim(),
-    type: 'text'
+    content: normalizedContent,
+    type: messageType,
+    metadata
   });
   
   // Update conversation
-  await conversation.updateLastMessage(content);
+  const conversationPreview = messageType === 'image'
+    ? '📷 Hình ảnh'
+    : normalizedContent;
+  await conversation.updateLastMessage(conversationPreview);
   
   // Increment unread count for the other user
   const otherUserId = conversation.buyerId._id.toString() === senderId.toString() 

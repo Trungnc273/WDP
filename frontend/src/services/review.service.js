@@ -12,7 +12,7 @@ import api from './api';
  * @param {string} comment - Nội dung đánh giá
  */
 export const createReview = async (orderId, rating, comment) => {
-  const response = await api.post(`/orders/${orderId}/rate`, {
+  const response = await api.post(`/reviews/orders/${orderId}/rate`, {
     rating,
     comment
   });
@@ -32,7 +32,7 @@ export const getReviews = async (userId, filters = {}, pagination = {}) => {
   if (pagination.page) params.append('page', pagination.page);
   if (pagination.limit) params.append('limit', pagination.limit);
   
-  const response = await api.get(`/users/${userId}/reviews?${params}`);
+  const response = await api.get(`/reviews/users/${userId}/reviews?${params}`);
   return response.data;
 };
 
@@ -41,7 +41,7 @@ export const getReviews = async (userId, filters = {}, pagination = {}) => {
  * @param {string} orderId - Mã đơn hàng
  */
 export const getReviewByOrderId = async (orderId) => {
-  const response = await api.get(`/orders/${orderId}/review`);
+  const response = await api.get(`/reviews/orders/${orderId}/review`);
   return response.data;
 };
 
@@ -50,7 +50,7 @@ export const getReviewByOrderId = async (orderId) => {
  * @param {string} orderId - Mã đơn hàng
  */
 export const canReviewOrder = async (orderId) => {
-  const response = await api.get(`/orders/${orderId}/can-review`);
+  const response = await api.get(`/reviews/orders/${orderId}/can-review`);
   return response.data;
 };
 
@@ -59,7 +59,7 @@ export const canReviewOrder = async (orderId) => {
  * @param {string} userId - Mã người dùng
  */
 export const getRatingStats = async (userId) => {
-  const response = await api.get(`/users/${userId}/rating-stats`);
+  const response = await api.get(`/reviews/users/${userId}/rating-stats`);
   return response.data;
 };
 
@@ -73,7 +73,7 @@ export const getMyReviews = async (pagination = {}) => {
   if (pagination.page) params.append('page', pagination.page);
   if (pagination.limit) params.append('limit', pagination.limit);
   
-  const response = await api.get(`/reviews/my-reviews?${params}`);
+  const response = await api.get(`/reviews/reviews/my-reviews?${params}`);
   return response.data;
 };
 
@@ -84,7 +84,7 @@ export const getMyReviews = async (pagination = {}) => {
  * @param {string} comment - Nội dung mới
  */
 export const updateReview = async (reviewId, rating, comment) => {
-  const response = await api.put(`/reviews/${reviewId}`, {
+  const response = await api.put(`/reviews/reviews/${reviewId}`, {
     rating,
     comment
   });
@@ -96,6 +96,6 @@ export const updateReview = async (reviewId, rating, comment) => {
  * @param {string} reviewId - Mã đánh giá
  */
 export const deleteReview = async (reviewId) => {
-  const response = await api.delete(`/reviews/${reviewId}`);
+  const response = await api.delete(`/reviews/reviews/${reviewId}`);
   return response.data;
 };

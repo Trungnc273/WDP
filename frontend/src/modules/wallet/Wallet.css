@@ -119,6 +119,11 @@
   font-weight: 600;
 }
 
+.stat-item--highlight {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 /* Transactions Section */
 .transactions-section {
   background-color: white;
@@ -213,6 +218,20 @@
 .transaction-date {
   font-size: 12px;
   color: #95a5a6;
+}
+
+.transaction-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #5f6c7b;
+}
+
+.transaction-extra__error {
+  color: #c0392b;
+  font-weight: 600;
 }
 
 .transaction-amount {

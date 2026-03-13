@@ -164,7 +164,23 @@ const OrderDetail = () => {
       setDisputeMode('return');
       setShowDisputeModal(true);
     }
+
+    if (action === 'confirm-receipt') {
+      setShowReceiptModal(true);
+    }
   }, [order, user, location.search]);
+
+  useEffect(() => {
+    if (!order || !user) return;
+    if (!isBuyer() || order.status !== 'completed') return;
+
+    const params = new URLSearchParams(location.search);
+    const action = params.get('action');
+
+    if (action === 'rate' && canReview && !existingReview) {
+      setShowRatingModal(true);
+    }
+  }, [order, user, location.search, canReview, existingReview]);
 
   useEffect(() => {
     if (!order || !user || !dispute) return;
@@ -316,10 +332,21 @@ const OrderDetail = () => {
     alert('Xác nhận giao hàng thành công!');
   };
 
-  const handleReceiptSuccess = () => {
+  const handleReceiptSuccess = async (result = {}) => {
     setShowReceiptModal(false);
-    fetchOrder(); // Tai lai du lieu don hang
-    checkReviewStatus(); // Kiem tra da co the danh gia chua
+    await fetchOrder();
+    await checkReviewStatus();
+
+    if (result.reviewCreated) {
+      alert('Xác nhận nhận hàng và gửi đánh giá thành công!');
+      return;
+    }
+
+    if (result.reviewError) {
+      alert(`Xác nhận nhận hàng thành công nhưng chưa gửi được đánh giá: ${result.reviewError}`);
+      return;
+    }
+
     alert('Xác nhận nhận hàng thành công! Tiền đã được chuyển cho người bán.');
   };
 
@@ -687,7 +714,7 @@ const OrderDetail = () => {
         </button>
         <div className="header-info">
           <h1>Chi tiết đơn hàng</h1>
-          <div className="order-id">#{order._id.slice(-8).toUpperCase()}</div>
+          <div className="order-id">#{order.orderCode || order._id.slice(-8).toUpperCase()}</div>
         </div>
         <div className={`order-status ${statusColors[order.status]}`}>
           {orderStatuses[order.status]}
@@ -873,14 +900,18 @@ const OrderDetail = () => {
           <div className="detail-card">
             <h2>Đánh giá của bạn</h2>
             <div className="existing-review">
-              <div className="review-rating">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <span key={star} className={`star ${star <= existingReview.rating ? 'filled' : ''}`}>
-                    ★
-                  </span>
-                ))}
-                <span className="rating-text">({existingReview.rating}/5)</span>
+              <div className="existing-review__top">
+                <div className="review-rating">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span key={star} className={`star ${star <= existingReview.rating ? 'filled' : ''}`}>
+                      ★
+                    </span>
+                  ))}
+                  <span className="rating-text">{existingReview.rating}/5</span>
+                </div>
+                <span className="review-score-badge">{existingReview.rating}.0 điểm</span>
               </div>
+
               {existingReview.comment && (
                 <div className="review-comment">
                   "{existingReview.comment}"

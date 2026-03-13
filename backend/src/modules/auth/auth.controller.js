@@ -35,7 +35,7 @@ async function register(req, res, next) {
 
     return sendSuccess(res, 201, result, 'Đăng ký thành công');
   } catch (error) {
-    next(error);
+    return sendError(res, error.statusCode || 500, error.message || 'Đăng ký thất bại');
   }
 }
 
@@ -57,7 +57,7 @@ async function login(req, res, next) {
 
     return sendSuccess(res, 200, result, 'Đăng nhập thành công');
   } catch (error) {
-    next(error);
+    return sendError(res, error.statusCode || 500, error.message || 'Đăng nhập thất bại');
   }
 }
 
@@ -76,7 +76,7 @@ async function getProfile(req, res, next) {
 
     return sendSuccess(res, 200, user);
   } catch (error) {
-    next(error);
+    return sendError(res, error.statusCode || 500, error.message || 'Không thể lấy thông tin hồ sơ');
   }
 }
 
@@ -95,7 +95,7 @@ async function logout(req, res, next) {
     
     return sendSuccess(res, 200, null, 'Đăng xuất thành công');
   } catch (error) {
-    next(error);
+    return sendError(res, error.statusCode || 500, error.message || 'Đăng xuất thất bại');
   }
 }
 

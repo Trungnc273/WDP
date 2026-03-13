@@ -398,13 +398,28 @@
 
 .btn-view-profile {
   width: 100%;
-  background: white;
-  color: #007bff;
-  border: 2px solid #007bff;
+  background: linear-gradient(135deg, #0f766e 0%, #0ea5a4 100%);
+  color: white;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  box-shadow: 0 12px 24px rgba(14, 165, 164, 0.2);
 }
 
 .btn-view-profile:hover {
-  background: #f0f7ff;
+  background: linear-gradient(135deg, #0d6b64 0%, #0891b2 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(8, 145, 178, 0.22);
+}
+
+.btn-report-user {
+  width: 100%;
+  margin-top: 10px;
+  background: #fff5f5;
+  color: #dc2626;
+  border: 2px solid #fecaca;
+}
+
+.btn-report-user:hover {
+  background: #fee2e2;
 }
 
 /* Safety Tips */

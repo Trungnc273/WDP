@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import AppRoutes from './routes';
@@ -13,6 +13,7 @@ function AppShell() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const socketRef = useRef(null);
   const notificationRef = useRef(null);
@@ -20,6 +21,7 @@ function AppShell() {
 
   const isModeratorRoute = location.pathname.startsWith('/moderator');
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isChatRoute = location.pathname.startsWith('/chat');
 
   // Dong dropdown thong bao khi bam ra ngoai
   useEffect(() => {
@@ -47,6 +49,57 @@ function AppShell() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  const fetchChatUnreadCount = useCallback(async () => {
+    try {
+      const conversationData = await chatService.getConversations(1, 100);
+      const conversations = conversationData?.conversations || [];
+      const currentUserId = user?._id?.toString?.();
+
+      if (!currentUserId) {
+        setChatUnreadCount(0);
+        return;
+      }
+
+      const totalUnread = conversations.reduce((total, conversation) => {
+        const buyerId = (
+          conversation?.buyer?._id ||
+          conversation?.buyerId?._id ||
+          conversation?.buyer ||
+          conversation?.buyerId
+        )?.toString?.();
+        const sellerId = (
+          conversation?.seller?._id ||
+          conversation?.sellerId?._id ||
+          conversation?.seller ||
+          conversation?.sellerId
+        )?.toString?.();
+
+        if (buyerId && buyerId === currentUserId) {
+          return total + Number(conversation?.buyerUnreadCount || 0);
+        }
+
+        if (sellerId && sellerId === currentUserId) {
+          return total + Number(conversation?.sellerUnreadCount || 0);
+        }
+
+        return total;
+      }, 0);
+
+      setChatUnreadCount(totalUnread);
+    } catch (error) {
+      console.error('Error fetching chat unread count:', error);
+    }
+  }, [user?._id]);
+
   // Khoi tao socket va lang nghe thong bao
   useEffect(() => {
     if (!isAuthenticated || !token) return;
@@ -56,10 +109,35 @@ function AppShell() {
 
       // Lay so thong bao chua doc ban dau
       fetchUnreadCount();
+      fetchChatUnreadCount();
 
       // Lang nghe thong bao moi
       socketRef.current.on('new_notification', ({ notification }) => {
         setUnreadCount(prev => prev + 1);
+      });
+
+      // Backend phat su kien rieng cho thong bao tin nhan moi.
+      socketRef.current.on('new_message_notification', () => {
+        setChatUnreadCount((prev) => prev + 1);
+      });
+
+      // Fallback event cho cac truong hop server phat qua room.
+      socketRef.current.on('receive_message', ({ message }) => {
+        const currentUserId = user?._id?.toString?.();
+        const senderId = (
+          message?.sender?._id ||
+          message?.senderId?._id ||
+          message?.sender ||
+          message?.senderId
+        )?.toString?.();
+
+        if (senderId && currentUserId && senderId !== currentUserId) {
+          setChatUnreadCount((prev) => prev + 1);
+        }
+      });
+
+      socketRef.current.on('connect', () => {
+        fetchChatUnreadCount();
       });
     } catch (error) {
       console.error('Error initializing notification socket:', error);
@@ -70,15 +148,10 @@ function AppShell() {
         socketRef.current.disconnect();
       }
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, user?._id, fetchUnreadCount, fetchChatUnreadCount]);
 
-  const fetchUnreadCount = async () => {
-    try {
-      const count = await notificationService.getUnreadCount();
-      setUnreadCount(count);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
+  const handleChatIconClick = () => {
+    setChatUnreadCount(0);
   };
 
   const handleLogout = () => {
@@ -117,46 +190,53 @@ function AppShell() {
             <div className="navbar__right">
               {isAuthenticated ? (
                 <>
-                  <button className="navbar__icon-btn" title="Yêu thích">
-                    <span className="icon">❤️</span>
-                  </button>
-                  <div className="notification-dropdown-wrapper" ref={notificationRef}>
-                    <button 
-                      className="navbar__icon-btn" 
-                      title="Thông báo"
-                      onClick={() => setShowNotification(!showNotification)}
-                    >
-                      <span className="icon">🔔</span>
-                      {unreadCount > 0 && (
-                        <span className="notification-badge">{unreadCount}</span>
-                      )}
-                    </button>
-                    {showNotification && (
-                      <NotificationPanel 
-                        isOpen={showNotification} 
-                        onClose={() => setShowNotification(false)}
-                      />
-                    )}
+                  <div className="navbar__nav-cluster">
+                    <Link to="/orders" className="navbar__btn-orders">
+                      Đơn hàng
+                    </Link>
+
+                    <Link to="/seller-orders" className="navbar__btn-orders navbar__btn-orders--seller">
+                      Đơn bán
+                    </Link>
+                    
+                    <Link to="/my-products" className="navbar__btn-manage">
+                      Quản lý tin
+                    </Link>
                   </div>
-                  <Link to="/chat" className="navbar__icon-btn" title="Chat">
-                    <span className="icon">💬</span>
-                  </Link>
-
-                  <Link to="/orders" className="navbar__btn-orders">
-                    Đơn mua
-                  </Link>
-
-                  <Link to="/seller-orders" className="navbar__btn-orders navbar__btn-orders--seller">
-                    Đơn bán
-                  </Link>
-                  
-                  <Link to="/my-products" className="navbar__btn-manage">
-                    Quản lý tin
-                  </Link>
                   
                   <Link to="/product/create" className="navbar__btn-post">
                     Đăng tin
                   </Link>
+
+                  <div className="navbar__tool-cluster">
+                    <button className="navbar__icon-btn" title="Yêu thích">
+                      <span className="icon">❤️</span>
+                    </button>
+                    <div className="notification-dropdown-wrapper" ref={notificationRef}>
+                      <button 
+                        className="navbar__icon-btn" 
+                        title="Thông báo"
+                        onClick={() => setShowNotification(!showNotification)}
+                      >
+                        <span className="icon">🔔</span>
+                        {unreadCount > 0 && (
+                          <span className="notification-badge">{unreadCount}</span>
+                        )}
+                      </button>
+                      {showNotification && (
+                        <NotificationPanel 
+                          isOpen={showNotification} 
+                          onClose={() => setShowNotification(false)}
+                        />
+                      )}
+                    </div>
+                    <Link to="/chat" className="navbar__icon-btn" title="Chat" onClick={handleChatIconClick}>
+                      <span className="icon">💬</span>
+                      {!isChatRoute && chatUnreadCount > 0 && (
+                        <span className="notification-badge">{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>
+                      )}
+                    </Link>
+                  </div>
                   
                   {/* Dropdown avatar nguoi dung */}
                   <div className="navbar__user-dropdown">

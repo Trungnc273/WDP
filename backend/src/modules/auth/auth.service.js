@@ -65,9 +65,38 @@ async function loginUser(email, password) {
 
   // Check if account is suspended
   if (user.isSuspended) {
-    const error = new Error('Tài khoản đã bị khóa');
-    error.statusCode = 403;
-    throw error;
+    const isModeratorReviewSuspension = String(user.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
+    const belowModeratorThreshold = Number(user.modBadReviewCount || 0) < 3;
+    const isLegacyUnknownSuspension = !String(user.suspendedReason || '').trim();
+    const belowViolationThreshold = Number(user.violationCount || 0) < 3;
+
+    if (
+      (isModeratorReviewSuspension && belowModeratorThreshold) ||
+      (isLegacyUnknownSuspension && belowModeratorThreshold && belowViolationThreshold)
+    ) {
+      user.isSuspended = false;
+      user.suspendedUntil = undefined;
+      user.suspendedReason = undefined;
+      await user.save();
+    }
+
+    const suspensionExpired = user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
+    if (!user.isSuspended || suspensionExpired) {
+      user.isSuspended = false;
+      user.suspendedUntil = undefined;
+      user.suspendedReason = undefined;
+      await user.save();
+    } else {
+      const suspendedUntilText = user.suspendedUntil
+        ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
+        : '';
+      const reasonText = user.suspendedReason
+        ? ` Lý do: ${user.suspendedReason}`
+        : ' Lý do: vi phạm chính sách của hệ thống.';
+      const error = new Error(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+      error.statusCode = 403;
+      throw error;
+    }
   }
 
   // Verify password
@@ -112,9 +141,38 @@ async function getUserById(userId) {
   }
 
   if (user.isSuspended) {
-    const error = new Error('Tài khoản đã bị khóa');
-    error.statusCode = 403;
-    throw error;
+    const isModeratorReviewSuspension = String(user.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
+    const belowModeratorThreshold = Number(user.modBadReviewCount || 0) < 3;
+    const isLegacyUnknownSuspension = !String(user.suspendedReason || '').trim();
+    const belowViolationThreshold = Number(user.violationCount || 0) < 3;
+
+    if (
+      (isModeratorReviewSuspension && belowModeratorThreshold) ||
+      (isLegacyUnknownSuspension && belowModeratorThreshold && belowViolationThreshold)
+    ) {
+      user.isSuspended = false;
+      user.suspendedUntil = undefined;
+      user.suspendedReason = undefined;
+      await user.save();
+    }
+
+    const suspensionExpired = user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
+    if (!user.isSuspended || suspensionExpired) {
+      user.isSuspended = false;
+      user.suspendedUntil = undefined;
+      user.suspendedReason = undefined;
+      await user.save();
+    } else {
+      const suspendedUntilText = user.suspendedUntil
+        ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
+        : '';
+      const reasonText = user.suspendedReason
+        ? ` Lý do: ${user.suspendedReason}`
+        : ' Lý do: vi phạm chính sách của hệ thống.';
+      const error = new Error(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+      error.statusCode = 403;
+      throw error;
+    }
   }
 
   return {

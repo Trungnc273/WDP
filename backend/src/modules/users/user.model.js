@@ -46,7 +46,16 @@ const UserSchema = new Schema({
   suspendedUntil: {
     type: Date
   },
+  suspendedReason: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
   violationCount: {
+    type: Number,
+    default: 0
+  },
+  modBadReviewCount: {
     type: Number,
     default: 0
   },

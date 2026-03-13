@@ -155,6 +155,20 @@ export async function hideModeratorReview(reviewId) {
   return response.data?.data;
 }
 
+export async function markBadModeratorReview(reviewId, note) {
+  ensureObjectId(reviewId, 'Mã đánh giá');
+  const normalizedNote = String(note || '').trim();
+  if (normalizedNote.length < 10) {
+    throw new Error('Ghi chú đánh giá xấu phải có ít nhất 10 ký tự');
+  }
+
+  const response = await api.patch(`/moderator/reviews/${reviewId}/mark-bad`, {
+    note: normalizedNote
+  });
+
+  return response.data?.data;
+}
+
 export async function getModeratorWithdrawals(params = {}) {
   const response = await api.get('/moderator/withdrawals', { params });
   return normalizeListResponse(response.data, 'withdrawals');
@@ -279,6 +293,7 @@ const moderatorService = {
   updateModeratorOrderStatus,
   getModeratorReviews,
   hideModeratorReview,
+  markBadModeratorReview,
   getModeratorWithdrawals,
   updateModeratorWithdrawalStatus,
   getModeratorDisputes,

@@ -105,6 +105,21 @@ async function deleteProduct(id) {
 }
 
 /**
+ * Update product visibility
+ * @param {string} id - Product ID
+ * @param {string} status - active | hidden
+ * @returns {Promise<Object>} Updated product
+ */
+async function updateProductVisibility(id, status) {
+  try {
+    const response = await api.patch(`/products/${id}/visibility`, { status });
+    return response.data.data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
  * Get user's products
  * @param {Object} params - Query parameters
  * @returns {Promise<Object>} { products, total, page, totalPages, limit }
@@ -125,6 +140,7 @@ const productService = {
   createProduct,
   updateProduct,
   deleteProduct,
+  updateProductVisibility,
   getMyProducts
 };
 

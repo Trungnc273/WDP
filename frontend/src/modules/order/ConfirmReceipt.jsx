@@ -1,15 +1,41 @@
 import React, { useState } from 'react';
 import { confirmReceipt } from '../../services/order.service';
+import { createReview } from '../../services/review.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './ConfirmReceipt.css';
 
 const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
+  const productImageSrc = getImageUrl(order.listing?.images?.[0]) || '/images/placeholder.png';
+  const sellerAvatarSrc = getImageUrl(order.seller?.avatar) || '/images/placeholders/avatar-placeholder.svg';
+
+  const highlightOptions = {
+    positive: ['Đúng mô tả', 'Đóng gói cẩn thận', 'Giao tiếp tốt', 'Giao hàng nhanh', 'Sản phẩm chất lượng'],
+    neutral: ['Tạm ổn', 'Đúng giá', 'Cần cải thiện đóng gói', 'Phản hồi chậm', 'Giao hàng lâu'],
+    negative: ['Sai mô tả', 'Sản phẩm lỗi', 'Đóng gói sơ sài', 'Phản hồi kém', 'Trải nghiệm chưa tốt']
+  };
+
   const [formData, setFormData] = useState({
     rating: 5,
     review: '',
     satisfied: true
   });
+  const [selectedHighlights, setSelectedHighlights] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  const reviewTone = formData.rating >= 4 ? 'positive' : formData.rating === 3 ? 'neutral' : 'negative';
+  const currentHighlightOptions = highlightOptions[reviewTone];
+
+  const buildReviewComment = () => {
+    const trimmedReview = formData.review.trim();
+    const highlightText = selectedHighlights.length ? `Điểm nổi bật: ${selectedHighlights.join(', ')}.` : '';
+
+    if (highlightText && trimmedReview) {
+      return `${highlightText}\n${trimmedReview}`;
+    }
+
+    return highlightText || trimmedReview;
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
@@ -30,18 +56,45 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
   const handleRatingChange = (rating) => {
     setFormData(prev => ({
       ...prev,
-      rating
+      rating,
+      satisfied: rating >= 4
     }));
+    setSelectedHighlights([]);
+    if (errors.rating || errors.review) {
+      setErrors(prev => ({
+        ...prev,
+        rating: '',
+        review: ''
+      }));
+    }
+  };
+
+  const handleSatisfiedChange = (satisfied) => {
+    setFormData(prev => ({
+      ...prev,
+      satisfied,
+      rating: satisfied ? Math.max(prev.rating, 4) : Math.min(prev.rating, 3)
+    }));
+    setSelectedHighlights([]);
+  };
+
+  const handleHighlightToggle = (highlight) => {
+    setSelectedHighlights(prev => (
+      prev.includes(highlight)
+        ? prev.filter(item => item !== highlight)
+        : [...prev, highlight].slice(0, 3)
+    ));
   };
 
   const validateForm = () => {
     const newErrors = {};
+    const finalReviewComment = buildReviewComment();
 
     if (!formData.rating || formData.rating < 1 || formData.rating > 5) {
       newErrors.rating = 'Vui lòng chọn đánh giá từ 1 đến 5 sao';
     }
 
-    if (formData.review && formData.review.length > 500) {
+    if (finalReviewComment.length > 500) {
       newErrors.review = 'Nhận xét không được quá 500 ký tự';
     }
 
@@ -65,11 +118,20 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
     setLoading(true);
     
     try {
-      // Only send the order ID for confirmation
       await confirmReceipt(order._id);
+
+      let reviewCreated = false;
+      let reviewError = '';
+
+      try {
+        await createReview(order._id, formData.rating, buildReviewComment());
+        reviewCreated = true;
+      } catch (reviewSubmitError) {
+        reviewError = reviewSubmitError.response?.data?.message || reviewSubmitError.message || 'Không thể gửi đánh giá';
+      }
       
       if (onSuccess) {
-        onSuccess();
+        onSuccess({ reviewCreated, reviewError });
       }
     } catch (error) {
       console.error('Error confirming receipt:', error);
@@ -104,7 +166,10 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
         className={`star-button ${star <= formData.rating ? 'active' : ''}`}
         onClick={() => handleRatingChange(star)}
       >
-        <i className="fas fa-star"></i>
+        <span className="star-button__icon">
+          <i className="fas fa-star"></i>
+        </span>
+        <span className="star-button__value">{star}</span>
       </button>
     ));
   };
@@ -137,7 +202,7 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
             <div className="order-details">
               <div className="detail-item">
                 <span className="label">Mã đơn hàng:</span>
-                <span className="value">#{order._id.slice(-8).toUpperCase()}</span>
+                <span className="value">#{order.orderCode || order._id.slice(-8).toUpperCase()}</span>
               </div>
               <div className="detail-item">
                 <span className="label">Sản phẩm:</span>
@@ -174,67 +239,125 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="confirm-receipt-form">
-          <div className="form-group">
-            <label>
-              Bạn có hài lòng với sản phẩm? <span className="required">*</span>
-            </label>
-            <div className="radio-group">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="satisfied"
-                  value="true"
-                  checked={formData.satisfied === true}
-                  onChange={handleInputChange}
-                />
-                <span className="radio-label">Có, tôi hài lòng</span>
-              </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="satisfied"
-                  value="false"
-                  checked={formData.satisfied === false}
-                  onChange={handleInputChange}
-                />
-                <span className="radio-label">Không, tôi không hài lòng</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Đánh giá người bán <span className="required">*</span>
-            </label>
-            <div className="rating-section">
-              <div className="stars-container">
-                {renderStars()}
+          <div className="review-stage-card">
+            <div className="review-stage-card__header">
+              <div>
+                <h4>Đánh giá trải nghiệm mua hàng</h4>
+                <p>Hãy chia sẻ cảm nhận thực tế để người mua khác tham khảo dễ hơn.</p>
               </div>
-              <div className="rating-text">
-                {getRatingText(formData.rating)}
+              <div className="review-order-chip">#{order.orderCode || order._id.slice(-8).toUpperCase()}</div>
+            </div>
+
+            <div className="review-product-card">
+              <img
+                src={productImageSrc}
+                alt={order.listing?.title}
+                className="review-product-card__image"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = '/images/placeholder.png';
+                }}
+              />
+              <div className="review-product-card__content">
+                <div className="review-product-card__title">{order.listing?.title}</div>
+                <div className="review-product-card__meta">
+                  <span className="price-pill">Giá đơn: {formatPrice(order.agreedPrice || order.totalAmount || 0)}</span>
+                  <span className="tracking-pill">Mã vận đơn: {order.shipping?.trackingNumber || 'Chưa có'}</span>
+                </div>
+              </div>
+
+              <div className="review-seller-card">
+                <img
+                  src={sellerAvatarSrc}
+                  alt={order.seller?.fullName}
+                  className="review-seller-card__avatar"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/images/placeholders/avatar-placeholder.svg';
+                  }}
+                />
+                <div>
+                  <div className="review-seller-card__label">Người bán</div>
+                  <div className="review-seller-card__name">{order.seller?.fullName}</div>
+                </div>
               </div>
             </div>
-            {errors.rating && (
-              <span className="error-message">{errors.rating}</span>
-            )}
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="review">
-              Nhận xét về người bán (tùy chọn)
-            </label>
-            <textarea
-              id="review"
-              name="review"
-              value={formData.review}
-              onChange={handleInputChange}
-              placeholder="Chia sẻ trải nghiệm của bạn về người bán và sản phẩm..."
-              rows="4"
-              className={errors.review ? 'error' : ''}
-            />
-            {errors.review && <span className="error-message">{errors.review}</span>}
-            <div className="character-count">
-              {formData.review.length}/500 ký tự
+            <div className="form-group">
+              <label>
+                Mức độ hài lòng <span className="required">*</span>
+              </label>
+              <div className="satisfaction-grid">
+                <button
+                  type="button"
+                  className={`satisfaction-card ${formData.satisfied ? 'active' : ''}`}
+                  onClick={() => handleSatisfiedChange(true)}
+                >
+                  <span className="satisfaction-card__icon">👍</span>
+                  <span className="satisfaction-card__title">Hài lòng</span>
+                  <span className="satisfaction-card__desc">Sản phẩm và trải nghiệm đúng kỳ vọng</span>
+                </button>
+                <button
+                  type="button"
+                  className={`satisfaction-card ${!formData.satisfied ? 'active' : ''}`}
+                  onClick={() => handleSatisfiedChange(false)}
+                >
+                  <span className="satisfaction-card__icon">👎</span>
+                  <span className="satisfaction-card__title">Chưa hài lòng</span>
+                  <span className="satisfaction-card__desc">Có điểm chưa ổn trong giao dịch hoặc sản phẩm</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>
+                Đánh giá người bán <span className="required">*</span>
+              </label>
+              <div className="rating-section">
+                <div className="stars-container">{renderStars()}</div>
+                <div className="rating-text rating-text--highlight">{getRatingText(formData.rating)}</div>
+              </div>
+              {errors.rating && (
+                <span className="error-message">{errors.rating}</span>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label>Điểm nổi bật</label>
+              <div className="highlight-chips">
+                {currentHighlightOptions.map((highlight) => (
+                  <button
+                    key={highlight}
+                    type="button"
+                    className={`highlight-chip ${selectedHighlights.includes(highlight) ? 'active' : ''}`}
+                    onClick={() => handleHighlightToggle(highlight)}
+                  >
+                    {highlight}
+                  </button>
+                ))}
+              </div>
+              <div className="form-helper-text">Chọn tối đa 3 điểm nổi bật để review ngắn gọn và dễ đọc hơn.</div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="review">
+                Nhận xét chi tiết (tùy chọn)
+              </label>
+              <textarea
+                id="review"
+                name="review"
+                value={formData.review}
+                onChange={handleInputChange}
+                placeholder={formData.satisfied
+                  ? 'Ví dụ: Người bán phản hồi nhanh, sản phẩm đúng như mô tả và đóng gói rất cẩn thận.'
+                  : 'Ví dụ: Sản phẩm chưa đúng kỳ vọng ở điểm nào, người bán xử lý ra sao, bạn mong muốn cải thiện điều gì.'}
+                rows="4"
+                className={errors.review ? 'error' : ''}
+              />
+              {errors.review && <span className="error-message">{errors.review}</span>}
+              <div className="character-count">
+                {buildReviewComment().length}/500 ký tự
+              </div>
             </div>
           </div>
 

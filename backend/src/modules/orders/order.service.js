@@ -46,6 +46,17 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
       throw new Error('Bạn không thể mua sản phẩm của chính mình');
     }
     
+    const buyer = await User.findById(buyerId).session(session);
+    if (!buyer) {
+      throw new Error('Người mua không tồn tại');
+    }
+
+    const buyerPhone = String(buyer.phone || '').trim();
+    const buyerAddress = String(buyer.address || '').trim();
+    if (!buyerPhone || !buyerAddress) {
+      throw new Error('Vui lòng cập nhật số điện thoại và địa chỉ trước khi mua hàng');
+    }
+
     const isQuickBuy = message.trim() === 'Mua ngay';
     
     // For quick buy, bypass pending request check and create order directly
@@ -63,7 +74,10 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
         platformFee: platformFee,
         totalToPay: totalToPay,
         status: 'awaiting_seller_confirmation',
-        paymentStatus: 'unpaid'
+        paymentStatus: 'unpaid',
+        shippingRecipientName: String(buyer.fullName || '').trim(),
+        shippingPhone: buyerPhone,
+        shippingAddress: buyerAddress
       });
       await order.save({ session });
       
@@ -264,6 +278,17 @@ async function acceptPurchaseRequest(requestId, sellerId) {
     }
     
     // Calculate fees
+    const buyer = await User.findById(request.buyerId).session(session);
+    if (!buyer) {
+      throw new Error('Người mua không tồn tại');
+    }
+
+    const buyerPhone = String(buyer.phone || '').trim();
+    const buyerAddress = String(buyer.address || '').trim();
+    if (!buyerPhone || !buyerAddress) {
+      throw new Error('Người mua phải cập nhật số điện thoại và địa chỉ trước khi tạo đơn hàng');
+    }
+
     const agreedAmount = request.agreedPrice;
     const platformFee = calculatePlatformFee(agreedAmount);
     const totalToPay = agreedAmount + platformFee;
@@ -281,7 +306,10 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       status: skipSellerConfirmation ? 'awaiting_payment' : 'awaiting_seller_confirmation',
       confirmedBySeller: skipSellerConfirmation,
       confirmedBySellerAt: skipSellerConfirmation ? new Date() : null,
-      paymentStatus: 'unpaid'
+      paymentStatus: 'unpaid',
+      shippingRecipientName: String(buyer.fullName || '').trim(),
+      shippingPhone: buyerPhone,
+      shippingAddress: buyerAddress
     }], { session });
     
     // Update purchase request status
@@ -679,8 +707,8 @@ async function createBuyerOfferFromConversation(buyerId, conversationId, message
 async function getOrderById(orderId, userId) {
   const order = await Order.findById(orderId)
     .populate('requestId', 'initiatedBy')
-    .populate('buyerId', 'fullName email phone avatar rating')
-    .populate('sellerId', 'fullName email phone avatar rating')
+    .populate('buyerId', 'fullName email phone address avatar rating')
+    .populate('sellerId', 'fullName email phone address avatar rating')
     .populate({
       path: 'productId',
       select: 'title description price images condition location category',
@@ -717,10 +745,13 @@ async function getOrderById(orderId, userId) {
     platformFee: order.platformFee,
     status: normalizedOrderStatus,
     // Add shipping info if exists
-    shipping: order.trackingNumber ? {
+    shipping: (order.trackingNumber || order.shippingRecipientName || order.shippingPhone || order.shippingAddress) ? {
       provider: order.shippingProvider,
       trackingNumber: order.trackingNumber,
-      estimatedDelivery: order.estimatedDelivery
+      estimatedDelivery: order.estimatedDelivery,
+      recipientName: order.shippingRecipientName,
+      phone: order.shippingPhone,
+      address: order.shippingAddress
     } : null
   };
   
@@ -931,6 +962,14 @@ async function forceCancelOrder(orderId, moderatorId, reason) {
       order.cancelReason = reason;
     }
 
+    if (order.productId) {
+      const product = await Product.findById(order.productId).session(session);
+      if (product && ['pending', 'sold'].includes(product.status)) {
+        product.status = 'active';
+        await product.save({ session });
+      }
+    }
+
     await order.save({ session });
     
     // Lưu thành công toàn bộ thay đổi
@@ -1075,6 +1114,14 @@ async function payOrder(orderId, buyerId) {
     throw error;
   }
 }
+
+function generateTrackingNumber(order) {
+  const provider = String(order?.shippingProvider || 'SYS').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'SYS';
+  const orderCode = String(order?.orderCode || order?._id || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const orderSuffix = orderCode.slice(-6) || Math.random().toString(36).slice(2, 8).toUpperCase();
+  const randomSuffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `${provider}-${orderSuffix}-${randomSuffix}`;
+}
 /**
  * Confirm shipment (seller action)
  */
@@ -1107,6 +1154,28 @@ async function confirmShipment(orderId, sellerId, shipmentData = {}) {
     }
     if (shipmentData.shippingProvider) {
       order.shippingProvider = shipmentData.shippingProvider;
+    }
+
+    const shippingRecipientName = String(
+      shipmentData.shippingRecipientName || order.shippingRecipientName || ''
+    ).trim();
+    const shippingPhone = String(
+      shipmentData.shippingPhone || order.shippingPhone || ''
+    ).trim();
+    const shippingAddress = String(
+      shipmentData.shippingAddress || order.shippingAddress || ''
+    ).trim();
+
+    if (!shippingRecipientName || !shippingPhone || !shippingAddress) {
+      throw new Error('Thông tin giao hàng phải đầy đủ người nhận, số điện thoại và địa chỉ');
+    }
+
+    order.shippingRecipientName = shippingRecipientName;
+    order.shippingPhone = shippingPhone;
+    order.shippingAddress = shippingAddress;
+
+    if (!order.trackingNumber) {
+      order.trackingNumber = generateTrackingNumber(order);
     }
     if (shipmentData.estimatedDelivery) {
       order.estimatedDelivery = new Date(shipmentData.estimatedDelivery);

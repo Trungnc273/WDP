@@ -23,6 +23,17 @@ const ModOrderDetail = () => {
 
   const SHIP_ONLY_STATUS = "shipped";
 
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    return new Date(value).toLocaleString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+
   const STATUS_LABEL = {
     awaiting_payment: "Chờ thanh toán",
     paid: "Đã thanh toán",
@@ -98,12 +109,25 @@ const ModOrderDetail = () => {
         Quay lại danh sách
       </Button>
 
-      <Card className="mod-panel" title={`Chi tiết Đơn hàng: ${order?._id?.slice(-8)?.toUpperCase() || ""}`} loading={loading}>
+      <Card className="mod-panel" title={`Chi tiết Đơn hàng: ${order?.orderCode || order?._id?.slice(-8)?.toUpperCase() || ""}`} loading={loading}>
         <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
+          <Descriptions.Item label="Mã đơn hàng">{order?.orderCode || order?._id?.slice(-8)?.toUpperCase() || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="Mã vận đơn">{order?.trackingNumber || "N/A"}</Descriptions.Item>
           <Descriptions.Item label="Người mua">{order?.buyerId?.fullName || "N/A"}</Descriptions.Item>
           <Descriptions.Item label="Người bán">{order?.sellerId?.fullName || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="SĐT người mua">{order?.buyerId?.phone || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="SĐT người bán">{order?.sellerId?.phone || "N/A"}</Descriptions.Item>
           <Descriptions.Item label="Sản phẩm">{order?.productId?.title || "N/A"}</Descriptions.Item>
           <Descriptions.Item label="Tổng tiền">{Number(order?.totalToPay || 0).toLocaleString("vi-VN")} đ</Descriptions.Item>
+          <Descriptions.Item label="Địa chỉ người mua" span={2}>{order?.buyerId?.address || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="Địa chỉ người bán" span={2}>{order?.sellerId?.address || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="Người nhận giao hàng">{order?.shippingRecipientName || order?.buyerId?.fullName || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="SĐT nhận hàng">{order?.shippingPhone || order?.buyerId?.phone || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="Địa chỉ giao hàng" span={2}>{order?.shippingAddress || order?.buyerId?.address || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="Đơn vị vận chuyển">{order?.shippingProvider || "N/A"}</Descriptions.Item>
+          <Descriptions.Item label="Ngày dự kiến giao">{formatDateTime(order?.estimatedDelivery)}</Descriptions.Item>
+          <Descriptions.Item label="Ngày tạo đơn">{formatDateTime(order?.createdAt)}</Descriptions.Item>
+          <Descriptions.Item label="Ngày giao hàng">{formatDateTime(order?.shippedAt)}</Descriptions.Item>
           <Descriptions.Item label="Trạng thái hiện tại">
             <Tag className="mod-status-pill" color={order?.status === "completed" ? "green" : "processing"}>
               {STATUS_LABEL[order?.status] || "N/A"}

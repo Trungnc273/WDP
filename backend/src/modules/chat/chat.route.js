@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const chatController = require('./chat.controller');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
+const { uploadEvidence, handleUploadError } = require('../../common/middlewares/upload.middleware');
 
 // All chat routes require authentication
 router.use(authenticate);
@@ -40,5 +41,17 @@ router.post('/conversations', chatController.createConversation);
  * @access  Private
  */
 router.post('/messages', chatController.sendMessage);
+
+/**
+ * @route   POST /api/chat/messages/upload-image
+ * @desc    Upload image for chat
+ * @access  Private
+ */
+router.post(
+	'/messages/upload-image',
+	uploadEvidence.single('image'),
+	handleUploadError,
+	chatController.uploadChatImage
+);
 
 module.exports = router;

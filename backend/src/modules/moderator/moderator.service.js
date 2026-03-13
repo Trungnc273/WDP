@@ -86,7 +86,7 @@ async function buildReportedUserStatsMap(reportedUserIds = []) {
       totalReports: Number(reportCountMap[id] || 0),
       isSuspended: Boolean(user.isSuspended),
       suspendedUntil: user.suspendedUntil || null,
-      shouldLockAccount: warningCount >= 3
+      shouldLockAccount: warningCount > 0 && warningCount % 3 === 0
     };
     return acc;
   }, {});
@@ -308,6 +308,7 @@ async function banUser(userId, suspendedReason = "") {
   const user = await User.findById(userId);
   if (!user) throw new Error("Người dùng không tồn tại");
   user.isSuspended = true;
+  user.suspendedReason = String(suspendedReason || '').trim() || 'Tài khoản bị khóa bởi moderator.';
   user.violationCount = (user.violationCount || 0) + 1;
   await user.save();
   return {
@@ -392,8 +393,8 @@ async function getOrders(filters = {}, pagination = {}) {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .populate("buyerId", "fullName email")
-    .populate("sellerId", "fullName email")
+    .populate("buyerId", "fullName email phone address")
+    .populate("sellerId", "fullName email phone address")
     .populate("productId", "title images price")
     .lean();
 
@@ -425,8 +426,8 @@ async function getOrders(filters = {}, pagination = {}) {
 
 async function getOrderById(orderId) {
   const order = await Order.findById(orderId)
-    .populate("buyerId", "fullName email avatar")
-    .populate("sellerId", "fullName email avatar")
+    .populate("buyerId", "fullName email phone address avatar")
+    .populate("sellerId", "fullName email phone address avatar")
     .populate("productId", "title images price")
     .populate("requestId");
 
@@ -485,6 +486,14 @@ async function updateOrderStatusByModerator(orderId, nextStatus, moderatorId, no
   if (nextStatus === "cancelled") {
     order.cancelledAt = new Date();
     order.cancellationReason = String(note).trim() || `Hủy bởi moderator ${moderatorId}`;
+
+    if (order.productId) {
+      const product = await Product.findById(order.productId);
+      if (product && ["pending", "sold"].includes(product.status)) {
+        product.status = "active";
+        await product.save();
+      }
+    }
   }
 
   await order.save();
@@ -501,7 +510,8 @@ async function getReviews(filters = {}, pagination = {}) {
     .skip(skip)
     .limit(limit)
     .populate("reviewerId", "fullName email")
-    .populate("reviewedUserId", "fullName email")
+    .populate("reviewedUserId", "fullName email isSuspended suspendedUntil modBadReviewCount")
+    .populate("moderatorAssessment.moderatorId", "fullName email")
     .populate("productId", "title images")
     .populate("orderId", "status agreedAmount");
 
@@ -526,6 +536,98 @@ async function hideReview(reviewId) {
   await review.save();
   await reviewService.updateUserRating(review.reviewedUserId);
   return review;
+}
+
+function getModerationSuspensionConfig(level) {
+  if (level === 1) {
+    return { durationHours: 24, label: '24 giờ' };
+  }
+  if (level === 2) {
+    return { durationHours: 24 * 7, label: '1 tuần' };
+  }
+  return { durationHours: 24 * 365, label: '1 năm' };
+}
+
+async function markSellerBadByReview(reviewId, moderatorId, note = '') {
+  const review = await Review.findById(reviewId);
+  if (!review) throw new Error('Đánh giá không tồn tại');
+
+  if (review?.moderatorAssessment?.isBad) {
+    throw new Error('Đánh giá này đã được moderator xử lý xấu trước đó');
+  }
+
+  const seller = await User.findById(review.reviewedUserId);
+  if (!seller) throw new Error('Không tìm thấy người bán để xử lý');
+
+  const nextCount = Number(seller.modBadReviewCount || 0) + 1;
+  const penaltyLevel = Math.min(Math.floor(nextCount / 3), 3);
+  const shouldSuspendNow = nextCount % 3 === 0;
+
+  let suspensionConfig = null;
+  let suspendUntil = seller.suspendedUntil || null;
+
+  seller.modBadReviewCount = nextCount;
+
+  if (shouldSuspendNow && penaltyLevel > 0) {
+    suspensionConfig = getModerationSuspensionConfig(penaltyLevel);
+    suspendUntil = new Date(Date.now() + suspensionConfig.durationHours * 60 * 60 * 1000);
+
+    seller.isSuspended = true;
+    seller.suspendedUntil = suspendUntil;
+    seller.suspendedReason = `Vi phạm đánh giá do moderator xử lý (mức ${penaltyLevel}/3). ${String(note || '').trim()}`;
+  }
+
+  await seller.save();
+
+  review.moderatorAssessment = {
+    isBad: true,
+    moderatorId,
+    note,
+    markedAt: new Date(),
+    penaltyLevel
+  };
+  await review.save();
+
+  try {
+    const normalizedNote = String(note || '').trim();
+    const detailMessage = normalizedNote
+      ? `Nội dung từ moderator: ${normalizedNote}`
+      : 'Vui lòng rà soát chất lượng sản phẩm và cách phục vụ.';
+
+    const moderationResultMessage = shouldSuspendNow && suspensionConfig
+      ? `Tài khoản bị khóa ${suspensionConfig.label} sau mốc ${nextCount} đánh giá xấu.`
+      : `Đã ghi nhận ${nextCount} đánh giá xấu. Tài khoản sẽ bị khóa khi đạt các mốc 3/6/9.`;
+
+    await notificationService.createNotification(seller._id, {
+      type: 'system',
+      senderId: moderatorId,
+      reviewId: review._id,
+      title: 'Tài khoản bị hạn chế do đánh giá kiểm duyệt',
+      message: `Moderator đã đánh dấu 1 đánh giá xấu cho tài khoản của bạn. ${moderationResultMessage} ${detailMessage}`
+    });
+  } catch (notificationError) {
+    console.error('Error sending seller moderation notification:', notificationError);
+  }
+
+  await review.populate([
+    { path: 'reviewerId', select: 'fullName email' },
+    { path: 'reviewedUserId', select: 'fullName email isSuspended suspendedUntil modBadReviewCount' },
+    { path: 'moderatorAssessment.moderatorId', select: 'fullName email' },
+    { path: 'productId', select: 'title images' },
+    { path: 'orderId', select: 'status agreedAmount' }
+  ]);
+
+  return {
+    review,
+    sellerPenalty: {
+      modBadReviewCount: nextCount,
+      penaltyLevel,
+      isSuspended: Boolean(seller.isSuspended),
+      suspendedUntil: suspendUntil,
+      suspensionLabel: suspensionConfig?.label || null,
+      shouldSuspendNow
+    }
+  };
 }
 
 async function getWithdrawals(filters = {}, pagination = {}) {
@@ -840,6 +942,7 @@ module.exports = {
   updateOrderStatusByModerator,
   getReviews,
   hideReview,
+  markSellerBadByReview,
   getWithdrawals,
   updateWithdrawalStatus,
   getDisputes,

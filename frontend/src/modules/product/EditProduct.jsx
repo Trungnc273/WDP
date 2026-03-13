@@ -52,7 +52,9 @@ const EditProduct = () => {
       const product = await productService.getProductById(id);
       
       // Kiem tra quyen so huu
-      if (product.seller._id !== user._id) {
+      const sellerId = String(product?.seller?._id || product?.seller || '');
+      const currentUserId = String(user?._id || user?.id || user?.userId || '');
+      if (!sellerId || !currentUserId || sellerId !== currentUserId) {
         alert('Bạn không có quyền chỉnh sửa sản phẩm này');
         navigate('/');
         return;

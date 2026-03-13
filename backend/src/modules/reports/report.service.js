@@ -7,6 +7,43 @@ const notificationService = require('../notifications/notification.service');
 
 const PRODUCT_WARN_THRESHOLD = 3;
 
+function getReportWarningPenalty(nextWarningCount) {
+  if (nextWarningCount <= 0 || nextWarningCount % 3 !== 0) {
+    return {
+      shouldSuspendNow: false,
+      level: Math.floor(Math.max(0, nextWarningCount) / 3),
+      durationMs: 0,
+      label: ''
+    };
+  }
+
+  const level = Math.floor(nextWarningCount / 3);
+  if (level === 1) {
+    return {
+      shouldSuspendNow: true,
+      level,
+      durationMs: 24 * 60 * 60 * 1000,
+      label: '24 giờ'
+    };
+  }
+
+  if (level === 2) {
+    return {
+      shouldSuspendNow: true,
+      level,
+      durationMs: 7 * 24 * 60 * 60 * 1000,
+      label: '1 tuần'
+    };
+  }
+
+  return {
+    shouldSuspendNow: true,
+    level: Math.min(level, 3),
+    durationMs: 365 * 24 * 60 * 60 * 1000,
+    label: '1 năm'
+  };
+}
+
 async function pushReportNotification(userId, title, message, reportId) {
   if (!userId) return;
   await notificationService.createNotification(userId, {
@@ -523,15 +560,19 @@ async function resolveReport(
       await product.save();
     }
   } else if (status === 'resolved' && decision === 'warn_user' && report.reportedUserId) {
-    // Cảnh báo người dùng: tăng vi phạm, đủ 3 lần thì khóa tài khoản
+    // Cảnh báo người dùng: chỉ khóa ở các mốc 3/6/9, tăng dần 24h/1 tuần/1 năm.
     const user = await User.findById(report.reportedUserId);
     if (user) {
-      user.violationCount = (user.violationCount || 0) + 1;
-      if (user.violationCount >= 3) {
+      const nextWarningCount = Number(user.violationCount || 0) + 1;
+      const penalty = getReportWarningPenalty(nextWarningCount);
+
+      user.violationCount = nextWarningCount;
+      if (penalty.shouldSuspendNow) {
         user.isSuspended = true;
         const suspendUntil = new Date();
-        suspendUntil.setDate(suspendUntil.getDate() + 30);
+        suspendUntil.setTime(suspendUntil.getTime() + penalty.durationMs);
         user.suspendedUntil = suspendUntil;
+        user.suspendedReason = `Tài khoản bị khóa do vi phạm từ báo cáo ở mốc ${nextWarningCount} cảnh báo (mức ${penalty.level}) trong ${penalty.label}.`;
       }
       await user.save();
     }
@@ -557,6 +598,7 @@ async function resolveReport(
     const user = await User.findById(report.reportedUserId);
     if (user) {
       user.isSuspended = true; // Khóa tài khoản
+      user.suspendedReason = notes || 'Tài khoản bị khóa trực tiếp theo quyết định ban_user của moderator.';
       await user.save();
     }
   }

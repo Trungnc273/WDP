@@ -83,28 +83,62 @@ const createConversation = async (req, res) => {
 const sendMessage = async (req, res) => {
   try {
     const senderId = req.user.userId;
-    const { conversationId, content } = req.body;
+    const { conversationId, content = '', type = 'text', metadata = null } = req.body;
 
     // Validate required fields
-    if (!conversationId || !content) {
-      return sendError(res, 400, 'conversationId và content là bắt buộc');
+    if (!conversationId) {
+      return sendError(res, 400, 'conversationId là bắt buộc');
     }
 
-    // Validate content length
-    if (content.trim().length === 0) {
+    if (type === 'text' && !String(content).trim()) {
       return sendError(res, 400, 'Nội dung tin nhắn không được để trống');
     }
 
-    if (content.length > 1000) {
-      return sendError(res, 400, 'Nội dung tin nhắn không được quá 1000 ký tự');
-    }
-
-    const message = await chatService.sendMessage(conversationId, senderId, content.trim());
+    const message = await chatService.sendMessage(conversationId, senderId, {
+      content: String(content || '').trim(),
+      type,
+      metadata
+    });
     
     sendSuccess(res, 200, message, 'Gửi tin nhắn thành công');
   } catch (error) {
     console.error('Error sending message:', error);
     sendError(res, 500, error.message || 'Không thể gửi tin nhắn');
+  }
+};
+
+/**
+ * Upload image for chat message
+ * POST /api/chat/messages/upload-image
+ */
+const uploadChatImage = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { conversationId } = req.body;
+
+    if (!conversationId) {
+      return sendError(res, 400, 'conversationId là bắt buộc');
+    }
+
+    if (!req.file) {
+      return sendError(res, 400, 'Vui lòng chọn ảnh để upload');
+    }
+
+    // Xác thực quyền truy cập cuộc trò chuyện trước khi trả đường dẫn ảnh.
+    await chatService.getConversationById(conversationId, userId);
+
+    const targetId = req.uploadTargetId || conversationId;
+    const imagePath = `/uploads/evidence/${targetId}/${req.file.filename}`;
+
+    return sendSuccess(res, 200, {
+      imageUrl: imagePath,
+      fileName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size
+    }, 'Upload ảnh chat thành công');
+  } catch (error) {
+    console.error('Error uploading chat image:', error);
+    return sendError(res, 500, error.message || 'Không thể upload ảnh chat');
   }
 };
 
@@ -131,5 +165,6 @@ module.exports = {
   getMessages,
   createConversation,
   sendMessage,
-  getConversationById
+  getConversationById,
+  uploadChatImage
 };

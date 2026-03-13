@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import walletService from '../../services/wallet.service';
@@ -27,19 +27,7 @@ const Wallet = () => {
     totalPages: 0
   });
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    fetchWalletData();
-  }, [user, navigate]);
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [filters, pagination.page]);
-
-  const fetchWalletData = async () => {
+  const fetchWalletData = useCallback(async () => {
     try {
       setLoading(true);
       const balanceData = await walletService.getBalance();
@@ -50,9 +38,9 @@ const Wallet = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setTransactionsLoading(true);
       const params = {
@@ -73,7 +61,19 @@ const Wallet = () => {
     } finally {
       setTransactionsLoading(false);
     }
-  };
+  }, [filters, pagination.page, pagination.limit]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    fetchWalletData();
+  }, [user, navigate, fetchWalletData]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -143,6 +143,45 @@ const Wallet = () => {
     );
   };
 
+  const getTransactionAmountMeta = (transaction) => {
+    const creditTypes = new Set(['deposit', 'refund', 'earning']);
+    const debitTypes = new Set(['withdrawal', 'payment', 'fee']);
+    const type = transaction?.type;
+
+    if (creditTypes.has(type)) {
+      return { sign: '+', className: 'positive' };
+    }
+
+    if (debitTypes.has(type)) {
+      return { sign: '-', className: 'negative' };
+    }
+
+    return {
+      sign: transaction?.amount >= 0 ? '+' : '-',
+      className: transaction?.amount >= 0 ? 'positive' : 'negative'
+    };
+  };
+
+  const renderTransactionDetails = (transaction) => {
+    if (transaction.type !== 'withdrawal') {
+      return null;
+    }
+
+    return (
+      <div className="transaction-extra">
+        <span>
+          Ngân hàng: {transaction.metadata?.bankName || '---'} - {transaction.metadata?.bankAccount || '---'}
+        </span>
+        {transaction.metadata?.accountHolder && (
+          <span>Chủ TK: {transaction.metadata.accountHolder}</span>
+        )}
+        {transaction.failureReason && (
+          <span className="transaction-extra__error">Lý do: {transaction.failureReason}</span>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="wallet-container">
@@ -193,6 +232,10 @@ const Wallet = () => {
           <div className="stat-item">
             <span className="stat-label">Tổng rút</span>
             <span className="stat-value">{formatPrice(balance?.totalWithdrawn || 0)}</span>
+          </div>
+          <div className="stat-item stat-item--highlight">
+            <span className="stat-label">Đang chờ rút</span>
+            <span className="stat-value">{formatPrice(balance?.pendingWithdrawalAmount || 0)}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Tổng chi</span>
@@ -256,7 +299,9 @@ const Wallet = () => {
         ) : (
           <>
             <div className="transactions-list">
-              {transactions.map(transaction => (
+              {transactions.map((transaction) => {
+                const amountMeta = getTransactionAmountMeta(transaction);
+                return (
                 <div key={transaction._id} className="transaction-item">
                   <div className="transaction-icon">
                     {getTransactionIcon(transaction.type)}
@@ -269,19 +314,21 @@ const Wallet = () => {
                     <div className="transaction-description">
                       {transaction.description}
                     </div>
+                    {renderTransactionDetails(transaction)}
                     <div className="transaction-date">
                       {formatDate(transaction.createdAt)}
                     </div>
                   </div>
 
                   <div className="transaction-amount">
-                    <div className={`amount ${transaction.amount >= 0 ? 'positive' : 'negative'}`}>
-                      {transaction.amount >= 0 ? '+' : ''}{formatPrice(transaction.amount)}
+                    <div className={`amount ${amountMeta.className}`}>
+                      {amountMeta.sign}{formatPrice(transaction.amount)}
                     </div>
                     {getStatusBadge(transaction.status)}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Pagination */}
