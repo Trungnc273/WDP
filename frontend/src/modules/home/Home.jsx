@@ -68,14 +68,14 @@ function Home() {
       } else {
         setProducts(prev => [...prev, ...(result.products || [])]);
       }
-      
+
       setPagination(prev => ({
         ...prev,
         page: page,
         total: result.total || 0,
         totalPages: result.totalPages || 0
       }));
-      
+
       setHasMore(page < (result.totalPages || 0));
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -129,23 +129,23 @@ function Home() {
       {/* Hero Banner */}
       <div className="home__hero">
         <div className="home__hero-background">
-          <img 
-            src="/images/banners/banner.png" 
-            alt="ReFlow Banner" 
+          <img
+            src="/images/banners/banner.png"
+            alt="ReFlow Banner"
             className="home__hero-image"
           />
           <div className="home__hero-overlay"></div>
         </div>
-        
-        <div className="home__hero-content">
+
+        <div className="home__hero-content" style={{ marginTop: '60px' }}>
           <h1>Giá tốt, gần bạn, chốt nhanh!</h1>
-          
+
           {/* Advanced Search Bar */}
           <div className="home__search-advanced">
             <div className="search-advanced">
               {/* Category Dropdown */}
               <div className="search-advanced__category">
-                <select 
+                <select
                   className="search-advanced__select"
                   onChange={(e) => handleFilterChange({ category: e.target.value || null })}
                   value={filters.category || ''}
@@ -179,7 +179,7 @@ function Home() {
               {/* Location Dropdown */}
               <div className="search-advanced__location">
                 <span className="search-advanced__location-icon">📍</span>
-                <select 
+                <select
                   className="search-advanced__select"
                   onChange={(e) => handleFilterChange({ city: e.target.value || null })}
                   value={filters.city || ''}
@@ -194,7 +194,7 @@ function Home() {
               </div>
 
               {/* Search Button */}
-              <button 
+              <button
                 className="search-advanced__button"
                 onClick={() => handleSearch(filters.search)}
               >
