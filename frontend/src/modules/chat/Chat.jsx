@@ -19,6 +19,7 @@ const Chat = () => {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  // Danh sach anh dang cho gui (ho tro nhieu anh trong 1 lan gui).
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedImagePreviews, setSelectedImagePreviews] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -89,6 +90,7 @@ const Chat = () => {
 
   useEffect(() => {
     return () => {
+      // Thu hoi URL preview de tranh ro ri bo nho.
       selectedImagePreviews.forEach((previewUrl) => revokeImagePreview(previewUrl));
     };
   }, [selectedImagePreviews]);
@@ -130,7 +132,7 @@ const Chat = () => {
         });
       }
       
-      // Cap nhat danh sach doan chat voi tin nhan moi nhat
+      // Cap nhat preview doan chat va unread theo dung vai tro buyer/seller.
       setConversations(prev => prev.map((conv) => {
         if (conv._id !== messageConversationId) return conv;
 
@@ -260,6 +262,7 @@ const Chat = () => {
     
     try {
       if (selectedImages.length > 0) {
+        // Upload tung anh, sau do gui tung message image (co the kem chu thich anh dau).
         setUploadingImage(true);
         const uploadedImages = await Promise.all(
           selectedImages.map((imageFile) => chatService.uploadChatImage(currentConversation._id, imageFile))
@@ -307,6 +310,7 @@ const Chat = () => {
       }
       
       setNewMessage('');
+      // Xoa preview + reset input sau khi gui thanh cong.
       selectedImagePreviews.forEach((previewUrl) => revokeImagePreview(previewUrl));
       setSelectedImages([]);
       setSelectedImagePreviews([]);

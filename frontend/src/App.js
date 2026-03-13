@@ -21,6 +21,7 @@ function AppShell() {
 
   const isModeratorRoute = location.pathname.startsWith('/moderator');
   const isAdminRoute = location.pathname.startsWith('/admin');
+  // Dang o trang chat thi an badge tren icon chat de tranh roi mat.
   const isChatRoute = location.pathname.startsWith('/chat');
 
   // Dong dropdown thong bao khi bam ra ngoai
@@ -116,12 +117,12 @@ function AppShell() {
         setUnreadCount(prev => prev + 1);
       });
 
-      // Backend phat su kien rieng cho thong bao tin nhan moi.
+      // Su kien chinh de tang badge tin nhan khi co tin moi.
       socketRef.current.on('new_message_notification', () => {
         setChatUnreadCount((prev) => prev + 1);
       });
 
-      // Fallback event cho cac truong hop server phat qua room.
+      // Fallback khi tin moi chi phat qua room, tranh hut thong bao.
       socketRef.current.on('receive_message', ({ message }) => {
         const currentUserId = user?._id?.toString?.();
         const senderId = (
@@ -232,6 +233,7 @@ function AppShell() {
                     </div>
                     <Link to="/chat" className="navbar__icon-btn" title="Chat" onClick={handleChatIconClick}>
                       <span className="icon">💬</span>
+                      {/* Chi hien badge khi khong dung trong trang chat. */}
                       {!isChatRoute && chatUnreadCount > 0 && (
                         <span className="notification-badge">{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>
                       )}

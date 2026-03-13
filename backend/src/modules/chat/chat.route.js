@@ -49,6 +49,7 @@ router.post('/messages', chatController.sendMessage);
  */
 router.post(
 	'/messages/upload-image',
+	// Pipeline upload anh chat: nhan file -> xu ly loi upload -> controller tra metadata.
 	uploadEvidence.single('image'),
 	handleUploadError,
 	chatController.uploadChatImage

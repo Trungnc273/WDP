@@ -83,6 +83,7 @@ const createConversation = async (req, res) => {
 const sendMessage = async (req, res) => {
   try {
     const senderId = req.user.userId;
+    // Ho tro REST fallback cho ca text va image payload.
     const { conversationId, content = '', type = 'text', metadata = null } = req.body;
 
     // Validate required fields
@@ -124,7 +125,7 @@ const uploadChatImage = async (req, res) => {
       return sendError(res, 400, 'Vui lòng chọn ảnh để upload');
     }
 
-    // Xác thực quyền truy cập cuộc trò chuyện trước khi trả đường dẫn ảnh.
+    // Chi cho phep upload neu user thuoc conversation.
     await chatService.getConversationById(conversationId, userId);
 
     const targetId = req.uploadTargetId || conversationId;

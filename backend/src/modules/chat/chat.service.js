@@ -153,6 +153,7 @@ async function getMessages(conversationId, userId, pagination = {}) {
  * Send a message
  */
 async function sendMessage(conversationId, senderId, payload) {
+  // payload ho tro 2 kieu: text truyen thong va object cho image.
   const isPayloadObject = payload && typeof payload === 'object';
   const messageType = isPayloadObject ? (payload.type || 'text') : 'text';
   const rawContent = isPayloadObject ? payload.content : payload;
@@ -174,6 +175,7 @@ async function sendMessage(conversationId, senderId, payload) {
   }
 
   if (messageType === 'image') {
+    // Tin nhan anh bat buoc phai co imageUrl trong metadata.
     if (!metadata?.imageUrl) {
       throw new Error('Thiếu đường dẫn ảnh để gửi');
     }
@@ -200,6 +202,7 @@ async function sendMessage(conversationId, senderId, payload) {
   });
   
   // Update conversation
+  // Preview doan chat hien "Hinh anh" de dung voi UX tin nhan anh.
   const conversationPreview = messageType === 'image'
     ? '📷 Hình ảnh'
     : normalizedContent;

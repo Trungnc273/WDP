@@ -40,6 +40,7 @@ const chatService = {
 
   // Gửi tin nhắn qua REST (dùng khi socket không khả dụng).
   sendMessage: async (conversationId, messageData) => {
+    // Ho tro ca text string don gian va object payload (text/image + metadata).
     const payload = typeof messageData === 'string'
       ? { content: messageData }
       : messageData;
@@ -57,6 +58,7 @@ const chatService = {
     formData.append('conversationId', conversationId);
     formData.append('image', imageFile);
 
+    // targetId giup middleware luu dung thu muc cua conversation.
     const response = await api.post(`/chat/messages/upload-image?targetId=${conversationId}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'

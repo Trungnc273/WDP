@@ -32,12 +32,14 @@ const messageSchema = new mongoose.Schema({
   // Message type
   type: {
     type: String,
+    // Bo sung 'image' de luu tin nhan anh trong chat.
     enum: ['text', 'image', 'system', 'offer'],
     default: 'text'
   },
 
   // Optional structured payload for non-text messages (e.g., seller offers)
   metadata: {
+    // Chat anh dung metadata de luu imageUrl, mimeType, kich thuoc, ...
     type: mongoose.Schema.Types.Mixed,
     default: null
   },

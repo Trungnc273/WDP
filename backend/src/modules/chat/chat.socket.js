@@ -84,6 +84,7 @@ function initializeChatSocket(io) {
     // Send message
     socket.on('send_message', async (data) => {
       try {
+        // Ho tro gui text/image thong qua type + metadata.
         const { conversationId, content, type = 'text', metadata = null } = data;
         
         // Create message
@@ -108,7 +109,7 @@ function initializeChatSocket(io) {
           ? conversation.sellerId._id.toString() 
           : conversation.buyerId._id.toString();
         
-        // Send notification to other user if they're online but not in the conversation
+        // Ban thong bao rieng cho navbar badge cua nguoi con lai.
         const otherUserSocketId = onlineUsers.get(otherUserId);
         if (otherUserSocketId) {
           io.to(otherUserSocketId).emit('new_message_notification', {
