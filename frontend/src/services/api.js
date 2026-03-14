@@ -31,8 +31,15 @@ api.interceptors.response.use(
     if (error.response) {
       // Xu ly 401 Unauthorized - token het han hoac khong hop le
       if (error.response.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        const requestUrl = error.config?.url || '';
+        const isAuthLoginRequest = requestUrl.includes('/auth/login');
+
+        // Với request đăng nhập sai thông tin, chỉ trả lỗi cho màn hình login xử lý,
+        // không reload hoặc redirect trang để tránh gây khó hiểu cho người dùng.
+        if (!isAuthLoginRequest) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
       }
       
       // Tra ve thong bao loi tu backend

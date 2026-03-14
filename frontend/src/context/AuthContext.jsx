@@ -58,6 +58,18 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    await authService.changePassword(currentPassword, newPassword);
+  };
+
+  const forgotPassword = async (email) => {
+    return authService.forgotPassword(email);
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    return authService.resetPassword(token, newPassword);
+  };
+
   const value = {
     user,
     token,
@@ -65,6 +77,9 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    changePassword,
+    forgotPassword,
+    resetPassword,
     loading,
   };
 

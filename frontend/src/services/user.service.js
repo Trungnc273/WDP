@@ -63,9 +63,9 @@ export const getKYCStatus = async () => {
  * @param {string} newPassword - Mật khẩu mới
  */
 export const changePassword = async (currentPassword, newPassword) => {
-  const response = await api.post('/users/change-password', {
+  const response = await api.post('/auth/change-password', {
     currentPassword,
-    newPassword
+    newPassword,
   });
   return response.data;
 };

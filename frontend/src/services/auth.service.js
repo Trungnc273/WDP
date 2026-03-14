@@ -61,4 +61,52 @@ export const authService = {
     // Sau nay co the bo sung endpoint backend de vo hieu hoa token
     localStorage.removeItem('token');
   },
+
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const response = await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Đổi mật khẩu thất bại');
+      }
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async forgotPassword(email) {
+    try {
+      const response = await api.post('/auth/forgot-password', { email });
+
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Yêu cầu đặt lại mật khẩu thất bại');
+      }
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async resetPassword(token, newPassword) {
+    try {
+      const response = await api.post('/auth/reset-password', {
+        token,
+        newPassword,
+      });
+
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Đặt lại mật khẩu thất bại');
+      }
+    } catch (error) {
+      throw error;
+    }
+  },
 };

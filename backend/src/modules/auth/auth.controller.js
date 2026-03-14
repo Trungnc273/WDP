@@ -110,9 +110,99 @@ async function logout(req, res, next) {
   }
 }
 
+/**
+ * Change password for authenticated user
+ * POST /api/auth/change-password
+ * Protected route - requires authentication
+ */
+async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return sendError(res, 400, 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới');
+    }
+
+    if (newPassword.length < 6) {
+      return sendError(res, 400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
+    }
+
+    const userId = req.user.userId;
+
+    await authService.changeUserPassword(userId, currentPassword, newPassword);
+
+    return sendSuccess(res, 200, null, 'Đổi mật khẩu thành công');
+  } catch (error) {
+    return sendError(res, error.statusCode || 500, error.message || 'Đổi mật khẩu thất bại');
+  }
+}
+
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ * Public route
+ * For now, returns reset token directly so it can be tested via Postman.
+ */
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return sendError(res, 400, 'Vui lòng nhập email');
+    }
+
+    const resetToken = await authService.generatePasswordResetToken(email);
+
+    return sendSuccess(
+      res,
+      200,
+      { resetToken },
+      'Tạo token đặt lại mật khẩu thành công'
+    );
+  } catch (error) {
+    return sendError(
+      res,
+      error.statusCode || 500,
+      error.message || 'Yêu cầu đặt lại mật khẩu thất bại'
+    );
+  }
+}
+
+/**
+ * Reset password using reset token
+ * POST /api/auth/reset-password
+ * Public route (token-based)
+ */
+async function resetPassword(req, res, next) {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return sendError(res, 400, 'Vui lòng cung cấp token và mật khẩu mới');
+    }
+
+    if (newPassword.length < 6) {
+      return sendError(res, 400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
+    }
+
+    await authService.resetPasswordWithToken(token, newPassword);
+
+    return sendSuccess(res, 200, null, 'Đặt lại mật khẩu thành công');
+  } catch (error) {
+    return sendError(
+      res,
+      error.statusCode || 500,
+      error.message || 'Đặt lại mật khẩu thất bại'
+    );
+  }
+}
+
 module.exports = {
   register,
   login,
   getProfile,
-  logout
+  logout,
+  changePassword,
+  forgotPassword,
+  resetPassword
 };

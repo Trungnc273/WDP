@@ -31,4 +31,25 @@ router.get('/profile', authenticate, authController.getProfile);
  */
 router.post('/logout', authenticate, authController.logout);
 
+/**
+ * POST /api/auth/change-password
+ * Change password for authenticated user
+ * Protected route - requires authentication
+ */
+router.post('/change-password', authenticate, authController.changePassword);
+
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset token
+ * Public route
+ */
+router.post('/forgot-password', authController.forgotPassword);
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using reset token
+ * Public route
+ */
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;

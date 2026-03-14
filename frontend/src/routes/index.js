@@ -4,6 +4,8 @@ import { Routes, Route } from 'react-router-dom';
 import Home from '../modules/home/Home';
 import Login from '../modules/auth/Login';
 import Register from '../modules/auth/Register';
+import ForgotPassword from '../modules/auth/ForgotPassword';
+import ResetPassword from '../modules/auth/ResetPassword';
 
 import Profile from '../modules/profile/Profile';
 import UserProfile from '../modules/profile/UserProfile';
@@ -73,6 +75,8 @@ function AppRoutes() {
       {/* Route công khai - chuyển về trang chủ nếu đã đăng nhập */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
 
 
       {/* Route bảo vệ - yêu cầu đăng nhập */}

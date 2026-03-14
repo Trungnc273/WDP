@@ -46,7 +46,7 @@ function Login() {
       ...prev,
       [name]: value,
     }));
-    
+
     // Xóa thông báo lỗi của ô đó ngay khi người dùng bắt đầu sửa lại
     if (errors[name]) {
       setErrors((prev) => ({
@@ -67,7 +67,7 @@ function Login() {
       // 2. Gọi hàm login từ AuthContext
       // Thường hàm login này sẽ lưu user vào localStorage và cập nhật State trong Context
       const result = await login(formData.email, formData.password);
-      
+
       // 3. Logic điều hướng dựa trên Role (Quyền)
       // Lấy thông tin user vừa đăng nhập thành công
       // Nếu login() của bạn không trả về user, ta có thể lấy từ localStorage
@@ -147,6 +147,10 @@ function Login() {
               <i className="fas fa-exclamation-circle"></i> {errors.submit}
             </div>
           )}
+
+          <div className="forgot-password-link" style={{ marginBottom: '15px' }}>
+            <Link to="/forgot-password">Quên mật khẩu?</Link>
+          </div>
 
           {/* Nút đăng nhập */}
           <button type="submit" className="btn-primary" disabled={loading}>

@@ -80,14 +80,12 @@ const ChangePassword = () => {
       
       setSuccess('Đổi mật khẩu thành công!');
       
-      // Xoa du lieu form
       setFormData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
       
-      // Chuyen huong sau 2 giay
       setTimeout(() => {
         navigate('/profile');
       }, 2000);
@@ -106,11 +104,9 @@ const ChangePassword = () => {
     let text = '';
     let color = '';
     
-    // Length check
     if (password.length >= 6) strength += 1;
     if (password.length >= 8) strength += 1;
     
-    // Character variety checks
     if (/[a-z]/.test(password)) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
     if (/[0-9]/.test(password)) strength += 1;
@@ -150,7 +146,6 @@ const ChangePassword = () => {
               Để bảo mật tài khoản, vui lòng sử dụng mật khẩu mạnh và không chia sẻ với người khác.
             </p>
             
-            {/* Current Password */}
             <div className="form-group">
               <label htmlFor="currentPassword">Mật khẩu hiện tại *</label>
               <div className="password-input">
@@ -173,7 +168,6 @@ const ChangePassword = () => {
               </div>
             </div>
 
-            {/* New Password */}
             <div className="form-group">
               <label htmlFor="newPassword">Mật khẩu mới *</label>
               <div className="password-input">
@@ -196,7 +190,6 @@ const ChangePassword = () => {
                 </button>
               </div>
               
-              {/* Password Strength Indicator */}
               {formData.newPassword && (
                 <div className="password-strength">
                   <div className="strength-bar">
@@ -215,7 +208,6 @@ const ChangePassword = () => {
               )}
             </div>
 
-            {/* Confirm Password */}
             <div className="form-group">
               <label htmlFor="confirmPassword">Xác nhận mật khẩu mới *</label>
               <div className="password-input">
@@ -237,7 +229,6 @@ const ChangePassword = () => {
                 </button>
               </div>
               
-              {/* Password Match Indicator */}
               {formData.confirmPassword && (
                 <div className="password-match">
                   {formData.newPassword === formData.confirmPassword ? (
@@ -255,7 +246,6 @@ const ChangePassword = () => {
               )}
             </div>
 
-            {/* Password Requirements */}
             <div className="password-requirements">
               <h4>Yêu cầu mật khẩu:</h4>
               <ul>
@@ -267,18 +257,18 @@ const ChangePassword = () => {
                   <i className={`fas ${/[a-z]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa chữ thường (a-z)
                 </li>
-                <li className={/[A-Z]/.test(formData.newPassword) ? 'requirement-met' : ''}>
+                {/* <li className={/[A-Z]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[A-Z]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa chữ hoa (A-Z)
-                </li>
+                </li> */}
                 <li className={/[0-9]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[0-9]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa số (0-9)
                 </li>
-                <li className={/[^A-Za-z0-9]/.test(formData.newPassword) ? 'requirement-met' : ''}>
+                {/* <li className={/[^A-Za-z0-9]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[^A-Za-z0-9]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa ký tự đặc biệt (!@#$%^&*)
-                </li>
+                </li> */}
               </ul>
             </div>
           </div>
@@ -298,7 +288,12 @@ const ChangePassword = () => {
             <button 
               type="submit" 
               className="btn btn-primary"
-              disabled={loading || !validateForm()}
+              disabled={
+                loading ||
+                !formData.currentPassword ||
+                !formData.newPassword ||
+                !formData.confirmPassword
+              }
             >
               {loading ? 'Đang đổi...' : 'Đổi mật khẩu'}
             </button>
