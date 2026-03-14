@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const User = require('../users/user.model');
-const { generateJWT } = require('../../common/utils/jwt.util');
+const { generateJWT, verifyToken } = require('../../common/utils/jwt.util');
 
 /**
  * Register a new user
@@ -190,8 +190,105 @@ async function getUserById(userId) {
   };
 }
 
+/**
+ * Change password for an authenticated user
+ * @param {String} userId - ID of the user who is changing password
+ * @param {String} currentPassword - Current plain text password
+ * @param {String} newPassword - New plain text password
+ */
+async function changeUserPassword(userId, currentPassword, newPassword) {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    const error = new Error('User không tồn tại');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+  if (!isPasswordValid) {
+    const error = new Error('Mật khẩu hiện tại không đúng');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedPassword;
+  await user.save();
+
+  return true;
+}
+
+/**
+ * Generate a short-lived token for resetting password
+ * This implementation is stateless (does not modify user model),
+ * so it is convenient to test via Postman.
+ * @param {String} email - User email
+ * @returns {String} reset token (JWT)
+ */
+async function generatePasswordResetToken(email) {
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    const error = new Error('Email không tồn tại');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const token = generateJWT(
+    {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      purpose: 'password_reset'
+    },
+    '1h'
+  );
+
+  return token;
+}
+
+/**
+ * Reset password using a password reset token
+ * @param {String} token - Password reset token (JWT)
+ * @param {String} newPassword - New plain text password
+ */
+async function resetPasswordWithToken(token, newPassword) {
+  let decoded;
+
+  try {
+    decoded = verifyToken(token);
+  } catch (error) {
+    error.statusCode = error.statusCode || 400;
+    throw error;
+  }
+
+  if (decoded.purpose !== 'password_reset') {
+    const err = new Error('Token đặt lại mật khẩu không hợp lệ');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findById(decoded.userId);
+
+  if (!user) {
+    const error = new Error('User không tồn tại');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedPassword;
+  await user.save();
+
+  return true;
+}
+
 module.exports = {
   registerUser,
   loginUser,
-  getUserById
+  getUserById,
+  changeUserPassword,
+  generatePasswordResetToken,
+  resetPasswordWithToken
 };
