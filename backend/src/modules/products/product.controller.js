@@ -95,6 +95,15 @@ async function createProduct(req, res, next) {
     const userId = req.user.userId;
     const productData = { ...req.body };
     
+    // Require verified (KYC-approved) account before allowing product creation
+    if (!req.user.isVerified) {
+      return sendError(
+        res,
+        403,
+        'Tài khoản của bạn chưa được xác thực KYC. Vui lòng hoàn thành xác thực danh tính trước khi đăng sản phẩm.'
+      );
+    }
+    
     console.log('Create product request:', productData);
     
     // Validate required fields

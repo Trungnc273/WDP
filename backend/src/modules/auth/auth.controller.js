@@ -1,5 +1,8 @@
 const authService = require('./auth.service');
 const { sendSuccess, sendError } = require('../../common/utils/response.util');
+const { validateStrongPassword } = require('../../common/validators/password.validator');
+const { createNotification } = require('../notifications/notification.service');
+const { verifyToken } = require('../../common/utils/jwt.util');
 
 /**
  * Register a new user
@@ -123,13 +126,21 @@ async function changePassword(req, res, next) {
       return sendError(res, 400, 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới');
     }
 
-    if (newPassword.length < 6) {
-      return sendError(res, 400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
+    const passwordValidation = validateStrongPassword(newPassword);
+    if (!passwordValidation.valid) {
+      return sendError(res, 400, passwordValidation.message);
     }
 
     const userId = req.user.userId;
 
     await authService.changeUserPassword(userId, currentPassword, newPassword);
+
+    // Send notification for password change
+    await createNotification(userId, {
+      type: 'system',
+      title: 'Mật khẩu đã được thay đổi',
+      message: 'Mật khẩu của bạn đã được thay đổi thành công. Nếu không phải bạn thực hiện, vui lòng liên hệ hỗ trợ ngay lập tức.'
+    });
 
     return sendSuccess(res, 200, null, 'Đổi mật khẩu thành công');
   } catch (error) {
@@ -181,11 +192,27 @@ async function resetPassword(req, res, next) {
       return sendError(res, 400, 'Vui lòng cung cấp token và mật khẩu mới');
     }
 
-    if (newPassword.length < 6) {
-      return sendError(res, 400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
+    const passwordValidation = validateStrongPassword(newPassword);
+    if (!passwordValidation.valid) {
+      return sendError(res, 400, passwordValidation.message);
+    }
+
+    // Decode token to get userId for notification
+    let decoded;
+    try {
+      decoded = verifyToken(token);
+    } catch (error) {
+      return sendError(res, 400, 'Token không hợp lệ');
     }
 
     await authService.resetPasswordWithToken(token, newPassword);
+
+    // Send notification for password reset
+    await createNotification(decoded.userId, {
+      type: 'security',
+      title: 'Mật khẩu đã được đặt lại',
+      message: 'Mật khẩu của bạn đã được đặt lại thành công. Nếu không phải bạn thực hiện, vui lòng liên hệ hỗ trợ ngay lập tức.'
+    });
 
     return sendSuccess(res, 200, null, 'Đặt lại mật khẩu thành công');
   } catch (error) {

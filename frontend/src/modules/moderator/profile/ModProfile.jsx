@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { Card, Typography, Descriptions, Form, Input, Button, Alert, Row, Col, Tag, Divider } from "antd";
 import { UserOutlined, LockOutlined, EditOutlined, SaveOutlined } from "@ant-design/icons";
 import { getProfile, updateProfile, changePassword } from "../../../services/user.service";
+import { STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE } from '../../../utils/passwordValidator';
 import "./ModProfile.css";
 
 const { Title, Text } = Typography;
 
 const PHONE_REGEX = /^0\d{9,10}$/;
-const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 const ModProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -83,7 +83,8 @@ const ModProfile = () => {
       setSuccess("Đổi mật khẩu thành công");
       passwordForm.resetFields();
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || "Đổi mật khẩu thất bại");
+      const message = err?.message ?? err?.response?.data?.message ?? "Đổi mật khẩu thất bại";
+      setError(message);
     } finally {
       setSavingPassword(false);
     }
@@ -200,7 +201,7 @@ const ModProfile = () => {
                   { required: true, message: "Vui lòng nhập mật khẩu mới" },
                   {
                     pattern: STRONG_PASSWORD_REGEX,
-                    message: "Mật khẩu tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
+                    message: STRONG_PASSWORD_MESSAGE
                   }
                 ]}
               >

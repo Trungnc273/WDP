@@ -1,5 +1,6 @@
 const userService = require('./user.service');
 const { sendSuccess, sendError } = require('../../common/utils/response.util');
+const { validateStrongPassword } = require('../../common/validators/password.validator');
 
 /**
  * User Controller
@@ -132,11 +133,16 @@ async function changePassword(req, res) {
   try {
     const userId = req.user.userId;
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
       return sendError(res, 400, 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới');
     }
-    
+
+    const passwordValidation = validateStrongPassword(newPassword);
+    if (!passwordValidation.valid) {
+      return sendError(res, 400, passwordValidation.message);
+    }
+
     const result = await userService.changePassword(userId, currentPassword, newPassword);
     
     sendSuccess(res, 200, null, result.message);

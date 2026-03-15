@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../users/user.model');
 const { generateJWT, verifyToken } = require('../../common/utils/jwt.util');
+const { validateStrongPassword } = require('../../common/validators/password.validator');
 
 /**
  * Register a new user
@@ -205,6 +206,13 @@ async function changeUserPassword(userId, currentPassword, newPassword) {
     throw error;
   }
 
+  const passwordValidation = validateStrongPassword(newPassword);
+  if (!passwordValidation.valid) {
+    const error = new Error(passwordValidation.message);
+    error.statusCode = 400;
+    throw error;
+  }
+
   const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
   if (!isPasswordValid) {
     const error = new Error('Mật khẩu hiện tại không đúng');
@@ -265,6 +273,13 @@ async function resetPasswordWithToken(token, newPassword) {
 
   if (decoded.purpose !== 'password_reset') {
     const err = new Error('Token đặt lại mật khẩu không hợp lệ');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const passwordValidation = validateStrongPassword(newPassword);
+  if (!passwordValidation.valid) {
+    const err = new Error(passwordValidation.message);
     err.statusCode = 400;
     throw err;
   }

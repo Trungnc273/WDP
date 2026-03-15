@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { validateStrongPassword } from '../../utils/passwordValidator';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import './Auth.css';
 
 function ResetPassword() {
@@ -16,6 +18,9 @@ function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,8 +32,9 @@ function ResetPassword() {
       return;
     }
 
-    if (!newPassword || newPassword.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+    const passwordValidation = validateStrongPassword(newPassword);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.message);
       return;
     }
 
@@ -75,28 +81,74 @@ function ResetPassword() {
 
           <div className="form-group">
             <label htmlFor="newPassword">Mật khẩu mới</label>
-            <input
-              type="password"
-              id="newPassword"
-              name="newPassword"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
-              disabled={loading}
-            />
+            <div className="password-input-container">
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                id="newPassword"
+                name="newPassword"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Nhập mật khẩu mới"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                disabled={loading}
+              >
+                {showNewPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
             <label htmlFor="confirmPassword">Xác nhận mật khẩu mới</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Nhập lại mật khẩu mới"
-              disabled={loading}
-            />
+            <div className="password-input-container">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                id="confirmPassword"
+                name="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Nhập lại mật khẩu mới"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={loading}
+              >
+                {showConfirmPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </button>
+            </div>
+          </div>
+
+          <div className="password-requirements">
+            <h4>Yêu cầu mật khẩu:</h4>
+            <ul>
+              <li className={newPassword.length >= 8 ? 'requirement-met' : ''}>
+                <i className={`fas ${newPassword.length >= 8 ? 'fa-check' : 'fa-times'}`}></i>
+                Ít nhất 8 ký tự
+              </li>
+              <li className={/[a-z]/.test(newPassword) ? 'requirement-met' : ''}>
+                <i className={`fas ${/[a-z]/.test(newPassword) ? 'fa-check' : 'fa-times'}`}></i>
+                Chứa chữ thường (a-z)
+              </li>
+              <li className={/[A-Z]/.test(newPassword) ? 'requirement-met' : ''}>
+                <i className={`fas ${/[A-Z]/.test(newPassword) ? 'fa-check' : 'fa-times'}`}></i>
+                Chứa chữ hoa (A-Z)
+              </li>
+              <li className={/[0-9]/.test(newPassword) ? 'requirement-met' : ''}>
+                <i className={`fas ${/[0-9]/.test(newPassword) ? 'fa-check' : 'fa-times'}`}></i>
+                Chứa số (0-9)
+              </li>
+              <li className={/[^A-Za-z0-9]/.test(newPassword) ? 'requirement-met' : ''}>
+                <i className={`fas ${/[^A-Za-z0-9]/.test(newPassword) ? 'fa-check' : 'fa-times'}`}></i>
+                Chứa ký tự đặc biệt (!@#$%^&*)
+              </li>
+            </ul>
           </div>
 
           {error && (
@@ -127,4 +179,3 @@ function ResetPassword() {
 }
 
 export default ResetPassword;
-

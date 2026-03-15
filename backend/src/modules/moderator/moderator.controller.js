@@ -1,5 +1,6 @@
 const moderatorService = require("./moderator.service");
 const { sendSuccess, sendError } = require("../../common/utils/response.util");
+const { createNotification } = require('../notifications/notification.service');
 
 const REPORT_STATUS = ["pending", "reviewing", "resolved", "dismissed"];
 const REPORT_TYPE = ["product", "user"];
@@ -122,6 +123,14 @@ async function approveKYC(req, res) {
     if (validationError) return sendError(res, 400, validationError);
 
     const user = await moderatorService.approveKYC(userId);
+
+    // Send notification for KYC approval
+    await createNotification(userId, {
+      type: 'system',
+      title: 'Xác thực danh tính thành công',
+      message: 'Yêu cầu xác thực danh tính của bạn đã được phê duyệt. Tài khoản của bạn giờ đây đã được xác thực.'
+    });
+
     return sendSuccess(res, 200, user, "Đã cấp tích xanh cho người dùng");
   } catch (error) {
     return sendError(res, 400, error.message);
@@ -141,6 +150,14 @@ async function rejectKYC(req, res) {
     }
 
     const user = await moderatorService.rejectKYC(userId, String(reason).trim());
+
+    // Send notification for KYC rejection
+    await createNotification(userId, {
+      type: 'system',
+      title: 'Xác thực danh tính bị từ chối',
+      message: `Yêu cầu xác thực danh tính của bạn đã bị từ chối. Lý do: ${String(reason).trim()}`
+    });
+
     return sendSuccess(res, 200, user, "Đã từ chối hồ sơ KYC");
   } catch (error) {
     return sendError(res, 400, error.message);
