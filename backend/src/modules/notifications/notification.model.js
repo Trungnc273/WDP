@@ -20,7 +20,8 @@ const notificationSchema = new mongoose.Schema({
       'review_received',
       'report_update',
       'dispute_update',
-      'system'
+      'system',
+      'security'
     ],
     default: 'order_created'
   },

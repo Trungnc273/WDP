@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { changePassword } from '../../services/user.service';
+import { validateStrongPassword } from '../../utils/passwordValidator';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import './ChangePassword.css';
 
 const ChangePassword = () => {
@@ -45,12 +47,13 @@ const ChangePassword = () => {
       setError('Vui lòng nhập mật khẩu mới');
       return false;
     }
-    
-    if (formData.newPassword.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+
+    const passwordValidation = validateStrongPassword(formData.newPassword);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.message);
       return false;
     }
-    
+
     if (formData.newPassword === formData.currentPassword) {
       setError('Mật khẩu mới phải khác mật khẩu hiện tại');
       return false;
@@ -91,7 +94,8 @@ const ChangePassword = () => {
       }, 2000);
       
     } catch (error) {
-      setError(error.response?.data?.message || 'Có lỗi xảy ra khi đổi mật khẩu');
+      const message = error.message ?? error.response?.data?.message ?? 'Có lỗi xảy ra khi đổi mật khẩu';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -163,7 +167,7 @@ const ChangePassword = () => {
                   className="password-toggle"
                   onClick={() => togglePasswordVisibility('current')}
                 >
-                  <i className={`fas ${showPasswords.current ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  {showPasswords.current ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                 </button>
               </div>
             </div>
@@ -178,15 +182,15 @@ const ChangePassword = () => {
                   value={formData.newPassword}
                   onChange={handleInputChange}
                   required
-                  placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
-                  minLength="6"
+                  placeholder="Nhập mật khẩu mới"
+                  minLength={8}
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => togglePasswordVisibility('new')}
                 >
-                  <i className={`fas ${showPasswords.new ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  {showPasswords.new ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                 </button>
               </div>
               
@@ -225,7 +229,7 @@ const ChangePassword = () => {
                   className="password-toggle"
                   onClick={() => togglePasswordVisibility('confirm')}
                 >
-                  <i className={`fas ${showPasswords.confirm ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  {showPasswords.confirm ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                 </button>
               </div>
               
@@ -249,26 +253,26 @@ const ChangePassword = () => {
             <div className="password-requirements">
               <h4>Yêu cầu mật khẩu:</h4>
               <ul>
-                <li className={formData.newPassword.length >= 6 ? 'requirement-met' : ''}>
-                  <i className={`fas ${formData.newPassword.length >= 6 ? 'fa-check' : 'fa-times'}`}></i>
-                  Ít nhất 6 ký tự
+                <li className={formData.newPassword.length >= 8 ? 'requirement-met' : ''}>
+                  <i className={`fas ${formData.newPassword.length >= 8 ? 'fa-check' : 'fa-times'}`}></i>
+                  Ít nhất 8 ký tự
                 </li>
                 <li className={/[a-z]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[a-z]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa chữ thường (a-z)
                 </li>
-                {/* <li className={/[A-Z]/.test(formData.newPassword) ? 'requirement-met' : ''}>
+                <li className={/[A-Z]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[A-Z]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa chữ hoa (A-Z)
-                </li> */}
+                </li>
                 <li className={/[0-9]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[0-9]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa số (0-9)
                 </li>
-                {/* <li className={/[^A-Za-z0-9]/.test(formData.newPassword) ? 'requirement-met' : ''}>
+                <li className={/[^A-Za-z0-9]/.test(formData.newPassword) ? 'requirement-met' : ''}>
                   <i className={`fas ${/[^A-Za-z0-9]/.test(formData.newPassword) ? 'fa-check' : 'fa-times'}`}></i>
                   Chứa ký tự đặc biệt (!@#$%^&*)
-                </li> */}
+                </li>
               </ul>
             </div>
           </div>

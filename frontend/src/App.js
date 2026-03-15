@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserRouter as Router, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import AppRoutes from './routes';
 import MobileMenu from './components/MobileMenu';
@@ -18,6 +18,7 @@ function AppShell() {
   const socketRef = useRef(null);
   const notificationRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isModeratorRoute = location.pathname.startsWith('/moderator');
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -160,6 +161,18 @@ function AppShell() {
     setShowUserMenu(false);
   };
 
+  const handlePostClick = (event) => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    if (!user?.isVerified) {
+      event.preventDefault();
+      alert('Tài khoản của bạn chưa được xác thực KYC. Vui lòng hoàn thành xác thực danh tính trước khi đăng tin.');
+      navigate('/profile/kyc');
+    }
+  };
+
   return (
     <div className="App">
       {!isModeratorRoute && !isAdminRoute && (
@@ -205,7 +218,7 @@ function AppShell() {
                     </Link>
                   </div>
                   
-                  <Link to="/product/create" className="navbar__btn-post">
+                  <Link to="/product/create" className="navbar__btn-post" onClick={handlePostClick}>
                     Đăng tin
                   </Link>
 

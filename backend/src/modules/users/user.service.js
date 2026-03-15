@@ -1,8 +1,8 @@
 const User = require('./user.model');
 const bcrypt = require('bcryptjs');
+const { validateStrongPassword } = require('../../common/validators/password.validator');
 
 const PHONE_REGEX = /^0\d{9,10}$/;
-const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 /**
  * User Service
@@ -194,12 +194,12 @@ async function changePassword(userId, currentPassword, newPassword) {
   if (!currentPassword || !newPassword) {
     throw new Error('Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới');
   }
-  
-  // Chính sách mật khẩu mạnh cho khu vực quản trị.
-  if (!STRONG_PASSWORD_REGEX.test(newPassword)) {
-    throw new Error('Mật khẩu mới phải tối thiểu 8 ký tự và gồm chữ hoa, chữ thường, số, ký tự đặc biệt');
+
+  const passwordValidation = validateStrongPassword(newPassword);
+  if (!passwordValidation.valid) {
+    throw new Error(passwordValidation.message);
   }
-  
+
   const user = await User.findById(userId);
   if (!user) {
     throw new Error('Người dùng không tồn tại');
