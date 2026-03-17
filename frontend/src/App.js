@@ -195,9 +195,6 @@ function AppShell() {
               <Link to="/" className="navbar__menu-item">
                 Trang chủ
               </Link>
-              <Link to="/products" className="navbar__menu-item">
-                Sản phẩm
-              </Link>
             </div>
 
             {/* Ben phai: Nhom hanh dong */}
@@ -223,9 +220,9 @@ function AppShell() {
                   </Link>
 
                   <div className="navbar__tool-cluster">
-                    <button className="navbar__icon-btn" title="Yêu thích">
+                    <Link to="/favorites" className="navbar__icon-btn" title="Yêu thích">
                       <span className="icon">❤️</span>
-                    </button>
+                    </Link>
                     <div className="notification-dropdown-wrapper" ref={notificationRef}>
                       <button 
                         className="navbar__icon-btn" 
@@ -294,30 +291,6 @@ function AppShell() {
                           <Link to="/chat" className="user-dropdown-menu__item">
                             <span className="icon">💬</span>
                             Tin nhắn
-                          </Link>
-                        </div>
-                        
-                        <div className="user-dropdown-menu__section">
-                          <div className="user-dropdown-menu__label">Tiện ích</div>
-                          <Link to="/favorites" className="user-dropdown-menu__item">
-                            <span className="icon">❤️</span>
-                            Tin đăng đã lưu
-                          </Link>
-                          <Link to="/saved-searches" className="user-dropdown-menu__item">
-                            <span className="icon">🔖</span>
-                            Tìm kiếm đã lưu
-                          </Link>
-                          <Link to="/history" className="user-dropdown-menu__item">
-                            <span className="icon">🕐</span>
-                            Lịch sử xem tin
-                          </Link>
-                        </div>
-                        
-                        <div className="user-dropdown-menu__section">
-                          <div className="user-dropdown-menu__label">Dịch vụ trả phí</div>
-                          <Link to="/pro" className="user-dropdown-menu__item">
-                            <span className="icon">⚡</span>
-                            Gói PRO
                           </Link>
                         </div>
                         
