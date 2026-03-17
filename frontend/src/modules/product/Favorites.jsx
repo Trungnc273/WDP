@@ -28,40 +28,37 @@ const Favorites = () => {
   const fetchFavorites = async () => {
     try {
       setLoading(true);
-      const params = {
+      const res = await favoriteService.getFavorites({
         page: pagination.page,
         limit: pagination.limit
-      };
+      });
 
-      const response = await favoriteService.getFavorites(params);
-      const data = response.data;
-      
+      const data = res.data;
+
       setFavorites(data.favorites);
       setPagination(prev => ({
         ...prev,
         total: data.total,
         totalPages: data.totalPages
       }));
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRemoveFavorite = async (productId, e) => {
+  const handleRemoveFavorite = async (id, e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!window.confirm('Bạn có chắc muốn xóa sản phẩm này khỏi danh sách yêu thích?')) {
-      return;
-    }
+
+    if (!window.confirm('Xóa khỏi yêu thích?')) return;
 
     try {
-      await favoriteService.removeFavorite(productId);
+      await favoriteService.removeFavorite(id);
       fetchFavorites();
-    } catch (error) {
-      alert('Không thể xóa sản phẩm');
+    } catch {
+      alert('Lỗi xoá');
     }
   };
 
@@ -70,11 +67,6 @@ const Favorites = () => {
       style: 'currency',
       currency: 'VND'
     }).format(price);
-  };
-
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-    window.scrollTo(0, 0);
   };
 
   if (loading && favorites.length === 0) {
@@ -88,76 +80,83 @@ const Favorites = () => {
   return (
     <div className="favorites-container">
       <div className="favorites-header">
-        <h1>❤️ Tin đăng đã lưu</h1>
+        <h1>❤️ Tin đã lưu</h1>
         <p className="favorites-count">{pagination.total} sản phẩm</p>
       </div>
 
       {favorites.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🤍</div>
-          <h2>Chưa có tin đăng yêu thích</h2>
-          <p>Hãy lưu những tin đăng bạn quan tâm để xem lại sau</p>
+          <h2>Chưa có sản phẩm</h2>
           <Link to="/" className="btn btn-primary">
-            Khám phá ngay
+            Khám phá
           </Link>
         </div>
       ) : (
         <>
           <div className="favorites-grid">
-            {favorites.map(favorite => {
-              const product = favorite.product;
-              if (!product) return null;
+            {favorites.map(fav => {
+              const p = fav.product;
+              if (!p) return null;
 
               return (
-                <div key={favorite._id} className="favorite-card">
-                  <Link to={`/product/${product._id}`} className="product-link">
+                <div key={fav._id} className="favorite-card">
+                  
+                  {/* BADGE */}
+                  <div className="favorite-badge">Yêu thích</div>
+
+                  <Link to={`/product/${p._id}`}>
                     <div className="product-image">
-                      <img 
-                        src={product.images[0] || '/images/placeholder.png'} 
-                        alt={product.title}
+                      <img
+                        src={p.images?.[0] || '/images/placeholder.png'}
+                        alt={p.title}
                       />
                     </div>
+
                     <div className="product-info">
-                      <h3 className="product-title">{product.title}</h3>
-                      <div className="product-price">{formatPrice(product.price)}</div>
+                      <div className="product-title">{p.title}</div>
+                      <div className="product-price">{formatPrice(p.price)}</div>
                       <div className="product-meta">
-                        <span className="product-location">
-                          📍 {product.location?.district}, {product.location?.city}
-                        </span>
+                        📍 {p.location?.district}, {p.location?.city}
                       </div>
                     </div>
                   </Link>
-                  <button 
+
+                  {/* REMOVE */}
+                  <button
                     className="remove-favorite-btn"
-                    onClick={(e) => handleRemoveFavorite(product._id, e)}
-                    title="Xóa khỏi yêu thích"
+                    onClick={(e) => handleRemoveFavorite(p._id, e)}
                   >
-                    ❌
+                    🗑️
                   </button>
                 </div>
               );
             })}
           </div>
 
-          {/* Pagination */}
+          {/* PAGINATION */}
           {pagination.totalPages > 1 && (
             <div className="pagination">
               <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
                 className="pagination-btn"
+                disabled={pagination.page === 1}
+                onClick={() =>
+                  setPagination(prev => ({ ...prev, page: prev.page - 1 }))
+                }
               >
                 ← Trước
               </button>
-              
-              <span className="pagination-info">
-                Trang {pagination.page} / {pagination.totalPages}
+
+              <span>
+                {pagination.page} / {pagination.totalPages}
               </span>
-              
+
               <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
                 className="pagination-btn"
+                disabled={pagination.page === pagination.totalPages}
+                onClick={() =>
+                  setPagination(prev => ({ ...prev, page: prev.page + 1 }))
+                }
               >
                 Sau →
               </button>
