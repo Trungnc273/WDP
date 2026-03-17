@@ -29,7 +29,8 @@ const ModeratorDashboard = () => {
     pendingWithdrawals: 0,
     pendingDisputes: 0,
     pendingProducts: 0,
-    pendingKYC: 0
+    pendingKYC: 0,
+    badReviews: 0
   });
 
   useEffect(() => {
@@ -45,6 +46,7 @@ const ModeratorDashboard = () => {
           reviewingReports: data.reviewingReports || 0,
           openOrders: data.openOrders || 0,
           reportedReviews: data.reportedReviews || 0,
+          badReviews: data.badReviews || 0,
           pendingWithdrawals: data.pendingWithdrawals || 0,
           pendingDisputes: data.pendingDisputes || 0,
           pendingProducts: data.pendingProducts || 0,

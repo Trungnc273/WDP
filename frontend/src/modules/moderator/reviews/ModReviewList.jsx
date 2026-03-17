@@ -71,7 +71,7 @@ const ModReviewList = () => {
     const reviewId = review?._id;
     if (!reviewId) return;
 
-    if (review?.moderatorAssessment?.isBad) {
+    if (review?.moderatorEvaluation?.isBad) {
       message.warning("Review này đã được mod đánh giá xấu trước đó");
       return;
     }
@@ -184,8 +184,8 @@ const ModReviewList = () => {
       title: "Đánh giá mod",
       key: "modAssessment",
       render: (_, record) => {
-        if (record?.moderatorAssessment?.isBad) {
-          return <Tag className="mod-status-pill" color="volcano">Đã đánh giá xấu (Mức {record?.moderatorAssessment?.penaltyLevel || 1})</Tag>;
+        if (record?.moderatorEvaluation?.isBad) {
+          return <Tag className="mod-status-pill" color="volcano">Đã đánh giá xấu (Mức {record?.moderatorEvaluation?.penaltyLevel || 1})</Tag>;
         }
         return <Tag className="mod-status-pill" color="blue">Chưa đánh giá</Tag>;
       }
@@ -202,7 +202,7 @@ const ModReviewList = () => {
             type="primary"
             danger
             icon={<WarningOutlined />}
-            disabled={record?.moderatorAssessment?.isBad}
+            disabled={record?.moderatorEvaluation?.isBad}
             loading={markingReviewId === record._id}
             onClick={() => openMarkBadModal(record)}
           >
@@ -264,7 +264,7 @@ const ModReviewList = () => {
               type="primary"
               danger
               icon={<WarningOutlined />}
-              disabled={selectedReview?.moderatorAssessment?.isBad}
+              disabled={selectedReview?.moderatorEvaluation?.isBad}
               loading={markingReviewId === selectedReview?._id}
               onClick={async () => {
                 if (!selectedReview?._id) return;
@@ -283,9 +283,9 @@ const ModReviewList = () => {
               <Tag color={selectedReview.status === "reported" ? "red" : selectedReview.status === "hidden" ? "default" : "green"}>
                 {selectedReview.status === "reported" ? "Bị báo cáo" : selectedReview.status === "hidden" ? "Đã ẩn" : "Bình thường"}
               </Tag>
-              <Tag color={selectedReview?.moderatorAssessment?.isBad ? "volcano" : "blue"}>
-                {selectedReview?.moderatorAssessment?.isBad
-                  ? `Mod đã đánh giá xấu (Mức ${selectedReview?.moderatorAssessment?.penaltyLevel || 1})`
+              <Tag color={selectedReview?.moderatorEvaluation?.isBad ? "volcano" : "blue"}>
+                {selectedReview?.moderatorEvaluation?.isBad
+                  ? `Mod đã đánh giá xấu (Mức ${selectedReview?.moderatorEvaluation?.penaltyLevel || 1})`
                   : "Chưa có đánh giá xấu từ mod"}
               </Tag>
             </div>
@@ -337,9 +337,9 @@ const ModReviewList = () => {
             <Descriptions.Item label="Ngày tạo" span={2}>
               {formatDateTime(selectedReview.createdAt)}
             </Descriptions.Item>
-            {selectedReview?.moderatorAssessment?.isBad && (
+            {selectedReview?.moderatorEvaluation?.isBad && (
               <Descriptions.Item label="Ghi chú moderator" span={2}>
-                {selectedReview?.moderatorAssessment?.note || "N/A"}
+                {selectedReview?.moderatorEvaluation?.note || "N/A"}
               </Descriptions.Item>
             )}
             <Descriptions.Item label="Nội dung" span={2}>
