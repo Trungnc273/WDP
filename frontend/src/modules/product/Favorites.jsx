@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import favoriteService from '../../services/favorite.service';
@@ -17,17 +17,11 @@ const Favorites = () => {
     totalPages: 0
   });
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    fetchFavorites();
-  }, [user, navigate, pagination.page]);
-
-  const fetchFavorites = async () => {
+  // ✅ FIX: dùng useCallback
+  const fetchFavorites = useCallback(async () => {
     try {
       setLoading(true);
+
       const res = await favoriteService.getFavorites({
         page: pagination.page,
         limit: pagination.limit
@@ -41,12 +35,23 @@ const Favorites = () => {
         total: data.total,
         totalPages: data.totalPages
       }));
+
     } catch (err) {
-      console.error(err);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit]);
+
+  // ✅ FIX: dependency chuẩn
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    fetchFavorites();
+  }, [user, navigate, fetchFavorites]);
 
   const handleRemoveFavorite = async (id, e) => {
     e.preventDefault();
@@ -56,8 +61,12 @@ const Favorites = () => {
 
     try {
       await favoriteService.removeFavorite(id);
+
+      // reload lại data
       fetchFavorites();
-    } catch {
+
+    } catch (err) {
+      console.error(err);
       alert('Lỗi xoá');
     }
   };
@@ -101,7 +110,7 @@ const Favorites = () => {
 
               return (
                 <div key={fav._id} className="favorite-card">
-                  
+
                   {/* BADGE */}
                   <div className="favorite-badge">Yêu thích</div>
 
