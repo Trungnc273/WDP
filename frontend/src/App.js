@@ -17,6 +17,7 @@ function AppShell() {
   const [isScrolled, setIsScrolled] = useState(false);
   const socketRef = useRef(null);
   const notificationRef = useRef(null);
+  const userMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -37,6 +38,19 @@ function AppShell() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showNotification]);
+
+  // Dong dropdown profile khi bam ra ngoai
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -251,7 +265,7 @@ function AppShell() {
                   </div>
                   
                   {/* Dropdown avatar nguoi dung */}
-                  <div className="navbar__user-dropdown">
+                  <div className="navbar__user-dropdown" ref={userMenuRef}>
                     <button 
                       className="navbar__user-avatar"
                       onClick={() => setShowUserMenu(!showUserMenu)}
