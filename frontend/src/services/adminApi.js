@@ -48,6 +48,11 @@ export const adminUserApi = {
   // Get system statistics
   getSystemStats: () => {
     return api.get('/users/admin/stats');
+  },
+
+  // Get admin dashboard stats
+  getAdminDashboardStats: () => {
+    return api.get('/users/admin/dashboard');
   }
 };
 

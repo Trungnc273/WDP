@@ -296,9 +296,10 @@ async function getAllUsers(page = 1, limit = 10, search = '', role = '', status 
   return {
     users,
     pagination: {
-      currentPage: parseInt(page),
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: total,
       totalPages: Math.ceil(total / limit),
-      totalUsers: total,
       hasNext: page * limit < total,
       hasPrev: page > 1
     }
@@ -510,5 +511,67 @@ module.exports = {
   deleteUser,
   suspendUser,
   unsuspendUser,
-  getSystemStats
+  getSystemStats,
+  getAdminDashboardStats
 };
+/**
+ * Get admin dashboard stats (Admin only)
+ */
+async function getAdminDashboardStats() {
+  try {
+    // Get basic user stats first
+    const [
+      totalUsers,
+      activeUsers,
+      suspendedUsers,
+      verifiedUsers,
+      pendingKYC,
+      usersByRole
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ isSuspended: false }),
+      User.countDocuments({ isSuspended: true }),
+      User.countDocuments({ isVerified: true }),
+      User.countDocuments({ kycStatus: 'pending' }),
+      User.aggregate([
+        {
+          $group: {
+            _id: '$role',
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
+
+    return {
+      // User management stats
+      userStats: {
+        totalUsers,
+        activeUsers,
+        suspendedUsers,
+        verifiedUsers,
+        pendingKYC,
+        usersByRole: usersByRole.reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {})
+      },
+      
+      // Moderation stats (simplified for now)
+      moderationStats: {
+        pendingReports: 0,
+        reviewingReports: 0,
+        unresolvedReports: 0,
+        pendingWithdrawals: 0,
+        reportedReviews: 0,
+        openOrders: 0,
+        pendingDisputes: 0,
+        pendingProducts: 0,
+        recentReports: []
+      }
+    };
+  } catch (error) {
+    console.error('Error in getAdminDashboardStats:', error);
+    throw error;
+  }
+}

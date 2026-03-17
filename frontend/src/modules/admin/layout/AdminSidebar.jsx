@@ -18,6 +18,48 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       icon: 'fas fa-users',
       label: 'Quản lý người dùng',
       description: 'CRUD người dùng hệ thống'
+    },
+    {
+      path: '/admin/reports',
+      icon: 'fas fa-flag',
+      label: 'Quản lý báo cáo',
+      description: 'Xử lý báo cáo từ người dùng'
+    },
+    {
+      path: '/admin/orders',
+      icon: 'fas fa-shopping-cart',
+      label: 'Quản lý đơn hàng',
+      description: 'Theo dõi và xử lý đơn hàng'
+    },
+    {
+      path: '/admin/reviews',
+      icon: 'fas fa-star',
+      label: 'Đánh giá & Nhận xét',
+      description: 'Quản lý đánh giá người dùng'
+    },
+    {
+      path: '/admin/products',
+      icon: 'fas fa-box',
+      label: 'Duyệt sản phẩm',
+      description: 'Phê duyệt sản phẩm mới'
+    },
+    {
+      path: '/admin/withdrawals',
+      icon: 'fas fa-money-bill-wave',
+      label: 'Duyệt rút tiền',
+      description: 'Xử lý yêu cầu rút tiền'
+    },
+    {
+      path: '/admin/disputes',
+      icon: 'fas fa-gavel',
+      label: 'Giải quyết tranh chấp',
+      description: 'Xử lý tranh chấp đơn hàng'
+    },
+    {
+      path: '/admin/kyc',
+      icon: 'fas fa-id-card',
+      label: 'Thẩm định KYC',
+      description: 'Xác minh danh tính người dùng'
     }
   ];
 
@@ -25,6 +67,13 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     if (path === '/admin/dashboard') {
       return location.pathname === '/admin' || location.pathname === '/admin/dashboard';
     }
+    if (location.pathname.startsWith("/admin/reports")) return path === "/admin/reports";
+    if (location.pathname.startsWith("/admin/orders")) return path === "/admin/orders";
+    if (location.pathname.startsWith("/admin/reviews")) return path === "/admin/reviews";
+    if (location.pathname.startsWith("/admin/products")) return path === "/admin/products";
+    if (location.pathname.startsWith("/admin/withdrawals")) return path === "/admin/withdrawals";
+    if (location.pathname.startsWith("/admin/disputes")) return path === "/admin/disputes";
+    if (location.pathname.startsWith("/admin/kyc")) return path === "/admin/kyc";
     return location.pathname === path;
   };
 
