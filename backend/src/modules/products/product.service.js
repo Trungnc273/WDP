@@ -76,10 +76,17 @@ async function getProducts(filters = {}, pagination = {}) {
     const skip = (page - 1) * limit;
     
     // Execute query with pagination (Req 5)
+    // Determine sort order: support sorting by price ascending/descending
+    let sortObj = { createdAt: -1 };
+    if (filters.sort) {
+      if (filters.sort === 'price_asc') sortObj = { price: 1 };
+      else if (filters.sort === 'price_desc') sortObj = { price: -1 };
+    }
+
     const products = await Product.find(query)
       .populate('seller', 'fullName isVerified') // Req 5.4
       .populate('category', 'name slug') // Req 5.4
-      .sort({ createdAt: -1 }) // Req 5.5 - newest first
+      .sort(sortObj)
       .skip(skip)
       .limit(limit);
     
