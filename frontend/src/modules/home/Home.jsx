@@ -93,10 +93,33 @@ function Home() {
 
       const result = await productService.getProducts(params);
 
+      // Client-side fallback for name sorting: ensure loaded items are ordered by title
+      const incoming = result.products || [];
+      let processed = incoming;
+      if (filters.sort === 'name_asc' || filters.sort === 'name_desc') {
+        const direction = filters.sort === 'name_asc' ? 1 : -1;
+        processed = incoming.slice().sort((a, b) => {
+          const ta = (a.title || '').toString();
+          const tb = (b.title || '').toString();
+          return ta.localeCompare(tb, 'vi', { sensitivity: 'base' }) * direction;
+        });
+      }
+
       if (reset) {
-        setProducts(result.products || []);
+        setProducts(processed);
       } else {
-        setProducts(prev => [...prev, ...(result.products || [])]);
+        setProducts(prev => {
+          const merged = [...prev, ...processed];
+          if (filters.sort === 'name_asc' || filters.sort === 'name_desc') {
+            const direction = filters.sort === 'name_asc' ? 1 : -1;
+            return merged.slice().sort((a, b) => {
+              const ta = (a.title || '').toString();
+              const tb = (b.title || '').toString();
+              return ta.localeCompare(tb, 'vi', { sensitivity: 'base' }) * direction;
+            });
+          }
+          return merged;
+        });
       }
 
       setPagination(prev => ({
@@ -297,6 +320,8 @@ function Home() {
             <option value="">Sắp xếp</option>
             <option value="price_asc">Giá: thấp → cao</option>
             <option value="price_desc">Giá: cao → thấp</option>
+            <option value="name_asc">Tên: A → Z</option>
+            <option value="name_desc">Tên: Z → A</option>
           </select>
         </div>
       </div>
