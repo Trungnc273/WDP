@@ -204,8 +204,6 @@ async function getDashboardStats() {
     Dispute.countDocuments({ status: { $in: ["pending", "investigating"] } }),
     Product.countDocuments({ status: "pending" }),
     User.countDocuments({ kycStatus: "pending" }),
-    Review.countDocuments({ "moderatorEvaluation.isBad": { $ne: true } }), // Đếm đơn chưa đánh giá
-    Review.countDocuments({ "moderatorEvaluation.isBad": true }),           // Đếm đơn đã đánh giá xấu
     Report.find({ status: { $in: ["pending", "reviewing"] } })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -225,8 +223,7 @@ async function getDashboardStats() {
     pendingDisputes,
     pendingProducts,
     pendingKYC,
-    recentReports,
-    badReviews
+    recentReports
   };
 }
 
