@@ -61,10 +61,6 @@ __tests__/
 ####################################
 # UPLOADS / STORAGE
 ####################################
-uploads/
-!uploads/.gitkeep
-backend/uploads/
-!backend/uploads/.gitkeep
 tmp/
 
 ####################################
