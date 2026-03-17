@@ -76,11 +76,13 @@ async function getProducts(filters = {}, pagination = {}) {
     const skip = (page - 1) * limit;
     
     // Execute query with pagination (Req 5)
-    // Determine sort order: support sorting by price ascending/descending
+    // Determine sort order: support sorting by price and name (title)
     let sortObj = { createdAt: -1 };
     if (filters.sort) {
       if (filters.sort === 'price_asc') sortObj = { price: 1 };
       else if (filters.sort === 'price_desc') sortObj = { price: -1 };
+      else if (filters.sort === 'name_asc') sortObj = { title: 1 };
+      else if (filters.sort === 'name_desc') sortObj = { title: -1 };
     }
 
     const products = await Product.find(query)
