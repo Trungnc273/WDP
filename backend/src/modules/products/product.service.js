@@ -50,9 +50,9 @@ function buildProductQuery(filters) {
     }
   }
   
-  // Apply location filter (Req 9)
-  if (filters.city) {
-    query['location.city'] = filters.city;
+  // Apply location filter (multi-city support)
+  if (filters.cities && filters.cities.length > 0) {
+    query['location.city'] = { $in: filters.cities };
   }
   
   return query;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import locationService from '../services/location.service';
 import './ProductComponents.css';
 
 /**
@@ -12,27 +13,27 @@ function FilterPanel({ onFilterChange, initialFilters = {} }) {
   const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '');
   const [minPrice, setMinPrice] = useState(initialFilters.minPrice || '');
   const [maxPrice, setMaxPrice] = useState(initialFilters.maxPrice || '');
-  const [selectedCity, setSelectedCity] = useState(initialFilters.city || '');
+  
+  // Xử lý selectedCities dạng mảng để cho phép chọn nhiều tỉnh/thành
+  const [selectedCities, setSelectedCities] = useState(() => {
+    if (Array.isArray(initialFilters.cities)) return initialFilters.cities;
+    if (initialFilters.city) return [initialFilters.city];
+    return [];
+  });
+  
   const [isExpanded, setIsExpanded] = useState(false);
+  const [provinces, setProvinces] = useState([]);
 
-  // Common cities in Vietnam
-  const cities = [
-    'Hà Nội',
-    'Hồ Chí Minh',
-    'Đà Nẵng',
-    'Hải Phòng',
-    'Cần Thơ',
-    'Biên Hòa',
-    'Nha Trang',
-    'Huế',
-    'Vũng Tàu',
-    'Buôn Ma Thuột'
-  ];
-
-  // Tai danh muc khi component mount
+  // Tai danh muc va tinh/thanh khi component mount
   useEffect(() => {
     fetchCategories();
+    fetchProvinces();
   }, []);
+
+  const fetchProvinces = async () => {
+    const data = await locationService.getProvinces();
+    setProvinces(data);
+  };
 
   const fetchCategories = async () => {
     try {
@@ -59,8 +60,14 @@ function FilterPanel({ onFilterChange, initialFilters = {} }) {
   };
 
   const handleCityChange = (e) => {
-    const value = e.target.value;
-    setSelectedCity(value);
+    const options = e.target.options;
+    const selectedValues = [];
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].selected) {
+        selectedValues.push(options[i].value);
+      }
+    }
+    setSelectedCities(selectedValues);
   };
 
   const handleApplyFilters = () => {
@@ -68,7 +75,7 @@ function FilterPanel({ onFilterChange, initialFilters = {} }) {
       category: selectedCategory || null,
       minPrice: minPrice ? parseFloat(minPrice) : null,
       maxPrice: maxPrice ? parseFloat(maxPrice) : null,
-      city: selectedCity || null
+      cities: selectedCities.length > 0 ? selectedCities : null
     };
 
     if (onFilterChange) {
@@ -80,19 +87,19 @@ function FilterPanel({ onFilterChange, initialFilters = {} }) {
     setSelectedCategory('');
     setMinPrice('');
     setMaxPrice('');
-    setSelectedCity('');
+    setSelectedCities([]);
 
     if (onFilterChange) {
       onFilterChange({
         category: null,
         minPrice: null,
         maxPrice: null,
-        city: null
+        cities: null
       });
     }
   };
 
-  const hasActiveFilters = selectedCategory || minPrice || maxPrice || selectedCity;
+  const hasActiveFilters = selectedCategory || minPrice || maxPrice || selectedCities.length > 0;
 
   return (
     <div className="filter-panel">
@@ -153,20 +160,22 @@ function FilterPanel({ onFilterChange, initialFilters = {} }) {
 
         {/* Location Filter */}
         <div className="filter-panel__section">
-          <label htmlFor="city-select" className="filter-panel__label">Khu vực</label>
+          <label htmlFor="city-select" className="filter-panel__label">Khu vực (Có thể chọn nhiều)</label>
           <select
             id="city-select"
-            className="filter-panel__select"
-            value={selectedCity}
+            className="filter-panel__select filter-panel__select--multiple"
+            multiple
+            value={selectedCities}
             onChange={handleCityChange}
+            style={{ height: '120px' }}
           >
-            <option value="">Toàn quốc</option>
-            {cities.map((city) => (
-              <option key={city} value={city}>
-                {city}
+            {provinces.map((province) => (
+              <option key={province.code} value={province.name}>
+                {province.name}
               </option>
             ))}
           </select>
+          <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>Giữ Ctrl/Cmd để chọn nhiều tỉnh/thành</small>
         </div>
 
         {/* Action Buttons */}

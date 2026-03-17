@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import productService from '../../services/product.service';
+import locationService from '../../services/location.service';
 import ProductList from '../../components/ProductList';
 import './Home.css';
 
@@ -22,8 +23,12 @@ function Home() {
     category: null,
     minPrice: null,
     maxPrice: null,
-    city: null
+    cities: []
   });
+
+  const [provinces, setProvinces] = useState([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const locationDropdownRef = useRef(null);
 
   // State phan trang (Yeu cau 5)
   const [pagination, setPagination] = useState({
@@ -32,6 +37,29 @@ function Home() {
     total: 0,
     totalPages: 0
   });
+
+  // Tai danh muc tinh/thanh khi component mount
+  useEffect(() => {
+    fetchProvinces();
+  }, []);
+
+  const fetchProvinces = async () => {
+    const data = await locationService.getProvinces();
+    setProvinces(data);
+  };
+
+  // Dong dropdown khi click ra ngoai
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(e.target)) {
+        setShowLocationDropdown(false);
+      }
+    };
+    if (showLocationDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLocationDropdown]);
 
   // Tai san pham khi bo loc thay doi (reset ve trang 1)
   useEffect(() => {
@@ -58,7 +86,7 @@ function Home() {
         ...(filters.category && { category: filters.category }),
         ...(filters.minPrice && { minPrice: filters.minPrice }),
         ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
-        ...(filters.city && { city: filters.city })
+        ...(filters.cities && filters.cities.length > 0 && { cities: filters.cities })
       };
 
       const result = await productService.getProducts(params);
@@ -111,6 +139,17 @@ function Home() {
   const handleFilterChange = (newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
+
+  const toggleCity = (cityName) => {
+    const next = filters.cities.includes(cityName)
+      ? filters.cities.filter(c => c !== cityName)
+      : [...filters.cities, cityName];
+    handleFilterChange({ cities: next });
+  };
+
+  const locationLabel = filters.cities && filters.cities.length > 0
+    ? (filters.cities.length === 1 ? filters.cities[0] : `${filters.cities.length} tỉnh/thành`)
+    : 'Chọn khu vực';
 
   // Categories data - Updated to match seed data
   const categories = [
@@ -177,20 +216,40 @@ function Home() {
               </div>
 
               {/* Location Dropdown */}
-              <div className="search-advanced__location">
+              <div className="search-advanced__location" ref={locationDropdownRef} style={{ position: 'relative' }}>
                 <span className="search-advanced__location-icon">📍</span>
-                <select
-                  className="search-advanced__select"
-                  onChange={(e) => handleFilterChange({ city: e.target.value || null })}
-                  value={filters.city || ''}
+                <button
+                  type="button"
+                  className="search-advanced__location-btn"
+                  onClick={() => setShowLocationDropdown(prev => !prev)}
                 >
-                  <option value="">Chọn khu vực</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Hồ Chí Minh">Hồ Chí Minh</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="Hải Phòng">Hải Phòng</option>
-                  <option value="Cần Thơ">Cần Thơ</option>
-                </select>
+                  {locationLabel}
+                  <span style={{ marginLeft: '6px', fontSize: '10px' }}>▼</span>
+                </button>
+                {showLocationDropdown && (
+                  <div className="location-dropdown-panel">
+                    <div className="location-dropdown-panel__list">
+                      {provinces.map((province) => (
+                        <label key={province.code} className="location-dropdown-panel__item">
+                          <input
+                            type="checkbox"
+                            checked={filters.cities.includes(province.name)}
+                            onChange={() => toggleCity(province.name)}
+                          />
+                          {province.name}
+                        </label>
+                      ))}
+                    </div>
+                    {filters.cities.length > 0 && (
+                      <button
+                        className="location-dropdown-panel__clear"
+                        onClick={() => handleFilterChange({ cities: [] })}
+                      >
+                        ✕ Xóa lựa chọn
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Search Button */}
