@@ -15,7 +15,7 @@ async function getProducts(req, res, next) {
       search: req.query.search,
       minPrice: req.query.minPrice ? parseFloat(req.query.minPrice) : null,
       maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice) : null,
-      city: req.query.city,
+      cities: req.query.cities ? (Array.isArray(req.query.cities) ? req.query.cities : [req.query.cities]) : null,
       sellerId: req.query.seller
     };
     
