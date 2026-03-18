@@ -140,7 +140,7 @@ const MyProducts = () => {
   const getStatusBadge = (status) => {
     const badges = {
       'active': { text: 'Đang bán', class: 'status-active' },
-      'pending': { text: 'Đang giao dịch', class: 'status-hidden' },
+      'pending': { text: 'Đang giao dịch', class: 'status-pending' },
       'sold': { text: 'Đã bán', class: 'status-sold' },
       'hidden': { text: 'Đã ẩn', class: 'status-hidden' },
       'deleted': { text: 'Đã xóa', class: 'status-deleted' }
@@ -155,6 +155,17 @@ const MyProducts = () => {
     );
   };
 
+<<<<<<< Updated upstream
+=======
+  const getProductStatusBadge = (product) => {
+    if (product?.moderationStatus === 'pending') {
+      return <span className="status-badge status-moderation">Chờ duyệt</span>;
+    }
+
+    return getStatusBadge(product.status);
+  };
+
+>>>>>>> Stashed changes
   const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
     window.scrollTo(0, 0);
@@ -175,7 +186,10 @@ const MyProducts = () => {
   if (loading && products.length === 0) {
     return (
       <div className="my-products-container">
-        <div className="loading">Đang tải...</div>
+        <div className="loading-state" aria-busy="true" aria-live="polite">
+          <div className="spinner" />
+          <div className="loading-text">Đang tải...</div>
+        </div>
       </div>
     );
   }
@@ -187,19 +201,25 @@ const MyProducts = () => {
           <h1>Quản lý tin đăng</h1>
           <p>Theo dõi trạng thái và chỉnh sửa tin đăng của bạn tại một nơi.</p>
         </div>
-        <Link to="/product/create" className="btn btn-primary">
-          + Tạo tin mới
-        </Link>
+        <div className="my-products-cta">
+          <Link to="/product/create" className="btn btn-primary">
+            + Tạo tin mới
+          </Link>
+        </div>
       </div>
 
       {feedback.message && (
-        <div className={`my-products-feedback ${feedback.type === 'error' ? 'is-error' : 'is-success'}`}>
+        <div
+          className={`my-products-feedback ${feedback.type === 'error' ? 'is-error' : 'is-success'}`}
+          role="status"
+          aria-live="polite"
+        >
           {feedback.message}
         </div>
       )}
 
       {/* Filter */}
-      <div className="filter-bar">
+      <nav className="filter-bar" aria-label="Lọc tin đăng">
         <button
           className={`filter-btn ${statusFilter === '' ? 'active' : ''}`}
           onClick={() => applyFilter('')}
@@ -207,6 +227,21 @@ const MyProducts = () => {
           Tất cả ({pagination.total})
         </button>
         <button
+<<<<<<< Updated upstream
+=======
+          className={`filter-btn ${statusFilter === 'waiting_moderation' ? 'active' : ''}`}
+          onClick={() => applyFilter('waiting_moderation')}
+        >
+          Chờ duyệt
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === 'pending' ? 'active' : ''}`}
+          onClick={() => applyFilter('pending')}
+        >
+          Đang giao dịch
+        </button>
+        <button
+>>>>>>> Stashed changes
           className={`filter-btn ${statusFilter === 'active' ? 'active' : ''}`}
           onClick={() => applyFilter('active')}
         >
@@ -230,7 +265,7 @@ const MyProducts = () => {
         >
           Đã xóa
         </button>
-      </div>
+      </nav>
 
       {/* Products Grid */}
       {products.length === 0 ? (
@@ -331,6 +366,7 @@ const MyProducts = () => {
                                 openVisibilityModal(product, action.nextStatus);
                               }}
                               className={`action-btn ${getVisibilityAction(product).className}`}
+                              aria-pressed={product.status === 'hidden'}
                             >
                               {getVisibilityAction(product).label}
                             </button>
@@ -383,14 +419,25 @@ const MyProducts = () => {
       {/* Delete Confirmation Modal */}
       {deleteModal.show && (
         <div className="modal-overlay" onClick={closeDeleteModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Xác nhận xóa</h3>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-modal-title"
+          >
+            <h3 id="delete-modal-title">Xác nhận xóa</h3>
             <p>Bạn có chắc chắn muốn xóa sản phẩm "{deleteModal.productTitle}"?</p>
             <div className="modal-actions">
               <button onClick={closeDeleteModal} className="btn btn-secondary">
                 Hủy
               </button>
-              <button onClick={handleDelete} className="btn btn-danger" disabled={processingAction}>
+              <button
+                onClick={handleDelete}
+                className="btn btn-danger"
+                disabled={processingAction}
+                aria-busy={processingAction}
+              >
                 Xóa
               </button>
             </div>
@@ -400,8 +447,16 @@ const MyProducts = () => {
 
       {visibilityModal.show && (
         <div className="modal-overlay" onClick={closeVisibilityModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>{visibilityModal.nextStatus === 'hidden' ? 'Ẩn tin đăng' : 'Hiện lại tin đăng'}</h3>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="visibility-modal-title"
+          >
+            <h3 id="visibility-modal-title">
+              {visibilityModal.nextStatus === 'hidden' ? 'Ẩn tin đăng' : 'Hiện lại tin đăng'}
+            </h3>
             <p>
               {visibilityModal.nextStatus === 'hidden'
                 ? `Bạn có chắc muốn ẩn sản phẩm "${visibilityModal.productTitle}"?`
@@ -411,7 +466,12 @@ const MyProducts = () => {
               <button onClick={closeVisibilityModal} className="btn btn-secondary">
                 Hủy
               </button>
-              <button onClick={handleVisibilityChange} className="btn btn-primary" disabled={processingAction}>
+              <button
+                onClick={handleVisibilityChange}
+                className="btn btn-primary"
+                disabled={processingAction}
+                aria-busy={processingAction}
+              >
                 Xác nhận
               </button>
             </div>
