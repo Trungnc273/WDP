@@ -67,7 +67,7 @@
 /* Balance Card */
 .balance-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  color: #ffffff;
   padding: 30px;
   border-radius: 12px;
   margin-bottom: 30px;
@@ -83,13 +83,14 @@
   font-size: 18px;
   font-weight: 500;
   margin: 0 0 10px 0;
-  opacity: 0.9;
+  color: #ffffff; /* Đã sửa thành trắng tinh, bỏ opacity */
 }
 
 .balance-amount {
   font-size: 42px;
   font-weight: 700;
   margin: 0;
+  color: #ffffff; /* Ép cứng màu trắng */
 }
 
 .balance-stats {
@@ -109,14 +110,32 @@
 .stat-label {
   display: block;
   font-size: 14px;
-  opacity: 0.8;
   margin-bottom: 5px;
+  color: #ffffff !important; /* Ép cứng màu trắng, chống bị đè CSS từ file khác */
+  opacity: 1 !important; /* Xóa bỏ hoàn toàn độ mờ */
 }
 
 .stat-value {
   display: block;
   font-size: 18px;
   font-weight: 600;
+  color: #ffffff !important; /* Ép cứng màu trắng cho số tiền */
+}
+
+/* Đảm bảo chữ "Số dư khả dụng" và số tiền to ở trên cùng cũng trắng 100% */
+.balance-main h2 {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0 0 10px 0;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.balance-amount {
+  font-size: 42px;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff !important;
 }
 
 .stat-item--highlight {
@@ -229,9 +248,12 @@
   color: #5f6c7b;
 }
 
+/* ĐÃ ĐƯA RA NGOÀI MEDIA QUERY ĐỂ LUÔN ÁP DỤNG TRÊN MỌI MÀN HÌNH */
 .transaction-extra__error {
   color: #c0392b;
   font-weight: 600;
+  flex-basis: 100%; 
+  margin-top: 4px;
 }
 
 .transaction-amount {

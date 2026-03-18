@@ -144,17 +144,9 @@ async function handleVNPayCallback(vnpParams) {
 
   if (responseCode === '00') {
     try {
-      transaction.status = 'completed';
-      transaction.completedAt = new Date();
-      transaction.vnpayTransactionId = transactionNo;
-      transaction.vnpayTransactionNo = transactionNo;
-      transaction.metadata = {
-        ...transaction.metadata,
-        bankCode,
-        vnpParams
-      };
-      await transaction.save();
-
+      // ĐÃ XÓA: Bỏ đoạn tự set status và tự gọi transaction.save() ở đây
+      
+      // CHỈ GỌI MỘT MÌNH incrementBalance LÀ ĐỦ
       await walletService.incrementBalance(
         transaction.userId,
         amount,
@@ -163,12 +155,15 @@ async function handleVNPayCallback(vnpParams) {
         {
           transactionId: transaction._id,
           vnpayTransactionNo: transactionNo,
-          bankCode
+          vnpayTransactionId: transactionNo, // Thêm vào metadata để lưu trữ
+          bankCode: bankCode,
+          vnpParams: vnpParams
         }
       );
 
       return { success: true, message: 'Payment successful', RspCode: '00' };
     } catch (error) {
+      // Nếu có lỗi khi cộng tiền, lúc này mới tự cập nhật Transaction thành failed
       transaction.status = 'failed';
       transaction.failedAt = new Date();
       transaction.failureReason = error.message;
@@ -213,19 +208,23 @@ async function handleVNPayReturn(vnpParams) {
     transaction = await Transaction.findById(orderId);
   }
 
+  const orderInfo = transaction?.description || vnpParams.vnp_OrderInfo || '';
+
   if (responseCode === '00') {
     return {
       success: true,
       message: 'Nạp tiền thành công',
       amount,
-      transactionId: transaction._id
+      transactionId: transaction._id,
+      orderInfo
     };
   }
 
   return {
     success: false,
     message: getVNPayResponseMessage(responseCode),
-    responseCode
+    responseCode,
+    orderInfo
   };
 }
 

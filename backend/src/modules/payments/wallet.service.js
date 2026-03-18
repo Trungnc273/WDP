@@ -86,19 +86,50 @@ async function incrementBalance(userId, amount, type = 'deposit', description, m
       
       await wallet.save({ session });
       
-      // Create transaction record
-      await Transaction.create([{
-        walletId: wallet._id,
-        userId: userId,
-        type: type,
-        amount: amount,
-        status: 'completed',
-        description: description,
-        balanceBefore: balanceBefore,
-        balanceAfter: wallet.balance,
-        completedAt: new Date(),
-        metadata: metadata
-      }], { session });
+      // If a pending transaction id is provided in metadata, update that transaction
+      if (metadata && metadata.transactionId) {
+        const txId = String(metadata.transactionId);
+        const existingTx = await Transaction.findById(txId).session(session);
+
+        if (existingTx) {
+          existingTx.status = 'completed';
+          existingTx.amount = amount;
+          existingTx.description = description || existingTx.description;
+          existingTx.balanceBefore = balanceBefore;
+          existingTx.balanceAfter = wallet.balance;
+          existingTx.completedAt = new Date();
+          existingTx.metadata = { ...(existingTx.metadata || {}), ...(metadata || {}) };
+          await existingTx.save({ session });
+        } else {
+          // fallback to creating a new transaction if not found
+          await Transaction.create([{
+            walletId: wallet._id,
+            userId: userId,
+            type: type,
+            amount: amount,
+            status: 'completed',
+            description: description,
+            balanceBefore: balanceBefore,
+            balanceAfter: wallet.balance,
+            completedAt: new Date(),
+            metadata: metadata
+          }], { session });
+        }
+      } else {
+        // Create transaction record
+        await Transaction.create([{
+          walletId: wallet._id,
+          userId: userId,
+          type: type,
+          amount: amount,
+          status: 'completed',
+          description: description,
+          balanceBefore: balanceBefore,
+          balanceAfter: wallet.balance,
+          completedAt: new Date(),
+          metadata: metadata
+        }], { session });
+      }
       
       await session.commitTransaction();
       session.endSession();
@@ -120,6 +151,10 @@ async function incrementBalance(userId, amount, type = 'deposit', description, m
   }
 }
 
+/**
+ * Decrement wallet balance (atomic operation)
+ * Used for payments and withdrawals
+ */
 /**
  * Decrement wallet balance (atomic operation)
  * Used for payments and withdrawals
@@ -157,19 +192,52 @@ async function decrementBalance(userId, amount, type = 'payment', description, m
       
       await wallet.save({ session });
       
-      // Create transaction record
-      await Transaction.create([{
-        walletId: wallet._id,
-        userId: userId,
-        type: type,
-        amount: amount,
-        status: 'completed',
-        description: description,
-        balanceBefore: balanceBefore,
-        balanceAfter: wallet.balance,
-        completedAt: new Date(),
-        metadata: metadata
-      }], { session });
+      // ĐÃ SỬA: Cập nhật Transaction cũ nếu có truyền transactionId trong metadata
+      if (metadata && metadata.transactionId) {
+        const txId = String(metadata.transactionId);
+        const existingTx = await Transaction.findById(txId).session(session);
+
+        if (existingTx) {
+          existingTx.status = 'completed';
+          existingTx.amount = amount;
+          existingTx.description = description || existingTx.description;
+          existingTx.balanceBefore = balanceBefore;
+          existingTx.balanceAfter = wallet.balance;
+          existingTx.completedAt = new Date();
+          // Giữ lại metadata cũ (như thông tin ngân hàng) và merge với metadata mới
+          existingTx.metadata = { ...(existingTx.metadata || {}), ...(metadata || {}) };
+          
+          await existingTx.save({ session });
+        } else {
+          // Fallback: nếu không tìm thấy giao dịch cũ, tạo giao dịch mới
+          await Transaction.create([{
+            walletId: wallet._id,
+            userId: userId,
+            type: type,
+            amount: amount,
+            status: 'completed',
+            description: description,
+            balanceBefore: balanceBefore,
+            balanceAfter: wallet.balance,
+            completedAt: new Date(),
+            metadata: metadata
+          }], { session });
+        }
+      } else {
+        // Create new transaction record (Cho các trường hợp thanh toán trực tiếp không qua bước pending)
+        await Transaction.create([{
+          walletId: wallet._id,
+          userId: userId,
+          type: type,
+          amount: amount,
+          status: 'completed',
+          description: description,
+          balanceBefore: balanceBefore,
+          balanceAfter: wallet.balance,
+          completedAt: new Date(),
+          metadata: metadata
+        }], { session });
+      }
       
       await session.commitTransaction();
       session.endSession();
@@ -195,7 +263,6 @@ async function decrementBalance(userId, amount, type = 'payment', description, m
     }
   }
 }
-
 /**
  * Get transaction history
  */

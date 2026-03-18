@@ -16,6 +16,7 @@ function VNPaySuccess() {
   const message = params.get('message') || 'Nạp tiền thành công vào ví của bạn.';
   const amount = params.get('amount');
   const transactionId = params.get('transactionId');
+  const orderInfo = params.get('orderInfo');
 
   return (
     <div
@@ -93,6 +94,12 @@ function VNPaySuccess() {
               <span style={{ color: '#1677ff', fontWeight: 600 }}>
                 {formatMoney(amount)}
               </span>
+            </p>
+          )}
+
+          {orderInfo && (
+            <p style={{ margin: 0, fontSize: 14 }}>
+              <strong>Nội dung:</strong> <span style={{ color: '#333' }}>{orderInfo}</span>
             </p>
           )}
 

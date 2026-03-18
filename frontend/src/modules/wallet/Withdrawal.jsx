@@ -43,7 +43,7 @@ const Withdrawal = () => {
       setFetchingBalance(true);
       const [balanceData, withdrawalData] = await Promise.all([
         walletService.getBalance(),
-        walletService.getTransactions({ type: 'withdrawal', page: 1, limit: 5 })
+        walletService.getTransactions({ type: 'withdrawal', page: 1, limit: 10 }) // Tăng limit lên một chút để lọc cho chuẩn
       ]);
       setBalance(balanceData);
       setRecentWithdrawals(withdrawalData.transactions || []);
@@ -127,8 +127,6 @@ const Withdrawal = () => {
       };
 
       await walletService.createWithdrawal(withdrawalData);
-      
-      alert('Yêu cầu rút tiền đã được gửi thành công! Chúng tôi sẽ xử lý trong vòng 1-3 ngày làm việc.');
       navigate('/wallet');
     } catch (error) {
       alert(error.response?.data?.message || 'Không thể tạo yêu cầu rút tiền. Vui lòng thử lại.');
@@ -164,7 +162,7 @@ const Withdrawal = () => {
 
   const getStatusMeta = (status) => {
     const statusMap = {
-      pending: { label: 'Chờ duyệt', className: 'status-pending' },
+      pending: { label: 'Đang xử lý', className: 'status-pending' },
       completed: { label: 'Đã chuyển khoản', className: 'status-completed' },
       failed: { label: 'Từ chối', className: 'status-failed' },
       cancelled: { label: 'Đã hủy', className: 'status-cancelled' }
@@ -172,6 +170,9 @@ const Withdrawal = () => {
 
     return statusMap[status] || { label: status, className: '' };
   };
+
+  // LỌC BỎ GIAO DỊCH TRÙNG: Chỉ lấy những giao dịch có metadata ngân hàng
+  const validWithdrawals = recentWithdrawals.filter(item => item.metadata?.bankName);
 
   if (fetchingBalance) {
     return (
@@ -228,7 +229,7 @@ const Withdrawal = () => {
               </p>
               {Number(balance?.pendingWithdrawalAmount || 0) > 0 && (
                 <p className="help-text warning-text">
-                  Hiện có {formatPrice(balance?.pendingWithdrawalAmount || 0)} VNĐ đang chờ moderator xử lý nên chưa thể rút tiếp.
+                  Hiện có {formatPrice(balance?.pendingWithdrawalAmount || 0)} VNĐ đang chờ xử lý nên chưa thể rút tiếp phần tiền này.
                 </p>
               )}
             </div>
@@ -375,30 +376,59 @@ const Withdrawal = () => {
           <div className="withdrawal-history">
             <div className="withdrawal-history__header">
               <h4>Yêu cầu gần đây</h4>
-              <span>{recentWithdrawals.length} giao dịch</span>
+              <span>{validWithdrawals.length} giao dịch hợp lệ</span>
             </div>
 
-            {recentWithdrawals.length === 0 ? (
+            {validWithdrawals.length === 0 ? (
               <p className="withdrawal-history__empty">Bạn chưa tạo yêu cầu rút tiền nào.</p>
             ) : (
               <div className="withdrawal-history__list">
-                {recentWithdrawals.map((item) => {
+                {validWithdrawals.map((item) => {
                   const statusMeta = getStatusMeta(item.status);
+                  const isFailed = item.status === 'failed';
+                  const isSuccess = item.status === 'completed';
+                  const isPending = item.status === 'pending';
+                  const amountAbs = Math.abs(Number(item.amount || 0));
+                  
                   return (
                     <div key={item._id} className="withdrawal-history__item">
                       <div className="withdrawal-history__top">
-                        <strong>{formatPrice(item.amount)} VNĐ</strong>
+                        <strong style={isPending ? { color: '#d48806' } : undefined}>
+                          {formatPrice(amountAbs)} VNĐ
+                        </strong>
                         <span className={`withdrawal-history__status ${statusMeta.className}`}>
                           {statusMeta.label}
                         </span>
                       </div>
-                      <p>
-                        {item.metadata?.bankName || 'Ngân hàng'} - {item.metadata?.bankAccount || '---'}
+                      
+                      {/* UI CẬP NHẬT: Định dạng lại phần ngân hàng và lỗi */}
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#5f6c7b' }}>
+                        Ngân hàng: {item.metadata?.bankName || '---'} - {item.metadata?.bankAccount || '---'}
                       </p>
-                      <p>Chủ TK: {item.metadata?.accountHolder || '---'}</p>
-                      <p>Gửi lúc: {formatDate(item.metadata?.requestedAt || item.createdAt)}</p>
-                      {item.failureReason && (
-                        <p className="withdrawal-history__reason">Lý do: {item.failureReason}</p>
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#5f6c7b' }}>
+                        Chủ TK: {item.metadata?.accountHolder || '---'}
+                      </p>
+                      <p style={{ margin: '4px 0', fontSize: '12px', color: '#95a5a6' }}>
+                        Gửi lúc: {formatDate(item.createdAt)}
+                      </p>
+
+                      {isPending && (
+                        <div style={{ color: '#d48806', fontSize: '13px', fontWeight: 600, marginTop: '8px' }}>
+                          Đang xử lý
+                        </div>
+                      )}
+
+                      {isFailed && (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ color: '#cf1322', fontSize: '13px', fontWeight: 600 }}>
+                            Bạn rút tiền không thành công
+                          </div>
+                          {item.failureReason && (
+                            <div style={{ color: '#cf1322', fontSize: '13px', fontWeight: 600, marginTop: '4px' }}>
+                              Lý do: {item.failureReason}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   );

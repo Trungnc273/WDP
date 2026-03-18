@@ -93,7 +93,10 @@ const TopUp = () => {
   return (
     <div className="topup-container">
       <div className="topup-header">
-        <button onClick={() => navigate('/wallet')} className="back-btn">
+        <button
+          onClick={() => navigate('/wallet')}
+          className="back-btn"
+        >
           ← Quay lại
         </button>
         <h1>Nạp tiền vào ví</h1>
