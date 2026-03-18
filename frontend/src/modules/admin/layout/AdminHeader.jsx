@@ -61,40 +61,6 @@ const AdminHeader = ({ onToggleSidebar }) => {
               </div>
               
               <div className="admin-header__user-menu-items">
-                <button 
-                  className="admin-header__user-menu-item"
-                  onClick={() => {
-                    navigate('/');
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <i className="fas fa-home"></i>
-                  <span>Quay về trang chủ</span>
-                </button>
-                
-                <button 
-                  className="admin-header__user-menu-item"
-                  onClick={() => {
-                    navigate('/profile');
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <i className="fas fa-user"></i>
-                  <span>Hồ sơ cá nhân</span>
-                </button>
-                
-                <button 
-                  className="admin-header__user-menu-item"
-                  onClick={() => {
-                    navigate('/profile/change-password');
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <i className="fas fa-key"></i>
-                  <span>Đổi mật khẩu</span>
-                </button>
-                
-                <hr className="admin-header__user-menu-divider" />
                 
                 <button 
                   className="admin-header__user-menu-item admin-header__user-menu-item--danger"
