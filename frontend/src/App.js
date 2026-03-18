@@ -326,6 +326,18 @@ function AppShell() {
                             <span className="icon">💬</span>
                             Tin nhắn
                           </Link>
+                          {user?.role === 'admin' && (
+                            <Link to="/admin" className="user-dropdown-menu__item">
+                              <span className="icon">⚙️</span>
+                              Trang quản trị
+                            </Link>
+                          )}
+                          {user?.role === 'moderator' && (
+                            <Link to="/moderator" className="user-dropdown-menu__item">
+                              <span className="icon">🛡️</span>
+                              Trang kiểm duyệt
+                            </Link>
+                          )}
                         </div>
                         
                         <div className="user-dropdown-menu__section">

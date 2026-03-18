@@ -64,6 +64,17 @@ const AdminHeader = ({ onToggleSidebar }) => {
                 <button 
                   className="admin-header__user-menu-item"
                   onClick={() => {
+                    navigate('/');
+                    setShowUserMenu(false);
+                  }}
+                >
+                  <i className="fas fa-home"></i>
+                  <span>Quay về trang chủ</span>
+                </button>
+                
+                <button 
+                  className="admin-header__user-menu-item"
+                  onClick={() => {
                     navigate('/profile');
                     setShowUserMenu(false);
                   }}
