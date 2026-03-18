@@ -161,9 +161,10 @@ async function forgotPassword(req, res, next) {
     if (!email) {
       return sendError(res, 400, 'Vui lòng nhập email');
     }
-
+    //gọi service để kiểm tra email và tạo Reset Token (JWT hoặc Random String)
+    //token này thường có thời hạn ngắn 
     const resetToken = await authService.generatePasswordResetToken(email);
-
+    //trả về token trực tiếp để tiện testing qua Postman/Frontend
     return sendSuccess(
       res,
       200,
@@ -187,7 +188,7 @@ async function forgotPassword(req, res, next) {
 async function resetPassword(req, res, next) {
   try {
     const { token, newPassword } = req.body;
-
+    //validate đầu vào
     if (!token || !newPassword) {
       return sendError(res, 400, 'Vui lòng cung cấp token và mật khẩu mới');
     }
@@ -204,10 +205,10 @@ async function resetPassword(req, res, next) {
     } catch (error) {
       return sendError(res, 400, 'Token không hợp lệ');
     }
-
+    //đổi mật khẩu trong Database qua Service
     await authService.resetPasswordWithToken(token, newPassword);
 
-    // Send notification for password reset
+    //gửi thông báo hệ thống để cảnh báo người dùng
     await createNotification(decoded.userId, {
       type: 'security',
       title: 'Mật khẩu đã được đặt lại',

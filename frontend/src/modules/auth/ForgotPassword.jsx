@@ -24,8 +24,10 @@ function ForgotPassword() {
 
     setLoading(true);
     try {
+      //gọi API yêu cầu reset pass
       const data = await forgotPassword(email);
       setSuccess('Nếu email tồn tại, chúng tôi đã tạo token đặt lại mật khẩu.');
+      //backend trả về resetToken, lưu vào state để hiển thị box hỗ trợ tester
       if (data?.resetToken) {
         setResetToken(data.resetToken);
       }
@@ -69,7 +71,7 @@ function ForgotPassword() {
               <i className="fas fa-check-circle"></i> {success}
             </div>
           )}
-
+        {/* bên dưới phần Render */}
           {resetToken && (
             <div className="token-box">
               <p><strong>Reset token (dùng để test):</strong></p>
