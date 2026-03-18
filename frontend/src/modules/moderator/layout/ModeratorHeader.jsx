@@ -1,6 +1,5 @@
 import { Layout, Space, Dropdown, Typography, Button, Tag } from "antd";
 import {
-  BellOutlined,
   LogoutOutlined,
   UserOutlined,
   MenuOutlined,
@@ -73,10 +72,6 @@ const ModeratorHeader = ({ onOpenMenu, isMobile }) => {
         <Tag className="moderator-role-tag" color="gold">
           {user?.role === "admin" ? "Quản trị viên" : "Kiểm duyệt viên"}
         </Tag>
-
-        <div className="moderator-notify-chip">
-          <BellOutlined />
-        </div>
 
         <Dropdown menu={{ items }} placement="bottomRight" trigger={["click"]}>
           <Space className="moderator-user-chip">

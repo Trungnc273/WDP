@@ -8,7 +8,6 @@ const { Title } = Typography;
 const { TextArea } = Input;
 const { Text } = Typography;
 
-const ALLOWED_STATUS = ["", "reported", "active", "hidden"];
 const ALLOWED_ASSESSMENT = ["", "pending", "good", "bad"];
 
 function normalizeFilterValue(value, allowedValues) {
@@ -20,10 +19,8 @@ const ModReviewList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
-  const initialStatus = normalizeFilterValue(searchParams.get("status"), ALLOWED_STATUS);
   const initialAssessment = normalizeFilterValue(searchParams.get("assessment"), ALLOWED_ASSESSMENT);
   const initialKeyword = String(searchParams.get("keyword") || "").trim();
-  const [status, setStatus] = useState(initialStatus);
   const [assessment, setAssessment] = useState(initialAssessment);
   const [rawKeyword, setRawKeyword] = useState(initialKeyword);
   const [keyword, setKeyword] = useState(initialKeyword);
@@ -43,7 +40,6 @@ const ModReviewList = () => {
       const result = await getModeratorReviews({
         page,
         limit: pageSize,
-        ...(status ? { status } : {}),
         ...(assessment ? { assessment } : {}),
         ...(keyword ? { keyword } : {})
       });
@@ -63,14 +59,12 @@ const ModReviewList = () => {
   useEffect(() => {
     fetchReviews(1, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, assessment, keyword]);
+  }, [assessment, keyword]);
 
   useEffect(() => {
-    const nextStatus = normalizeFilterValue(searchParams.get("status"), ALLOWED_STATUS);
     const nextAssessment = normalizeFilterValue(searchParams.get("assessment"), ALLOWED_ASSESSMENT);
     const nextKeyword = String(searchParams.get("keyword") || "").trim();
 
-    setStatus(nextStatus);
     setAssessment(nextAssessment);
     setRawKeyword(nextKeyword);
     setKeyword(nextKeyword);
@@ -78,7 +72,6 @@ const ModReviewList = () => {
 
   useEffect(() => {
     const params = {};
-    if (status) params.status = status;
     if (assessment) params.assessment = assessment;
     if (keyword) params.keyword = keyword;
 
@@ -87,10 +80,9 @@ const ModReviewList = () => {
     if (nextSearch !== currentSearch) {
       setSearchParams(params, { replace: true });
     }
-  }, [status, assessment, keyword, searchParams, setSearchParams]);
+  }, [assessment, keyword, searchParams, setSearchParams]);
 
   const handleResetFilters = () => {
-    setStatus("");
     setAssessment("");
     setRawKeyword("");
     setKeyword("");
@@ -352,17 +344,6 @@ const ModReviewList = () => {
             onChange={(e) => setRawKeyword(e.target.value)}
             onPressEnter={() => setKeyword(String(rawKeyword || "").trim())}
             style={{ width: 260 }}
-          />
-          <Select
-            value={status}
-            onChange={setStatus}
-            style={{ width: 180 }}
-            options={[
-              { value: "", label: "Tất cả" },
-              { value: "reported", label: "Bị báo cáo" },
-              { value: "active", label: "Đang hiển thị" },
-              { value: "hidden", label: "Đã ẩn" }
-            ]}
           />
           <Select
             value={assessment}
