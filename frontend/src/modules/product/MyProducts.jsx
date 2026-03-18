@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
-import { getImageUrl } from '../../utils/imageHelper';
+import { getProductImageUrl, handleImageError } from '../../utils/imageHelper';
 import './MyProducts.css';
-
-const PRODUCT_PLACEHOLDER = '/images/placeholders/product-placeholder.svg';
 
 const MyProducts = () => {
   const navigate = useNavigate();
@@ -52,7 +50,11 @@ const MyProducts = () => {
       };
       
       if (statusFilter) {
-        params.status = statusFilter;
+        if (statusFilter === 'waiting_moderation') {
+          params.moderationStatus = 'pending';
+        } else {
+          params.status = statusFilter;
+        }
       }
       const data = await productService.getMyProducts(params);
       
@@ -140,12 +142,12 @@ const MyProducts = () => {
   const getStatusBadge = (status) => {
     const badges = {
       'active': { text: 'Đang bán', class: 'status-active' },
-      'pending': { text: 'Đang giao dịch', class: 'status-pending' },
+      'pending': { text: 'Đang giao dịch', class: 'status-hidden' },
       'sold': { text: 'Đã bán', class: 'status-sold' },
       'hidden': { text: 'Đã ẩn', class: 'status-hidden' },
       'deleted': { text: 'Đã xóa', class: 'status-deleted' }
     };
-    
+
     const badge = badges[status] || { text: status, class: '' };
     
     return (
@@ -153,6 +155,14 @@ const MyProducts = () => {
         {badge.text}
       </span>
     );
+  };
+
+  const getProductStatusBadge = (product) => {
+    if (product?.moderationStatus === 'pending') {
+      return <span className="status-badge status-hidden">Chờ duyệt</span>;
+    }
+
+    return getStatusBadge(product.status);
   };
 
   const handlePageChange = (newPage) => {
@@ -175,10 +185,7 @@ const MyProducts = () => {
   if (loading && products.length === 0) {
     return (
       <div className="my-products-container">
-        <div className="loading-state" aria-busy="true" aria-live="polite">
-          <div className="spinner" />
-          <div className="loading-text">Đang tải...</div>
-        </div>
+        <div className="loading">Đang tải...</div>
       </div>
     );
   }
@@ -190,30 +197,30 @@ const MyProducts = () => {
           <h1>Quản lý tin đăng</h1>
           <p>Theo dõi trạng thái và chỉnh sửa tin đăng của bạn tại một nơi.</p>
         </div>
-        <div className="my-products-cta">
-          <Link to="/product/create" className="btn btn-primary">
-            + Tạo tin mới
-          </Link>
-        </div>
+        <Link to="/product/create" className="btn btn-primary">
+          + Tạo tin mới
+        </Link>
       </div>
 
       {feedback.message && (
-        <div
-          className={`my-products-feedback ${feedback.type === 'error' ? 'is-error' : 'is-success'}`}
-          role="status"
-          aria-live="polite"
-        >
+        <div className={`my-products-feedback ${feedback.type === 'error' ? 'is-error' : 'is-success'}`}>
           {feedback.message}
         </div>
       )}
 
       {/* Filter */}
-      <nav className="filter-bar" aria-label="Lọc tin đăng">
+      <div className="filter-bar">
         <button
           className={`filter-btn ${statusFilter === '' ? 'active' : ''}`}
           onClick={() => applyFilter('')}
         >
           Tất cả ({pagination.total})
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === 'waiting_moderation' ? 'active' : ''}`}
+          onClick={() => applyFilter('waiting_moderation')}
+        >
+          Chờ duyệt
         </button>
         <button
           className={`filter-btn ${statusFilter === 'active' ? 'active' : ''}`}
@@ -239,7 +246,7 @@ const MyProducts = () => {
         >
           Đã xóa
         </button>
-      </nav>
+      </div>
 
       {/* Products Grid */}
       {products.length === 0 ? (
@@ -257,14 +264,12 @@ const MyProducts = () => {
               <div key={product._id} className="product-card">
                 <Link to={`/product/${product._id}`} className="product-image">
                   <img 
-                    src={getImageUrl(product.images?.[0]) || PRODUCT_PLACEHOLDER}
+                    src={getProductImageUrl(product)}
                     alt={product.title}
-                    onError={(event) => {
-                      event.currentTarget.onerror = null;
-                      event.currentTarget.src = PRODUCT_PLACEHOLDER;
-                    }}
+                    loading="lazy"
+                    onError={(event) => handleImageError(event, 'product')}
                   />
-                  {getStatusBadge(product.status)}
+                  {getProductStatusBadge(product)}
                 </Link>
                 
                 <div className="product-info">
@@ -340,7 +345,6 @@ const MyProducts = () => {
                                 openVisibilityModal(product, action.nextStatus);
                               }}
                               className={`action-btn ${getVisibilityAction(product).className}`}
-                              aria-pressed={product.status === 'hidden'}
                             >
                               {getVisibilityAction(product).label}
                             </button>
@@ -393,25 +397,14 @@ const MyProducts = () => {
       {/* Delete Confirmation Modal */}
       {deleteModal.show && (
         <div className="modal-overlay" onClick={closeDeleteModal}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-modal-title"
-          >
-            <h3 id="delete-modal-title">Xác nhận xóa</h3>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Xác nhận xóa</h3>
             <p>Bạn có chắc chắn muốn xóa sản phẩm "{deleteModal.productTitle}"?</p>
             <div className="modal-actions">
               <button onClick={closeDeleteModal} className="btn btn-secondary">
                 Hủy
               </button>
-              <button
-                onClick={handleDelete}
-                className="btn btn-danger"
-                disabled={processingAction}
-                aria-busy={processingAction}
-              >
+              <button onClick={handleDelete} className="btn btn-danger" disabled={processingAction}>
                 Xóa
               </button>
             </div>
@@ -421,16 +414,8 @@ const MyProducts = () => {
 
       {visibilityModal.show && (
         <div className="modal-overlay" onClick={closeVisibilityModal}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="visibility-modal-title"
-          >
-            <h3 id="visibility-modal-title">
-              {visibilityModal.nextStatus === 'hidden' ? 'Ẩn tin đăng' : 'Hiện lại tin đăng'}
-            </h3>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>{visibilityModal.nextStatus === 'hidden' ? 'Ẩn tin đăng' : 'Hiện lại tin đăng'}</h3>
             <p>
               {visibilityModal.nextStatus === 'hidden'
                 ? `Bạn có chắc muốn ẩn sản phẩm "${visibilityModal.productTitle}"?`
@@ -440,12 +425,7 @@ const MyProducts = () => {
               <button onClick={closeVisibilityModal} className="btn btn-secondary">
                 Hủy
               </button>
-              <button
-                onClick={handleVisibilityChange}
-                className="btn btn-primary"
-                disabled={processingAction}
-                aria-busy={processingAction}
-              >
+              <button onClick={handleVisibilityChange} className="btn btn-primary" disabled={processingAction}>
                 Xác nhận
               </button>
             </div>

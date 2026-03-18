@@ -23,7 +23,8 @@ function Home() {
     category: null,
     minPrice: null,
     maxPrice: null,
-    cities: []
+    cities: [],
+    sort: null
   });
 
   const [provinces, setProvinces] = useState([]);
@@ -86,15 +87,39 @@ function Home() {
         ...(filters.category && { category: filters.category }),
         ...(filters.minPrice && { minPrice: filters.minPrice }),
         ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
-        ...(filters.cities && filters.cities.length > 0 && { cities: filters.cities })
+          ...(filters.cities && filters.cities.length > 0 && { cities: filters.cities }),
+          ...(filters.sort && { sort: filters.sort })
       };
 
       const result = await productService.getProducts(params);
 
+      // Client-side fallback for name sorting: ensure loaded items are ordered by title
+      const incoming = result.products || [];
+      let processed = incoming;
+      if (filters.sort === 'name_asc' || filters.sort === 'name_desc') {
+        const direction = filters.sort === 'name_asc' ? 1 : -1;
+        processed = incoming.slice().sort((a, b) => {
+          const ta = (a.title || '').toString();
+          const tb = (b.title || '').toString();
+          return ta.localeCompare(tb, 'vi', { sensitivity: 'base' }) * direction;
+        });
+      }
+
       if (reset) {
-        setProducts(result.products || []);
+        setProducts(processed);
       } else {
-        setProducts(prev => [...prev, ...(result.products || [])]);
+        setProducts(prev => {
+          const merged = [...prev, ...processed];
+          if (filters.sort === 'name_asc' || filters.sort === 'name_desc') {
+            const direction = filters.sort === 'name_asc' ? 1 : -1;
+            return merged.slice().sort((a, b) => {
+              const ta = (a.title || '').toString();
+              const tb = (b.title || '').toString();
+              return ta.localeCompare(tb, 'vi', { sensitivity: 'base' }) * direction;
+            });
+          }
+          return merged;
+        });
       }
 
       setPagination(prev => ({
@@ -252,6 +277,7 @@ function Home() {
                 )}
               </div>
 
+              {/* (Sort removed from search bar - moved below categories) */}
               {/* Search Button */}
               <button
                 className="search-advanced__button"
@@ -279,6 +305,24 @@ function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Sort control: placed below categories and above products */}
+      <div className="home__sort-container" style={{ maxWidth: 1200, margin: '16px auto', padding: '0 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <select
+            className="search-advanced__select"
+            onChange={(e) => handleFilterChange({ sort: e.target.value || null })}
+            value={filters.sort || ''}
+            style={{ minWidth: 180 }}
+          >
+            <option value="">Sắp xếp</option>
+            <option value="price_asc">Giá: thấp → cao</option>
+            <option value="price_desc">Giá: cao → thấp</option>
+            <option value="name_asc">Tên: A → Z</option>
+            <option value="name_desc">Tên: Z → A</option>
+          </select>
         </div>
       </div>
 

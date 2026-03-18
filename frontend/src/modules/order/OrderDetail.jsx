@@ -860,7 +860,7 @@ const OrderDetail = () => {
             <div className="shipping-info">
               <div className="info-item">
                 <span className="label">Đơn vị vận chuyển:</span>
-                <span className="value">{order.shipping.provider}</span>
+                <span className="value">{(order.shipping.provider || '—').toUpperCase()}</span>
               </div>
               <div className="info-item">
                 <span className="label">Mã vận đơn:</span>

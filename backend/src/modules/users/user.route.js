@@ -6,6 +6,38 @@ const userController = require('./user.controller');
 const router = express.Router();
 
 /**
+ * Admin Routes (Must come BEFORE parameterized routes)
+ * User management for administrators
+ */
+
+// Get all users (Admin only)
+router.get('/admin/users', authenticate, requireAdmin, userController.getAllUsers);
+
+// Get system statistics (Admin only)
+router.get('/admin/stats', authenticate, requireAdmin, userController.getSystemStats);
+
+// Get admin dashboard stats (Admin only)
+router.get('/admin/dashboard', authenticate, requireAdmin, userController.getAdminDashboardStats);
+
+// Create new user (Admin only)
+router.post('/admin/users', authenticate, requireAdmin, userController.createUser);
+
+// Get user by ID (Admin view)
+router.get('/admin/users/:id', authenticate, requireAdmin, userController.getUserByIdAdmin);
+
+// Update user (Admin only)
+router.put('/admin/users/:id', authenticate, requireAdmin, userController.updateUserAdmin);
+
+// Delete user (Admin only)
+router.delete('/admin/users/:id', authenticate, requireAdmin, userController.deleteUser);
+
+// Suspend user (Admin only)
+router.post('/admin/users/:id/suspend', authenticate, requireAdmin, userController.suspendUser);
+
+// Unsuspend user (Admin only)
+router.post('/admin/users/:id/unsuspend', authenticate, requireAdmin, userController.unsuspendUser);
+
+/**
  * User Routes
  * Profile and KYC management
  */
@@ -35,32 +67,3 @@ router.get('/:id/public', userController.getPublicProfile);
 router.get('/:id/stats', userController.getUserStats);
 
 module.exports = router;
-/**
- * Admin Routes
- * User management for administrators
- */
-
-// Get all users (Admin only)
-router.get('/admin/users', authenticate, requireAdmin, userController.getAllUsers);
-
-// Get system statistics (Admin only)
-router.get('/admin/stats', authenticate, requireAdmin, userController.getSystemStats);
-
-// Create new user (Admin only)
-router.post('/admin/users', authenticate, requireAdmin, userController.createUser);
-
-// Get user by ID (Admin view)
-router.get('/admin/users/:id', authenticate, requireAdmin, userController.getUserByIdAdmin);
-
-// Update user (Admin only)
-router.put('/admin/users/:id', authenticate, requireAdmin, userController.updateUserAdmin);
-
-// Delete user (Admin only)
-router.delete('/admin/users/:id', authenticate, requireAdmin, userController.deleteUser);
-
-// Suspend user (Admin only)
-router.post('/admin/users/:id/suspend', authenticate, requireAdmin, userController.suspendUser);
-
-// Unsuspend user (Admin only)
-router.post('/admin/users/:id/unsuspend', authenticate, requireAdmin, userController.unsuspendUser);
-

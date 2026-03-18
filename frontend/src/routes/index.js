@@ -36,7 +36,27 @@ import Chat from '../modules/chat/Chat';
 
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
+import AdminRoute from './AdminRoute';
 
+
+// ================= ADMIN IMPORT =================
+import AdminLayout from "../modules/admin/layout/AdminLayout";
+import AdminDashboard from "../modules/admin/dashboard/Dashboard";
+import UserManagement from "../modules/admin/users/UserManagement";
+
+// Admin module imports
+import AdminOrderList from "../modules/admin/orders/AdminOrderList";
+import AdminOrderDetail from "../modules/admin/orders/AdminOrderDetail";
+import AdminReportList from "../modules/admin/reports/AdminReportList";
+import AdminReportDetail from "../modules/admin/reports/AdminReportDetail";
+import AdminReviewList from "../modules/admin/reviews/AdminReviewList";
+import AdminProductList from "../modules/admin/products/AdminProductList";
+import AdminWithdrawalList from "../modules/admin/withdrawals/AdminWithdrawalList";
+import AdminDisputeList from "../modules/admin/disputes/AdminDisputeList";
+import AdminDisputeDetail from "../modules/admin/disputes/AdminDisputeDetail";
+import AdminKYCList from "../modules/admin/kyc/AdminKYCList";
+
+// ================================================
 
 // ================= IMPORT CHO MODERATOR =================
 // Bố cục
@@ -155,6 +175,26 @@ function AppRoutes() {
         {/* 7. Module Xác minh KYC */}
         <Route path="kyc" element={<ModKYCList />} />
 
+      </Route>
+
+
+      {/* Admin routes */}
+      <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<UserManagement />} />
+        
+        {/* Admin module routes */}
+        <Route path="reports" element={<AdminReportList />} />
+        <Route path="reports/:id" element={<AdminReportDetail />} />
+        <Route path="orders" element={<AdminOrderList />} />
+        <Route path="orders/:id" element={<AdminOrderDetail />} />
+        <Route path="reviews" element={<AdminReviewList />} />
+        <Route path="products" element={<AdminProductList />} />
+        <Route path="withdrawals" element={<AdminWithdrawalList />} />
+        <Route path="disputes" element={<AdminDisputeList />} />
+        <Route path="disputes/:id" element={<AdminDisputeDetail />} />
+        <Route path="kyc" element={<AdminKYCList />} />
       </Route>
 
 

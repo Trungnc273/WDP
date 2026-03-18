@@ -1,24 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { adminUserApi } from '../../services/adminApi';
+import { useAuth } from '../../../hooks/useAuth';
+import { adminUserApi } from '../../../services/adminApi';
 import './Dashboard.css';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({});
+  const [dashboardStats, setDashboardStats] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    loadDashboardStats();
   }, []);
 
-  const loadStats = async () => {
+  const loadDashboardStats = async () => {
     try {
-      const response = await adminUserApi.getSystemStats();
-      setStats(response.data.data);
+      const response = await adminUserApi.getAdminDashboardStats();
+      setDashboardStats(response.data.data);
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading dashboard stats:', error);
     } finally {
       setLoading(false);
     }
@@ -29,13 +29,30 @@ const AdminDashboard = () => {
   }
 
   const {
+    userStats = {},
+    moderationStats = {}
+  } = dashboardStats;
+
+  const {
     totalUsers = 0,
     activeUsers = 0,
     suspendedUsers = 0,
     verifiedUsers = 0,
     pendingKYC = 0,
     usersByRole = {}
-  } = stats;
+  } = userStats;
+
+  const {
+    pendingReports = 0,
+    reviewingReports = 0,
+    unresolvedReports = 0,
+    pendingWithdrawals = 0,
+    reportedReviews = 0,
+    openOrders = 0,
+    pendingDisputes = 0,
+    pendingProducts = 0,
+    recentReports = []
+  } = moderationStats;
 
   return (
     <div className="admin-dashboard">
@@ -58,31 +75,11 @@ const AdminDashboard = () => {
 
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="fas fa-check-circle"></i>
+            <i className="fas fa-exclamation-triangle"></i>
           </div>
           <div className="stat-content">
-            <div className="stat-number">{activeUsers}</div>
-            <div className="stat-label">Đang hoạt động</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-lock"></i>
-          </div>
-          <div className="stat-content">
-            <div className="stat-number">{suspendedUsers}</div>
-            <div className="stat-label">Bị khóa</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-user-check"></i>
-          </div>
-          <div className="stat-content">
-            <div className="stat-number">{verifiedUsers}</div>
-            <div className="stat-label">Đã xác thực</div>
+            <div className="stat-number">{unresolvedReports}</div>
+            <div className="stat-label">Báo cáo chưa xử lý</div>
           </div>
         </div>
 
@@ -92,7 +89,102 @@ const AdminDashboard = () => {
           </div>
           <div className="stat-content">
             <div className="stat-number">{pendingKYC}</div>
-            <div className="stat-label">Chờ duyệt KYC</div>
+            <div className="stat-label">KYC chờ duyệt</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="fas fa-box"></i>
+          </div>
+          <div className="stat-content">
+            <div className="stat-number">{pendingProducts}</div>
+            <div className="stat-label">Sản phẩm chờ duyệt</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="fas fa-money-bill-wave"></i>
+          </div>
+          <div className="stat-content">
+            <div className="stat-number">{pendingWithdrawals}</div>
+            <div className="stat-label">Rút tiền chờ duyệt</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Stats Grid */}
+      <div className="stats-grid">
+        {/* User Management Stats */}
+        <div className="stats-section">
+          <h3>Quản lý người dùng</h3>
+          <div className="stats-cards">
+            <div className="mini-stat-card">
+              <div className="mini-stat-icon">
+                <i className="fas fa-check-circle"></i>
+              </div>
+              <div className="mini-stat-content">
+                <div className="mini-stat-number">{activeUsers}</div>
+                <div className="mini-stat-label">Đang hoạt động</div>
+              </div>
+            </div>
+            
+            <div className="mini-stat-card">
+              <div className="mini-stat-icon">
+                <i className="fas fa-lock"></i>
+              </div>
+              <div className="mini-stat-content">
+                <div className="mini-stat-number">{suspendedUsers}</div>
+                <div className="mini-stat-label">Bị khóa</div>
+              </div>
+            </div>
+            
+            <div className="mini-stat-card">
+              <div className="mini-stat-icon">
+                <i className="fas fa-user-check"></i>
+              </div>
+              <div className="mini-stat-content">
+                <div className="mini-stat-number">{verifiedUsers}</div>
+                <div className="mini-stat-label">Đã xác thực</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Moderation Stats */}
+        <div className="stats-section">
+          <h3>Kiểm duyệt nội dung</h3>
+          <div className="stats-cards">
+            <div className="mini-stat-card">
+              <div className="mini-stat-icon">
+                <i className="fas fa-flag"></i>
+              </div>
+              <div className="mini-stat-content">
+                <div className="mini-stat-number">{pendingReports}</div>
+                <div className="mini-stat-label">Báo cáo mới</div>
+              </div>
+            </div>
+            
+            <div className="mini-stat-card">
+              <div className="mini-stat-icon">
+                <i className="fas fa-eye"></i>
+              </div>
+              <div className="mini-stat-content">
+                <div className="mini-stat-number">{reviewingReports}</div>
+                <div className="mini-stat-label">Đang xem xét</div>
+              </div>
+            </div>
+            
+            <div className="mini-stat-card">
+              <div className="mini-stat-icon">
+                <i className="fas fa-star"></i>
+              </div>
+              <div className="mini-stat-content">
+                <div className="mini-stat-number">{reportedReviews}</div>
+                <div className="mini-stat-label">Đánh giá bị báo cáo</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
