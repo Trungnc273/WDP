@@ -10,6 +10,7 @@ function TopUpResult() {
   const success = params.get('success') === 'true';
   const message =
     params.get('message') || (success ? 'Nạp tiền thành công vào ví của bạn.' : 'Giao dịch không thành công.');
+  const orderInfo = params.get('orderInfo');
 
   return (
     <div
@@ -66,6 +67,11 @@ function TopUpResult() {
           {message}
         </p>
 
+        {orderInfo && (
+          <p style={{ color: '#333', fontSize: 14, marginBottom: 18 }}>
+            <strong>Nội dung:</strong> {orderInfo}
+          </p>
+        )}
         {/* Buttons */}
         <div
           style={{

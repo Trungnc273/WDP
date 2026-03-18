@@ -133,33 +133,14 @@ const Wallet = () => {
       'failed': { text: 'Thất bại', class: 'status-failed' },
       'cancelled': { text: 'Đã hủy', class: 'status-cancelled' }
     };
-    
+
     const badge = badges[status] || { text: status, class: '' };
-    
+
     return (
       <span className={`status-badge ${badge.class}`}>
         {badge.text}
       </span>
     );
-  };
-
-  const getTransactionAmountMeta = (transaction) => {
-    const creditTypes = new Set(['deposit', 'refund', 'earning']);
-    const debitTypes = new Set(['withdrawal', 'payment', 'fee']);
-    const type = transaction?.type;
-
-    if (creditTypes.has(type)) {
-      return { sign: '+', className: 'positive' };
-    }
-
-    if (debitTypes.has(type)) {
-      return { sign: '-', className: 'negative' };
-    }
-
-    return {
-      sign: transaction?.amount >= 0 ? '+' : '-',
-      className: transaction?.amount >= 0 ? 'positive' : 'negative'
-    };
   };
 
   const renderTransactionDetails = (transaction) => {
@@ -169,14 +150,21 @@ const Wallet = () => {
 
     return (
       <div className="transaction-extra">
-        <span>
-          Ngân hàng: {transaction.metadata?.bankName || '---'} - {transaction.metadata?.bankAccount || '---'}
-        </span>
-        {transaction.metadata?.accountHolder && (
-          <span>Chủ TK: {transaction.metadata.accountHolder}</span>
-        )}
+        {/* Phần div này bọc thông tin ngân hàng để giữ chúng trên cùng 1 dòng */}
+        <div className="bank-info">
+          <span>
+            Ngân hàng: {transaction.metadata?.bankName || '---'} - {transaction.metadata?.bankAccount || '---'}
+          </span>
+          {transaction.metadata?.accountHolder && (
+            <span style={{ marginLeft: '10px' }}>Chủ TK: {transaction.metadata.accountHolder}</span>
+          )}
+        </div>
+        
+        {/* Phần lỗi nằm ở div riêng để tự động rớt xuống dòng */}
         {transaction.failureReason && (
-          <span className="transaction-extra__error">Lý do: {transaction.failureReason}</span>
+          <div className="transaction-extra__error" style={{ fontSize: '13px', marginTop: '4px' }}>
+            <span style={{ color: '#cf1322', fontWeight: 600 }}>Lý do: {transaction.failureReason}</span>
+          </div>
         )}
       </div>
     );
@@ -223,26 +211,26 @@ const Wallet = () => {
             {formatPrice(balance?.balance || 0)}
           </div>
         </div>
-        
+
         <div className="balance-stats">
           <div className="stat-item">
-            <span className="stat-label">Tổng nạp</span>
+            <span className="stat-label">Tổng nạp:</span>
             <span className="stat-value">{formatPrice(balance?.totalDeposited || 0)}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">Tổng rút</span>
+            <span className="stat-label">Tổng rút:</span>
             <span className="stat-value">{formatPrice(balance?.totalWithdrawn || 0)}</span>
           </div>
           <div className="stat-item stat-item--highlight">
-            <span className="stat-label">Đang chờ rút</span>
+            <span className="stat-label">Đang chờ rút:</span>
             <span className="stat-value">{formatPrice(balance?.pendingWithdrawalAmount || 0)}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">Tổng chi</span>
+            <span className="stat-label">Tổng chi:</span>
             <span className="stat-value">{formatPrice(balance?.totalSpent || 0)}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">Tổng thu</span>
+            <span className="stat-label">Tổng thu:</span>
             <span className="stat-value">{formatPrice(balance?.totalEarned || 0)}</span>
           </div>
         </div>
@@ -252,7 +240,7 @@ const Wallet = () => {
       <div className="transactions-section">
         <div className="section-header">
           <h2>Lịch sử giao dịch</h2>
-          
+
           {/* Filters */}
           <div className="transaction-filters">
             <select
@@ -299,36 +287,110 @@ const Wallet = () => {
         ) : (
           <>
             <div className="transactions-list">
-              {transactions.map((transaction) => {
-                const amountMeta = getTransactionAmountMeta(transaction);
-                return (
-                <div key={transaction._id} className="transaction-item">
-                  <div className="transaction-icon">
-                    {getTransactionIcon(transaction.type)}
-                  </div>
-                  
-                  <div className="transaction-info">
-                    <div className="transaction-type">
-                      {getTransactionTypeText(transaction.type)}
-                    </div>
-                    <div className="transaction-description">
-                      {transaction.description}
-                    </div>
-                    {renderTransactionDetails(transaction)}
-                    <div className="transaction-date">
-                      {formatDate(transaction.createdAt)}
-                    </div>
-                  </div>
+              {transactions
+                // CHẶN HIỂN THỊ CÁC BẢN GHI RÚT TIỀN HOẶC NẠP TIỀN THIẾU THÔNG TIN (Do lỗi cũ lưu lại trong DB)
+                .filter((transaction) => {
+                  if (transaction.type === 'withdrawal' && !transaction.metadata?.bankName) {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((transaction) => {
+                  const rawAmount = Math.abs(Number(transaction?.amount) || 0);
+                  const type = transaction?.type;
+                  const status = transaction?.status;
+                  const isPending = status === 'pending';
+                  const isFailed = status === 'failed';
+                  const isCompleted = status === 'completed';
 
-                  <div className="transaction-amount">
-                    <div className={`amount ${amountMeta.className}`}>
-                      {amountMeta.sign}{formatPrice(transaction.amount)}
+                  let displayAmount = rawAmount; // Mặc định hiển thị đúng số tiền
+                  let displaySign = '';
+                  let displayClass = '';
+
+                  const debitTypes = new Set(['withdrawal', 'payment', 'fee']);
+                  const creditTypes = new Set(['deposit', 'refund', 'earning']);
+
+                  // Logic cho Nạp tiền (deposit)
+                  if (creditTypes.has(type)) {
+                    if (isCompleted && rawAmount > 0) {
+                      displayAmount = rawAmount;
+                      displaySign = '+';
+                      displayClass = 'positive';
+                    } else {
+                      // Nạp tiền chưa hoàn thành -> Chuyển thành 0đ, màu đen (class trống)
+                      displayAmount = 0;
+                      displaySign = '';
+                      displayClass = '';
+                    }
+                  }
+
+                  // Logic cho Rút tiền (withdrawal)
+                  if (debitTypes.has(type)) {
+                    if (isCompleted && rawAmount > 0) {
+                      displayAmount = rawAmount;
+                      displaySign = '-';
+                      displayClass = 'negative';
+                    } else if (isPending && rawAmount > 0) {
+                      displayAmount = rawAmount;
+                      displaySign = '-';
+                      displayClass = 'pending-amount';
+                    } else {
+                      // Rút tiền thất bại -> Giữ nguyên số tiền, màu đen (class trống)
+                      displayAmount = rawAmount;
+                      displaySign = '';
+                      displayClass = '';
+                    }
+                  }
+
+                  return (
+                    <div key={transaction._id} className="transaction-item">
+                      <div className="transaction-icon">
+                        {getTransactionIcon(transaction.type)}
+                      </div>
+
+                      <div className="transaction-info">
+                        <div className="transaction-type">
+                          {getTransactionTypeText(transaction.type)}
+                        </div>
+                        <div className="transaction-description">
+                          {transaction.type === 'deposit' && transaction.status === 'completed' ? transaction.description : null}
+                        </div>
+
+                        {renderTransactionDetails(transaction)}
+                        
+                        <div className="transaction-date">
+                          {formatDate(transaction.createdAt)}
+                        </div>
+                      </div>
+
+                      <div className="transaction-amount">
+                        <div className={`amount ${displayClass}`}>
+                          {displaySign}{formatPrice(displayAmount)}
+                        </div>
+                        {getStatusBadge(transaction.status)}
+
+                        {/* Show messages for withdrawals */}
+                        {type === 'withdrawal' && isPending && (
+                          <div style={{ color: '#d48806', fontSize: 13, fontWeight: 600, marginTop: 6 }}>
+                            Đang xử lý
+                          </div>
+                        )}
+
+                        {type === 'withdrawal' && isFailed && (
+                          <div style={{ color: '#cf1322', fontSize: 13, fontWeight: 600, marginTop: 6 }}>
+                            Bạn rút tiền không thành công
+                          </div>
+                        )}
+
+                        {type === 'deposit' && (isFailed || isPending) && (
+                          <div style={{ color: '#cf1322', fontSize: 13, fontWeight: 600, marginTop: 6 }}>
+                            {formatPrice(rawAmount)} nạp thất bại
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {getStatusBadge(transaction.status)}
-                  </div>
-                </div>
-                );
-              })}
+                  );
+                })}
             </div>
 
             {/* Pagination */}
@@ -341,11 +403,11 @@ const Wallet = () => {
                 >
                   ← Trước
                 </button>
-                
+
                 <span className="pagination-info">
                   Trang {pagination.page} / {pagination.totalPages}
                 </span>
-                
+
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}

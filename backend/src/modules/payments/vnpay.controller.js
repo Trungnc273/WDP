@@ -68,11 +68,11 @@ async function handleVNPayReturn(req, res) {
     const result = await vnpayService.handleVNPayReturn(req.query);
 
     if (result.success) {
-      const successRedirect = `${frontendUrl}/wallet/topup-success?message=${encodeURIComponent(result.message)}&amount=${encodeURIComponent(result.amount || '')}&transactionId=${encodeURIComponent(result.transactionId || '')}`;
+      const successRedirect = `${frontendUrl}/wallet/topup-success?message=${encodeURIComponent(result.message)}&amount=${encodeURIComponent(result.amount || '')}&transactionId=${encodeURIComponent(result.transactionId || '')}&orderInfo=${encodeURIComponent(result.orderInfo || '')}`;
       return res.redirect(successRedirect);
     }
 
-    const failedRedirect = `${frontendUrl}/wallet/topup-result?success=false&message=${encodeURIComponent(result.message)}`;
+    const failedRedirect = `${frontendUrl}/wallet/topup-result?success=false&message=${encodeURIComponent(result.message)}&orderInfo=${encodeURIComponent(result.orderInfo || '')}`;
     return res.redirect(failedRedirect);
   } catch (error) {
     console.error('VNPay return error:', error);
