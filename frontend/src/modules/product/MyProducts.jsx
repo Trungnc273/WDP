@@ -155,17 +155,6 @@ const MyProducts = () => {
     );
   };
 
-<<<<<<< Updated upstream
-=======
-  const getProductStatusBadge = (product) => {
-    if (product?.moderationStatus === 'pending') {
-      return <span className="status-badge status-moderation">Chờ duyệt</span>;
-    }
-
-    return getStatusBadge(product.status);
-  };
-
->>>>>>> Stashed changes
   const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
     window.scrollTo(0, 0);
@@ -227,21 +216,6 @@ const MyProducts = () => {
           Tất cả ({pagination.total})
         </button>
         <button
-<<<<<<< Updated upstream
-=======
-          className={`filter-btn ${statusFilter === 'waiting_moderation' ? 'active' : ''}`}
-          onClick={() => applyFilter('waiting_moderation')}
-        >
-          Chờ duyệt
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 'pending' ? 'active' : ''}`}
-          onClick={() => applyFilter('pending')}
-        >
-          Đang giao dịch
-        </button>
-        <button
->>>>>>> Stashed changes
           className={`filter-btn ${statusFilter === 'active' ? 'active' : ''}`}
           onClick={() => applyFilter('active')}
         >
