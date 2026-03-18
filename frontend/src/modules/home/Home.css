@@ -114,6 +114,27 @@
   border-right: 1px solid var(--gray-200);
 }
 
+/* Right-aligned sort control inside the advanced search */
+.search-advanced__sort {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-left: 1px solid var(--gray-200);
+}
+
+/* Sort container below categories */
+.home__sort-container {
+  max-width: 1200px;
+  margin: 0 auto 8px;
+  padding: 0 20px;
+}
+.home__sort-container select.search-advanced__select {
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+}
+
 .search-advanced__location-icon {
   margin-right: 8px;
   font-size: 16px;

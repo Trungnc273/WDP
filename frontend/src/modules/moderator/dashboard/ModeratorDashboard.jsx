@@ -25,11 +25,12 @@ const ModeratorDashboard = () => {
     pendingReports: 0,
     reviewingReports: 0,
     openOrders: 0,
-    reportedReviews: 0,
+    pendingReviews: 0,
     pendingWithdrawals: 0,
     pendingDisputes: 0,
     pendingProducts: 0,
-    pendingKYC: 0
+    pendingKYC: 0,
+    badReviews: 0
   });
 
   useEffect(() => {
@@ -44,7 +45,8 @@ const ModeratorDashboard = () => {
           pendingReports: data.pendingReports || 0,
           reviewingReports: data.reviewingReports || 0,
           openOrders: data.openOrders || 0,
-          reportedReviews: data.reportedReviews || 0,
+          pendingReviews: (data.pendingReviews ?? data.reportedReviews) || 0,
+          badReviews: data.badReviews || 0,
           pendingWithdrawals: data.pendingWithdrawals || 0,
           pendingDisputes: data.pendingDisputes || 0,
           pendingProducts: data.pendingProducts || 0,
@@ -92,9 +94,9 @@ const ModeratorDashboard = () => {
       icon: <StarOutlined />,
       color: "#8e44ad",
       bg: "#faf0ff",
-      route: "/moderator/reviews",
-      count: stats.reportedReviews,
-      countLabel: "bị báo cáo",
+      route: "/moderator/reviews?status=active&assessment=pending",
+      count: stats.pendingReviews,
+      countLabel: "chờ duyệt",
       sub: []
     },
     {

@@ -22,7 +22,10 @@ async function hasActiveOrderForProduct(productId) {
  * @returns {Object} MongoDB query object
  */
 function buildProductQuery(filters) {
-  const query = { status: 'active' };
+  const query = {
+    status: 'active',
+    moderationStatus: 'approved'
+  };
 
   if (filters.sellerId) {
     query.seller = filters.sellerId;
@@ -35,7 +38,10 @@ function buildProductQuery(filters) {
   
   // Apply category filter (Req 7)
   if (filters.categoryId) {
-    query.category = filters.categoryId;
+    query.$or = [
+      { category: filters.categoryId },
+      { categories: filters.categoryId }
+    ];
   }
   
   // Apply price range filter (Req 8)
@@ -76,10 +82,20 @@ async function getProducts(filters = {}, pagination = {}) {
     const skip = (page - 1) * limit;
     
     // Execute query with pagination (Req 5)
+    // Determine sort order: support sorting by price and name (title)
+    let sortObj = { createdAt: -1 };
+    if (filters.sort) {
+      if (filters.sort === 'price_asc') sortObj = { price: 1 };
+      else if (filters.sort === 'price_desc') sortObj = { price: -1 };
+      else if (filters.sort === 'name_asc') sortObj = { title: 1 };
+      else if (filters.sort === 'name_desc') sortObj = { title: -1 };
+    }
+
     const products = await Product.find(query)
       .populate('seller', 'fullName isVerified') // Req 5.4
       .populate('category', 'name slug') // Req 5.4
-      .sort({ createdAt: -1 }) // Req 5.5 - newest first
+      .populate('categories', 'name slug')
+      .sort(sortObj)
       .skip(skip)
       .limit(limit);
     
@@ -108,7 +124,8 @@ async function getProductById(productId) {
   try {
     const product = await Product.findById(productId)
       .populate('seller', 'fullName isVerified email')
-      .populate('category', 'name slug description');
+      .populate('category', 'name slug description')
+      .populate('categories', 'name slug description');
     
     if (!product) {
       throw new Error('Sản phẩm không tồn tại');
@@ -199,7 +216,8 @@ async function createProduct(userId, productData) {
     const product = new Product({
       ...productData,
       seller: userId,
-      status: 'active'
+      status: 'active',
+      moderationStatus: 'pending'
     });
     
     await product.save();
@@ -207,6 +225,7 @@ async function createProduct(userId, productData) {
     // Populate seller and category info
     await product.populate('seller', 'fullName isVerified');
     await product.populate('category', 'name slug');
+    await product.populate('categories', 'name slug');
     
     return product;
   } catch (error) {
@@ -248,7 +267,7 @@ async function updateProduct(productId, userId, updateData) {
     }
     
     // Update allowed fields
-    const allowedFields = ['title', 'description', 'price', 'condition', 'images', 'location'];
+    const allowedFields = ['title', 'description', 'price', 'condition', 'images', 'location', 'category', 'categories', 'otherCategory'];
     allowedFields.forEach(field => {
       if (updateData[field] !== undefined) {
         product[field] = updateData[field];
@@ -260,6 +279,7 @@ async function updateProduct(productId, userId, updateData) {
     // Populate seller and category info
     await product.populate('seller', 'fullName isVerified');
     await product.populate('category', 'name slug');
+    await product.populate('categories', 'name slug');
     
     return product;
   } catch (error) {
@@ -379,6 +399,10 @@ async function getMyProducts(userId, filters = {}, pagination = {}) {
       // By default, exclude deleted products
       query.status = { $ne: 'deleted' };
     }
+
+    if (filters.moderationStatus) {
+      query.moderationStatus = filters.moderationStatus;
+    }
     
     // Calculate pagination
     const page = parseInt(pagination.page) || 1;
@@ -388,6 +412,7 @@ async function getMyProducts(userId, filters = {}, pagination = {}) {
     // Execute query
     const products = await Product.find(query)
       .populate('category', 'name slug')
+      .populate('categories', 'name slug')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

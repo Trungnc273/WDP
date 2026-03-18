@@ -35,6 +35,19 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const refreshUser = async () => {
+    const currentToken = token || localStorage.getItem('token');
+    if (!currentToken) {
+      return null;
+    }
+
+    const userData = await authService.getProfile(currentToken);
+    setUser(userData);
+    setToken(currentToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    return userData;
+  };
+
   const login = async (email, password) => {
     const result = await authService.login(email, password);
     setUser(result.user);
@@ -80,6 +93,7 @@ export function AuthProvider({ children }) {
     changePassword,
     forgotPassword,
     resetPassword,
+    refreshUser,
     loading,
   };
 

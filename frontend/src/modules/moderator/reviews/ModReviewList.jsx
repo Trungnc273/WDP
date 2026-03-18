@@ -1,40 +1,48 @@
 import { Card, Table, Button, Typography, Tag, message, Select, Space, Input, Modal, Descriptions, Divider, Alert } from "antd";
-import { WarningOutlined, SearchOutlined, ReloadOutlined, EyeOutlined } from "@ant-design/icons";
+import { WarningOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
-import { getModeratorReviews, markBadModeratorReview } from "../../../services/moderator.service";
+import { useSearchParams } from "react-router-dom";
+import { getModeratorReviews, markBadModeratorReview, markGoodModeratorReview } from "../../../services/moderator.service";
 
 const { Title } = Typography;
 const { TextArea } = Input;
+const { Text } = Typography;
+
+const ALLOWED_ASSESSMENT = ["", "pending", "good", "bad"];
+
+function normalizeFilterValue(value, allowedValues) {
+  const normalized = String(value || "").trim();
+  return allowedValues.includes(normalized) ? normalized : "";
+}
 
 const ModReviewList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
-  const [status, setStatus] = useState("");
-  const [rawKeyword, setRawKeyword] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const initialAssessment = normalizeFilterValue(searchParams.get("assessment"), ALLOWED_ASSESSMENT);
+  const initialKeyword = String(searchParams.get("keyword") || "").trim();
+  const [assessment, setAssessment] = useState(initialAssessment);
+  const [rawKeyword, setRawKeyword] = useState(initialKeyword);
+  const [keyword, setKeyword] = useState(initialKeyword);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   const [markingReviewId, setMarkingReviewId] = useState("");
+  const [approvingReviewId, setApprovingReviewId] = useState("");
   const [badReviewModalOpen, setBadReviewModalOpen] = useState(false);
   const [pendingReview, setPendingReview] = useState(null);
   const [moderatorNote, setModeratorNote] = useState("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
-  const filteredReviews = keyword
-    ? reviews.filter((r) => {
-        const name = (r.reviewerId?.fullName || "").toLowerCase();
-        const product = (r.productId?.title || "").toLowerCase();
-        const comment = (r.comment || "").toLowerCase();
-        const kw = keyword.toLowerCase();
-        return name.includes(kw) || product.includes(kw) || comment.includes(kw);
-      })
-    : reviews;
-
   // Tập trung gọi API tại một chỗ để dễ bảo trì bộ lọc và phân trang.
   const fetchReviews = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const result = await getModeratorReviews({ page, limit: pageSize, ...(status ? { status } : {}) });
+      const result = await getModeratorReviews({
+        page,
+        limit: pageSize,
+        ...(assessment ? { assessment } : {}),
+        ...(keyword ? { keyword } : {})
+      });
       setReviews(result.items);
       setPagination({
         current: result.pagination.page,
@@ -51,13 +59,34 @@ const ModReviewList = () => {
   useEffect(() => {
     fetchReviews(1, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [assessment, keyword]);
+
+  useEffect(() => {
+    const nextAssessment = normalizeFilterValue(searchParams.get("assessment"), ALLOWED_ASSESSMENT);
+    const nextKeyword = String(searchParams.get("keyword") || "").trim();
+
+    setAssessment(nextAssessment);
+    setRawKeyword(nextKeyword);
+    setKeyword(nextKeyword);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = {};
+    if (assessment) params.assessment = assessment;
+    if (keyword) params.keyword = keyword;
+
+    const nextSearch = new URLSearchParams(params).toString();
+    const currentSearch = searchParams.toString();
+    if (nextSearch !== currentSearch) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [assessment, keyword, searchParams, setSearchParams]);
 
   const handleResetFilters = () => {
-    setStatus("");
+    setAssessment("");
     setRawKeyword("");
     setKeyword("");
-    fetchReviews(1, pagination.pageSize);
+    setSearchParams({}, { replace: true });
   };
 
   const formatPrice = (value) => {
@@ -71,8 +100,9 @@ const ModReviewList = () => {
     const reviewId = review?._id;
     if (!reviewId) return;
 
-    if (review?.moderatorAssessment?.isBad) {
-      message.warning("Review này đã được mod đánh giá xấu trước đó");
+    const assessment = review?.moderatorAssessment;
+    if (assessment?.isReviewed || assessment?.isBad) {
+      message.warning("Review này đã được moderator xử lý trước đó");
       return;
     }
 
@@ -132,6 +162,31 @@ const ModReviewList = () => {
     }
   };
 
+  const submitMarkGood = async (review) => {
+    const reviewId = review?._id;
+    if (!reviewId) return;
+
+    const assessment = review?.moderatorAssessment;
+    if (assessment?.isReviewed || assessment?.isBad) {
+      message.warning("Review này đã được moderator xử lý trước đó");
+      return;
+    }
+
+    try {
+      setApprovingReviewId(reviewId);
+      const result = await markGoodModeratorReview(reviewId, "Đã duyệt đánh giá tốt");
+      message.success("Đã duyệt đánh giá tốt");
+      if (selectedReview?._id === reviewId) {
+        setSelectedReview(result?.review || selectedReview);
+      }
+      fetchReviews(pagination.current, pagination.pageSize);
+    } catch (error) {
+      message.error(error.message || "Không thể duyệt đánh giá này");
+    } finally {
+      setApprovingReviewId("");
+    }
+  };
+
   const openReviewDetail = (review) => {
     setSelectedReview(review);
     setDetailModalOpen(true);
@@ -164,51 +219,115 @@ const ModReviewList = () => {
   };
 
   const columns = [
-    { title: "Người dùng", dataIndex: ["reviewerId", "fullName"], key: "user", render: (text) => <b>{text}</b> },
-    { title: "Sản phẩm", dataIndex: ["productId", "title"], key: "product" },
+    {
+      title: "Người dùng",
+      dataIndex: ["reviewerId", "fullName"],
+      key: "user",
+      width: 110,
+      render: (text) => <Text strong className="mod-review-primary-text">{text || "N/A"}</Text>
+    },
+    {
+      title: "Sản phẩm",
+      dataIndex: ["productId", "title"],
+      key: "product",
+      width: 110,
+      ellipsis: true,
+      render: (value) => <Text className="mod-review-secondary-text" ellipsis={{ tooltip: value || "N/A" }}>{value || "N/A"}</Text>
+    },
     {
       title: "Giá đơn",
       dataIndex: ["orderId", "agreedAmount"],
       key: "orderPrice",
+      width: 105,
       render: (amount) => <span className="mod-money-text">{formatPrice(amount)}</span>
     },
-    { title: "Điểm đánh giá", dataIndex: "rating", key: "rating", render: (star) => <span className="mod-money-text">{star} sao</span> },
-    { title: "Nội dung", dataIndex: "comment", key: "comment" },
+    {
+      title: "Điểm",
+      dataIndex: "rating",
+      key: "rating",
+      width: 75,
+      align: "center",
+      render: (star) => <span className="mod-money-text">{Number(star || 0)} sao</span>
+    },
+    {
+      title: "Nội dung",
+      dataIndex: "comment",
+      key: "comment",
+      width: 170,
+      render: (comment) => (
+        <div className="mod-review-comment-cell" title={comment || "(Không có nội dung)"}>
+          {comment || "(Không có nội dung)"}
+        </div>
+      )
+    },
     { 
       title: "Trạng thái", 
       dataIndex: "status", 
       key: "status",
+      width: 110,
       render: (currentStatus) => currentStatus === "reported" ? <Tag className="mod-status-pill" color="red">Bị báo cáo</Tag> : currentStatus === "hidden" ? <Tag className="mod-status-pill" color="default">Đã ẩn</Tag> : <Tag className="mod-status-pill" color="green">Bình thường</Tag>
     },
     {
       title: "Đánh giá mod",
       key: "modAssessment",
+      width: 145,
       render: (_, record) => {
-        if (record?.moderatorAssessment?.isBad) {
+        if (record?.moderatorAssessment?.isBad || record?.moderatorAssessment?.verdict === "bad") {
           return <Tag className="mod-status-pill" color="volcano">Đã đánh giá xấu (Mức {record?.moderatorAssessment?.penaltyLevel || 1})</Tag>;
+        }
+        if (record?.moderatorAssessment?.isReviewed || record?.moderatorAssessment?.verdict === "good") {
+          return <Tag className="mod-status-pill" color="green">Đã duyệt</Tag>;
         }
         return <Tag className="mod-status-pill" color="blue">Chưa đánh giá</Tag>;
       }
     },
     {
+      title: "Người bị đánh giá",
+      dataIndex: ["reviewedUserId", "fullName"],
+      key: "reviewedUser",
+      width: 120,
+      render: (text) => <Text strong className="mod-review-primary-text">{text || "N/A"}</Text>
+    },
+    {
       title: "Hành động",
       key: "action",
+      width: 210,
       render: (_, record) => (
-        <Space>
-          <Button icon={<EyeOutlined />} onClick={() => openReviewDetail(record)}>
-            Xem chi tiết
-          </Button>
+        <div className="mod-review-actions">
           <Button
-            type="primary"
-            danger
-            icon={<WarningOutlined />}
-            disabled={record?.moderatorAssessment?.isBad}
-            loading={markingReviewId === record._id}
-            onClick={() => openMarkBadModal(record)}
+            size="small"
+            icon={<EyeOutlined />}
+            className="mod-review-btn mod-review-btn-detail"
+            onClick={() => openReviewDetail(record)}
           >
-            Đánh giá xấu
+            Chi tiết
           </Button>
-        </Space>
+          <div className="mod-review-actions-secondary">
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              className="mod-review-btn mod-review-btn-approve"
+              disabled={record?.moderatorAssessment?.isReviewed || record?.moderatorAssessment?.isBad}
+              loading={approvingReviewId === record._id}
+              onClick={() => submitMarkGood(record)}
+            >
+              Duyệt
+            </Button>
+            <Button
+              type="primary"
+              danger
+              size="small"
+              icon={<WarningOutlined />}
+              className="mod-review-btn mod-review-btn-reject"
+              disabled={record?.moderatorAssessment?.isReviewed || record?.moderatorAssessment?.isBad}
+              loading={markingReviewId === record._id}
+              onClick={() => openMarkBadModal(record)}
+            >
+              Xấu
+            </Button>
+          </div>
+        </div>
       )
     }
   ];
@@ -219,36 +338,38 @@ const ModReviewList = () => {
         <Title level={4} style={{ margin: 0 }}>Quản lý Đánh giá &amp; Nhận xét</Title>
         <div className="mod-filter-row">
           <Input
-            placeholder="Tìm theo tên, sản phẩm, nội dung..."
+            placeholder="Tìm theo người đánh giá, người bị đánh giá, sản phẩm, nội dung..."
             prefix={<SearchOutlined />}
             value={rawKeyword}
             onChange={(e) => setRawKeyword(e.target.value)}
-            onPressEnter={() => setKeyword(rawKeyword)}
+            onPressEnter={() => setKeyword(String(rawKeyword || "").trim())}
             style={{ width: 260 }}
           />
           <Select
-            value={status}
-            onChange={setStatus}
+            value={assessment}
+            onChange={setAssessment}
             style={{ width: 180 }}
             options={[
-              { value: "", label: "Tất cả" },
-              { value: "reported", label: "Bị báo cáo" },
-              { value: "active", label: "Đang hiển thị" },
-              { value: "hidden", label: "Đã ẩn" }
+              { value: "", label: "Mọi đánh giá mod" },
+              { value: "pending", label: "Chưa đánh giá" },
+              { value: "good", label: "Đã duyệt" },
+              { value: "bad", label: "Đánh giá xấu" }
             ]}
           />
           <div className="mod-filter-actions">
-            <Button type="primary" onClick={() => setKeyword(rawKeyword)}>Lọc</Button>
+            <Button type="primary" onClick={() => setKeyword(String(rawKeyword || "").trim())}>Lọc</Button>
             <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilters}>Reset</Button>
           </div>
         </div>
       </div>
       <Table
-        className="mod-table"
+        className="mod-table mod-review-table"
+        size="middle"
         columns={columns}
-        dataSource={filteredReviews}
+        dataSource={reviews}
         loading={loading}
         rowKey="_id"
+        rowClassName={(_, index) => (index % 2 === 0 ? "mod-review-row-even" : "mod-review-row-odd")}
         pagination={pagination}
         onChange={(pager) => fetchReviews(pager.current, pager.pageSize)}
       />
@@ -262,9 +383,19 @@ const ModReviewList = () => {
             <Button onClick={closeReviewDetail}>Đóng</Button>
             <Button
               type="primary"
+              icon={<CheckCircleOutlined />}
+              style={{ background: "#16a34a", borderColor: "#16a34a" }}
+              disabled={selectedReview?.moderatorAssessment?.isReviewed || selectedReview?.moderatorAssessment?.isBad}
+              loading={approvingReviewId === selectedReview?._id}
+              onClick={() => submitMarkGood(selectedReview)}
+            >
+              Đã duyệt
+            </Button>
+            <Button
+              type="primary"
               danger
               icon={<WarningOutlined />}
-              disabled={selectedReview?.moderatorAssessment?.isBad}
+              disabled={selectedReview?.moderatorAssessment?.isReviewed || selectedReview?.moderatorAssessment?.isBad}
               loading={markingReviewId === selectedReview?._id}
               onClick={async () => {
                 if (!selectedReview?._id) return;
@@ -283,10 +414,12 @@ const ModReviewList = () => {
               <Tag color={selectedReview.status === "reported" ? "red" : selectedReview.status === "hidden" ? "default" : "green"}>
                 {selectedReview.status === "reported" ? "Bị báo cáo" : selectedReview.status === "hidden" ? "Đã ẩn" : "Bình thường"}
               </Tag>
-              <Tag color={selectedReview?.moderatorAssessment?.isBad ? "volcano" : "blue"}>
+              <Tag color={selectedReview?.moderatorAssessment?.isBad ? "volcano" : selectedReview?.moderatorAssessment?.isReviewed ? "green" : "blue"}>
                 {selectedReview?.moderatorAssessment?.isBad
                   ? `Mod đã đánh giá xấu (Mức ${selectedReview?.moderatorAssessment?.penaltyLevel || 1})`
-                  : "Chưa có đánh giá xấu từ mod"}
+                  : selectedReview?.moderatorAssessment?.isReviewed
+                    ? "Mod đã duyệt đánh giá tốt"
+                    : "Chưa có đánh giá từ mod"}
               </Tag>
             </div>
 
@@ -337,7 +470,7 @@ const ModReviewList = () => {
             <Descriptions.Item label="Ngày tạo" span={2}>
               {formatDateTime(selectedReview.createdAt)}
             </Descriptions.Item>
-            {selectedReview?.moderatorAssessment?.isBad && (
+            {(selectedReview?.moderatorAssessment?.isBad || selectedReview?.moderatorAssessment?.isReviewed) && (
               <Descriptions.Item label="Ghi chú moderator" span={2}>
                 {selectedReview?.moderatorAssessment?.note || "N/A"}
               </Descriptions.Item>

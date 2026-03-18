@@ -31,6 +31,12 @@ async function authenticate(req, res, next) {
       return sendError(res, 401, 'User không tồn tại');
     }
 
+    // Auto-heal legacy KYC mismatch: approved KYC should always be verified.
+    if (user.kycStatus === 'approved' && !user.isVerified) {
+      user.isVerified = true;
+      await user.save();
+    }
+
     // Check if user account is suspended (auto-unlock when suspension time has passed)
     if (user.isSuspended) {
       const isModeratorReviewSuspension = String(user.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
@@ -71,7 +77,8 @@ async function authenticate(req, res, next) {
       email: user.email,
       fullName: user.fullName,
       role: user.role,
-      isVerified: user.isVerified
+      isVerified: user.isVerified,
+      kycStatus: user.kycStatus
     };
 
     next();
@@ -128,7 +135,8 @@ async function optionalAuthenticate(req, res, next) {
           email: user.email,
           fullName: user.fullName,
           role: user.role,
-          isVerified: user.isVerified
+          isVerified: user.isVerified,
+          kycStatus: user.kycStatus
         };
       }
     } catch (error) {

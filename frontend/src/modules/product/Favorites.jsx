@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import favoriteService from '../../services/favorite.service';
+import { getImageUrl, handleImageError } from '../../utils/imageHelper';
 import './Favorites.css';
 
 const Favorites = () => {
@@ -17,51 +18,57 @@ const Favorites = () => {
     totalPages: 0
   });
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    fetchFavorites();
-  }, [user, navigate, pagination.page]);
-
-  const fetchFavorites = async () => {
+  // ✅ FIX: dùng useCallback
+  const fetchFavorites = useCallback(async () => {
     try {
       setLoading(true);
-      const params = {
+
+      const res = await favoriteService.getFavorites({
         page: pagination.page,
         limit: pagination.limit
-      };
+      });
 
-      const response = await favoriteService.getFavorites(params);
-      const data = response.data;
-      
+      const data = res.data;
+
       setFavorites(data.favorites);
       setPagination(prev => ({
         ...prev,
         total: data.total,
         totalPages: data.totalPages
       }));
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
+
+    } catch (err) {
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit]);
 
-  const handleRemoveFavorite = async (productId, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!window.confirm('Bạn có chắc muốn xóa sản phẩm này khỏi danh sách yêu thích?')) {
+  // ✅ FIX: dependency chuẩn
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
       return;
     }
 
+    fetchFavorites();
+  }, [user, navigate, fetchFavorites]);
+
+  const handleRemoveFavorite = async (id, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm('Xóa khỏi yêu thích?')) return;
+
     try {
-      await favoriteService.removeFavorite(productId);
+      await favoriteService.removeFavorite(id);
+
+      // reload lại data
       fetchFavorites();
-    } catch (error) {
-      alert('Không thể xóa sản phẩm');
+
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi xoá');
     }
   };
 
@@ -72,15 +79,10 @@ const Favorites = () => {
     }).format(price);
   };
 
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-    window.scrollTo(0, 0);
-  };
-
   if (loading && favorites.length === 0) {
     return (
       <div className="favorites-container">
-        <div className="loading">Đang tải...</div>
+        <div className="favorites-loading">Đang tải danh sách tin đã lưu...</div>
       </div>
     );
   }
@@ -88,78 +90,97 @@ const Favorites = () => {
   return (
     <div className="favorites-container">
       <div className="favorites-header">
-        <h1>❤️ Tin đăng đã lưu</h1>
-        <p className="favorites-count">{pagination.total} sản phẩm</p>
+        <div>
+          <h1>Tin đã lưu</h1>
+          <p className="favorites-subtitle">Quản lý nhanh các sản phẩm bạn đang quan tâm</p>
+        </div>
+        <div className="favorites-stat">
+          <span className="favorites-stat__value">{pagination.total}</span>
+          <span className="favorites-stat__label">sản phẩm</span>
+        </div>
       </div>
 
       {favorites.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🤍</div>
-          <h2>Chưa có tin đăng yêu thích</h2>
-          <p>Hãy lưu những tin đăng bạn quan tâm để xem lại sau</p>
-          <Link to="/" className="btn btn-primary">
-            Khám phá ngay
+          <div className="empty-icon">♡</div>
+          <h2>Chưa có tin đã lưu</h2>
+          <p>Hãy khám phá sản phẩm và nhấn lưu để xem lại tại đây.</p>
+          <Link to="/" className="favorites-explore-btn">
+            Khám phá sản phẩm
           </Link>
         </div>
       ) : (
         <>
           <div className="favorites-grid">
-            {favorites.map(favorite => {
-              const product = favorite.product;
-              if (!product) return null;
+            {favorites.map(fav => {
+              const p = fav.product;
+              if (!p) return null;
+
+              const productImage = getImageUrl(p.images?.[0]) || '/images/placeholders/product-placeholder.svg';
 
               return (
-                <div key={favorite._id} className="favorite-card">
-                  <Link to={`/product/${product._id}`} className="product-link">
+                <div key={fav._id} className="favorite-card">
+
+                  <Link to={`/product/${p._id}`}>
                     <div className="product-image">
-                      <img 
-                        src={product.images[0] || '/images/placeholder.png'} 
-                        alt={product.title}
+                      <img
+                        src={productImage}
+                        alt={p.title}
+                        loading="lazy"
+                        onError={(e) => handleImageError(e, 'product')}
                       />
+                      <div className="favorite-badge">Đã lưu</div>
                     </div>
+
                     <div className="product-info">
-                      <h3 className="product-title">{product.title}</h3>
-                      <div className="product-price">{formatPrice(product.price)}</div>
+                      <div className="product-title">{p.title}</div>
+                      <div className="product-price">{formatPrice(Number(p.price || 0))}</div>
                       <div className="product-meta">
-                        <span className="product-location">
-                          📍 {product.location?.district}, {product.location?.city}
-                        </span>
+                        <span>{p.location?.district || 'N/A'}</span>
+                        <span>{p.location?.city || 'N/A'}</span>
+                      </div>
+                      <div className="product-seller">
+                        Người bán: <strong>{p.seller?.fullName || 'N/A'}</strong>
                       </div>
                     </div>
                   </Link>
-                  <button 
+
+                  <button
                     className="remove-favorite-btn"
-                    onClick={(e) => handleRemoveFavorite(product._id, e)}
+                    onClick={(e) => handleRemoveFavorite(p._id, e)}
                     title="Xóa khỏi yêu thích"
                   >
-                    ❌
+                    Bỏ lưu
                   </button>
                 </div>
               );
             })}
           </div>
 
-          {/* Pagination */}
           {pagination.totalPages > 1 && (
             <div className="pagination">
               <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
                 className="pagination-btn"
+                disabled={pagination.page === 1}
+                onClick={() =>
+                  setPagination(prev => ({ ...prev, page: prev.page - 1 }))
+                }
               >
-                ← Trước
+                Trang trước
               </button>
-              
-              <span className="pagination-info">
+
+              <span className="pagination-text">
                 Trang {pagination.page} / {pagination.totalPages}
               </span>
-              
+
               <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
                 className="pagination-btn"
+                disabled={pagination.page === pagination.totalPages}
+                onClick={() =>
+                  setPagination(prev => ({ ...prev, page: prev.page + 1 }))
+                }
               >
-                Sau →
+                Trang sau
               </button>
             </div>
           )}

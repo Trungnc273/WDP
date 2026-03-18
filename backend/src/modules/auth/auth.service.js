@@ -47,7 +47,8 @@ async function registerUser(email, password, fullName, phone, address) {
     phone: user.phone,
     address: user.address,
     role: user.role,
-    isVerified: user.isVerified
+    isVerified: user.isVerified,
+    kycStatus: user.kycStatus
   };
 
   return { user: userResponse, token };
@@ -127,7 +128,8 @@ async function loginUser(email, password) {
     phone: user.phone,
     address: user.address,
     role: user.role,
-    isVerified: user.isVerified
+    isVerified: user.isVerified,
+    kycStatus: user.kycStatus
   };
 
   return { user: userResponse, token };
@@ -187,7 +189,8 @@ async function getUserById(userId) {
     email: user.email,
     fullName: user.fullName,
     role: user.role,
-    isVerified: user.isVerified
+    isVerified: user.isVerified,
+    kycStatus: user.kycStatus
   };
 }
 

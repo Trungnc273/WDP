@@ -86,6 +86,11 @@ router.patch(
   moderatorController.markSellerBadByReview
 );
 
+router.patch(
+  "/reviews/:reviewId/mark-good",
+  moderatorController.markSellerGoodByReview
+);
+
 router.get(
   "/withdrawals",
   moderatorController.getWithdrawals

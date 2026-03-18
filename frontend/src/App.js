@@ -9,7 +9,7 @@ import notificationService from './services/notification.service';
 import chatService from './services/chat.service';
 
 function AppShell() {
-  const { isAuthenticated, user, logout, token } = useAuth();
+  const { isAuthenticated, user, logout, token, refreshUser } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -175,12 +175,32 @@ function AppShell() {
     setShowUserMenu(false);
   };
 
-  const handlePostClick = (event) => {
+  const handlePostClick = async (event) => {
     if (!isAuthenticated) {
       return;
     }
 
-    if (!user?.isVerified) {
+    const hasKYCApproval = Boolean(user?.isVerified) || user?.kycStatus === 'approved';
+    if (hasKYCApproval) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      const latestUser = await refreshUser();
+      const latestHasKYCApproval =
+        Boolean(latestUser?.isVerified) || latestUser?.kycStatus === 'approved';
+
+      if (latestHasKYCApproval) {
+        navigate('/product/create');
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to refresh user before posting:', error);
+    }
+
+    if (!hasKYCApproval) {
       event.preventDefault();
       alert('Tài khoản của bạn chưa được xác thực KYC. Vui lòng hoàn thành xác thực danh tính trước khi đăng tin.');
       navigate('/profile/kyc');

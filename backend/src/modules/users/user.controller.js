@@ -176,7 +176,17 @@ module.exports = {
   submitKYC,
   getKYCStatus,
   changePassword,
-  getUserStats
+  getUserStats,
+  // Admin functions
+  getAllUsers,
+  getUserByIdAdmin,
+  createUser,
+  updateUserAdmin,
+  deleteUser,
+  suspendUser,
+  unsuspendUser,
+  getSystemStats,
+  getAdminDashboardStats
 };
 
 /**
@@ -342,5 +352,20 @@ module.exports = {
   deleteUser,
   suspendUser,
   unsuspendUser,
-  getSystemStats
+  getSystemStats,
+  getAdminDashboardStats
 };
+/**
+ * Get admin dashboard stats (Admin only)
+ * GET /api/users/admin/dashboard
+ */
+async function getAdminDashboardStats(req, res) {
+  try {
+    const stats = await userService.getAdminDashboardStats();
+    
+    sendSuccess(res, 200, stats);
+  } catch (error) {
+    console.error('Get admin dashboard stats error:', error);
+    sendError(res, 400, error.message);
+  }
+}

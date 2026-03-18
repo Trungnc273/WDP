@@ -16,6 +16,7 @@ async function getProducts(req, res, next) {
       minPrice: req.query.minPrice ? parseFloat(req.query.minPrice) : null,
       maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice) : null,
       cities: req.query.cities ? (Array.isArray(req.query.cities) ? req.query.cities : [req.query.cities]) : null,
+      sort: req.query.sort || null,
       sellerId: req.query.seller
     };
     
@@ -51,6 +52,18 @@ async function getProductById(req, res, next) {
     const { id } = req.params;
     
     const product = await productService.getProductById(id);
+
+    const isPublicVisible =
+      product.status === 'active' && product.moderationStatus === 'approved';
+    if (!isPublicVisible) {
+      const requester = req.user;
+      const isOwner = requester && String(product.seller?._id) === String(requester.userId);
+      const canModerate = requester && ['moderator', 'admin'].includes(requester.role);
+
+      if (!isOwner && !canModerate) {
+        return sendError(res, 404, 'Sản phẩm không tồn tại');
+      }
+    }
     
     return sendSuccess(res, 200, product, 'Product retrieved successfully');
   } catch (error) {
@@ -94,9 +107,57 @@ async function createProduct(req, res, next) {
   try {
     const userId = req.user.userId;
     const productData = { ...req.body };
+
+    const resolveCategoryId = async (value) => {
+      if (!value || typeof value !== 'string') return null;
+
+      const categoryBySlug = await Category.findOne({ slug: value }).select('_id');
+      if (categoryBySlug) {
+        return categoryBySlug._id.toString();
+      }
+
+      const categoryById = await Category.findById(value).select('_id');
+      if (categoryById) {
+        return categoryById._id.toString();
+      }
+
+      return null;
+    };
+
+    const resolveOtherFallbackCategoryId = async () => {
+      const candidateSlugs = ['other', 'khac'];
+
+      for (const slug of candidateSlugs) {
+        const category = await Category.findOne({ slug }).select('_id');
+        if (category) {
+          return category._id.toString();
+        }
+      }
+
+      try {
+        const category = await Category.create({
+          name: 'Khác',
+          slug: 'other',
+          description: 'Danh mục mặc định cho sản phẩm tự khai báo',
+          icon: '🧩',
+          isActive: true
+        });
+
+        return category._id.toString();
+      } catch (error) {
+        if (error?.code === 11000) {
+          const category = await Category.findOne({ slug: 'other' }).select('_id');
+          if (category) {
+            return category._id.toString();
+          }
+        }
+        throw error;
+      }
+    };
     
-    // Require verified (KYC-approved) account before allowing product creation
-    if (!req.user.isVerified) {
+    // Allow post when account is verified or KYC status is approved.
+    const canPostProduct = Boolean(req.user.isVerified) || req.user.kycStatus === 'approved';
+    if (!canPostProduct) {
       return sendError(
         res,
         403,
@@ -111,7 +172,47 @@ async function createProduct(req, res, next) {
       return sendError(res, 400, 'Thiếu thông tin bắt buộc: tiêu đề, mô tả, giá');
     }
     
-    if (!productData.category) {
+    const inputCategories = Array.isArray(productData.categories)
+      ? productData.categories
+      : [];
+    const normalizedCategories = [];
+
+    for (const rawCategory of inputCategories) {
+      const categoryId = await resolveCategoryId(String(rawCategory || '').trim());
+      if (!categoryId) {
+        return sendError(res, 400, 'Danh mục không hợp lệ');
+      }
+      if (!normalizedCategories.includes(categoryId)) {
+        normalizedCategories.push(categoryId);
+      }
+    }
+
+    let primaryCategoryId = null;
+    if (productData.category) {
+      primaryCategoryId = await resolveCategoryId(String(productData.category).trim());
+      if (!primaryCategoryId) {
+        return sendError(res, 400, 'Danh mục không hợp lệ');
+      }
+    }
+
+    if (!primaryCategoryId && normalizedCategories.length > 0) {
+      primaryCategoryId = normalizedCategories[0];
+    }
+
+    if (primaryCategoryId && !normalizedCategories.includes(primaryCategoryId)) {
+      normalizedCategories.unshift(primaryCategoryId);
+    }
+
+    const normalizedOtherCategory = String(productData.otherCategory || '').trim();
+
+    if (!primaryCategoryId && normalizedOtherCategory) {
+      primaryCategoryId = await resolveOtherFallbackCategoryId();
+      if (!normalizedCategories.includes(primaryCategoryId)) {
+        normalizedCategories.unshift(primaryCategoryId);
+      }
+    }
+
+    if (!primaryCategoryId) {
       return sendError(res, 400, 'Vui lòng chọn danh mục');
     }
     
@@ -123,19 +224,9 @@ async function createProduct(req, res, next) {
       return sendError(res, 400, 'Vui lòng nhập đầy đủ địa chỉ (tỉnh/thành phố và quận/huyện)');
     }
     
-    // Handle category - convert slug to ID if provided as string
-    if (productData.category && typeof productData.category === 'string') {
-      const category = await Category.findOne({ slug: productData.category });
-      if (category) {
-        productData.category = category._id;
-      } else {
-        // Try to find by ID
-        const categoryById = await Category.findById(productData.category);
-        if (!categoryById) {
-          return sendError(res, 400, 'Danh mục không hợp lệ');
-        }
-      }
-    }
+    productData.category = primaryCategoryId;
+    productData.categories = normalizedCategories;
+    productData.otherCategory = normalizedOtherCategory;
     
     const product = await productService.createProduct(userId, productData);
     
@@ -240,7 +331,8 @@ async function getMyProducts(req, res, next) {
     const userId = req.user.userId;
     
     const filters = {
-      status: req.query.status
+      status: req.query.status,
+      moderationStatus: req.query.moderationStatus
     };
     
     const pagination = {

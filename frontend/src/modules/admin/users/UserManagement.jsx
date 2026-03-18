@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { adminUserApi } from '../../services/adminApi';
-import UserList from './components/UserList';
-import UserForm from './components/UserForm';
-import UserStats from './components/UserStats';
-import './UserManagement.css';
+import { adminUserApi } from '../../../services/adminApi';
+import UserList from '../components/UserList';
+import UserForm from '../components/UserForm';
+import UserStats from '../components/UserStats';
+import '../AdminModules.css';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -15,6 +15,7 @@ const UserManagement = () => {
   // Pagination and filters
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -41,11 +42,22 @@ const UserManagement = () => {
         status: statusFilter
       });
       
-      setUsers(response.data.data.users);
-      setTotalPages(response.data.data.pagination.totalPages);
+      if (response.data && response.data.data) {
+        setUsers(response.data.data.users || []);
+        setTotalPages(response.data.data.pagination?.totalPages || 1);
+        setTotalUsers(response.data.data.pagination?.total || 0);
+      } else {
+        setUsers([]);
+        setTotalPages(1);
+        setTotalUsers(0);
+      }
       setError('');
     } catch (err) {
-      setError(err.message || 'Không thể tải danh sách người dùng');
+      console.error('Load users error:', err);
+      setError(err.response?.data?.message || err.message || 'Không thể tải danh sách người dùng');
+      setUsers([]);
+      setTotalPages(1);
+      setTotalUsers(0);
     } finally {
       setLoading(false);
     }
@@ -54,9 +66,15 @@ const UserManagement = () => {
   const loadStats = async () => {
     try {
       const response = await adminUserApi.getSystemStats();
-      setStats(response.data.data);
+      
+      if (response.data && response.data.data) {
+        setStats(response.data.data);
+      } else {
+        setStats({});
+      }
     } catch (err) {
       console.error('Error loading stats:', err);
+      setStats({});
     }
   };
 
@@ -147,15 +165,23 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="user-management">
-      <div className="user-management-header">
-        <h1>Quản lý người dùng</h1>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowCreateModal(true)}
-        >
-          Tạo người dùng mới
-        </button>
+    <div className="admin-module">
+      <div className="admin-module__header">
+        <div className="header-content">
+          <div className="header-info">
+            <h1>Quản lý người dùng</h1>
+            <p className="total-users">
+              Tổng cộng: <strong>{(totalUsers || 0).toLocaleString('vi-VN')}</strong> người dùng
+            </p>
+          </div>
+          <button 
+            className="btn btn-primary btn-sm btn-create-small"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <i className="fas fa-plus"></i>
+            Tạo
+          </button>
+        </div>
       </div>
 
       {/* System Statistics */}

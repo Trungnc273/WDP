@@ -61,9 +61,18 @@ const reviewSchema = new mongoose.Schema({
 
   // Moderator assessment used for seller penalty workflow
   moderatorAssessment: {
+    isReviewed: {
+      type: Boolean,
+      default: false
+    },
     isBad: {
       type: Boolean,
       default: false
+    },
+    verdict: {
+      type: String,
+      enum: ['good', 'bad'],
+      default: null
     },
     moderatorId: {
       type: mongoose.Schema.Types.ObjectId,

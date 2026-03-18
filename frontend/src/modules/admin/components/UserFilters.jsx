@@ -26,13 +26,13 @@ const UserFilters = ({
       <form onSubmit={handleSearchSubmit} className="search-form">
         <input
           type="text"
-          placeholder="Tìm kiếm theo tên, email, số điện thoại..."
+          placeholder="Tìm kiếm..."
           value={searchInput}
           onChange={handleSearchChange}
           className="search-input"
         />
-        <button type="submit" className="btn btn-primary">
-          Tìm kiếm
+        <button type="submit" className="btn btn-primary btn-sm">
+          <i className="fas fa-search"></i>
         </button>
       </form>
 
