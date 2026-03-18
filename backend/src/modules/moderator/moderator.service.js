@@ -186,7 +186,7 @@ async function getDashboardStats() {
     reviewingReports,
     unresolvedReports,
     pendingWithdrawals,
-    reportedReviews,
+    pendingReviews,
     openOrders,
     suspendedUsers,
     pendingDisputes,
@@ -198,7 +198,12 @@ async function getDashboardStats() {
     Report.countDocuments({ status: "reviewing" }),
     Report.countDocuments({ status: { $in: ["pending", "reviewing"] } }),
     Transaction.countDocuments({ type: "withdrawal", status: "pending" }),
-    Review.countDocuments({ "moderatorEvaluation.evaluatedBy": null }),
+    Review.countDocuments({
+      status: "active",
+      "moderatorAssessment.isReviewed": { $ne: true },
+      "moderatorAssessment.isBad": { $ne: true },
+      "moderatorAssessment.verdict": { $nin: ["good", "bad"] }
+    }),
     Order.countDocuments({ status: { $in: ["awaiting_seller_confirmation", "awaiting_payment", "paid", "shipped"] } }),
     User.countDocuments({ isSuspended: true }),
     Dispute.countDocuments({ status: { $in: ["pending", "investigating"] } }),
@@ -217,7 +222,9 @@ async function getDashboardStats() {
     reviewingReports,
     unresolvedReports,
     pendingWithdrawals,
-    reportedReviews,
+    pendingReviews,
+    // Giữ key cũ để không làm vỡ nơi khác đang đọc reportedReviews.
+    reportedReviews: pendingReviews,
     openOrders,
     suspendedUsers,
     pendingDisputes,
@@ -506,6 +513,8 @@ async function getReviews(filters = {}, pagination = {}) {
 
   if (filters.assessment === 'pending') {
     query['moderatorAssessment.isReviewed'] = { $ne: true };
+    query['moderatorAssessment.isBad'] = { $ne: true };
+    query['moderatorAssessment.verdict'] = { $nin: ['good', 'bad'] };
   } else if (filters.assessment === 'good') {
     query['moderatorAssessment.isReviewed'] = true;
     query['moderatorAssessment.isBad'] = { $ne: true };
@@ -530,7 +539,7 @@ async function getReviews(filters = {}, pagination = {}) {
     }
 
     if (productIds.length) {
-      orFilters.push({ productId: { $in: productIds } });
+        orFilters.push({ productId: { $in: productIds } });
     }
 
     query.$or = orFilters;

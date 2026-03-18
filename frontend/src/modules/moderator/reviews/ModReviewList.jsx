@@ -1,19 +1,32 @@
 import { Card, Table, Button, Typography, Tag, message, Select, Space, Input, Modal, Descriptions, Divider, Alert } from "antd";
 import { WarningOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getModeratorReviews, markBadModeratorReview, markGoodModeratorReview } from "../../../services/moderator.service";
 
 const { Title } = Typography;
 const { TextArea } = Input;
 const { Text } = Typography;
 
+const ALLOWED_STATUS = ["", "reported", "active", "hidden"];
+const ALLOWED_ASSESSMENT = ["", "pending", "good", "bad"];
+
+function normalizeFilterValue(value, allowedValues) {
+  const normalized = String(value || "").trim();
+  return allowedValues.includes(normalized) ? normalized : "";
+}
+
 const ModReviewList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
-  const [status, setStatus] = useState("");
-  const [assessment, setAssessment] = useState("");
-  const [rawKeyword, setRawKeyword] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const initialStatus = normalizeFilterValue(searchParams.get("status"), ALLOWED_STATUS);
+  const initialAssessment = normalizeFilterValue(searchParams.get("assessment"), ALLOWED_ASSESSMENT);
+  const initialKeyword = String(searchParams.get("keyword") || "").trim();
+  const [status, setStatus] = useState(initialStatus);
+  const [assessment, setAssessment] = useState(initialAssessment);
+  const [rawKeyword, setRawKeyword] = useState(initialKeyword);
+  const [keyword, setKeyword] = useState(initialKeyword);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   const [markingReviewId, setMarkingReviewId] = useState("");
@@ -52,11 +65,36 @@ const ModReviewList = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, assessment, keyword]);
 
+  useEffect(() => {
+    const nextStatus = normalizeFilterValue(searchParams.get("status"), ALLOWED_STATUS);
+    const nextAssessment = normalizeFilterValue(searchParams.get("assessment"), ALLOWED_ASSESSMENT);
+    const nextKeyword = String(searchParams.get("keyword") || "").trim();
+
+    setStatus(nextStatus);
+    setAssessment(nextAssessment);
+    setRawKeyword(nextKeyword);
+    setKeyword(nextKeyword);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = {};
+    if (status) params.status = status;
+    if (assessment) params.assessment = assessment;
+    if (keyword) params.keyword = keyword;
+
+    const nextSearch = new URLSearchParams(params).toString();
+    const currentSearch = searchParams.toString();
+    if (nextSearch !== currentSearch) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [status, assessment, keyword, searchParams, setSearchParams]);
+
   const handleResetFilters = () => {
     setStatus("");
     setAssessment("");
     setRawKeyword("");
     setKeyword("");
+    setSearchParams({}, { replace: true });
   };
 
   const formatPrice = (value) => {
