@@ -32,6 +32,16 @@ const ProductSchema = new Schema({
     ref: 'Category',
     required: true
   },
+  categories: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Category'
+  }],
+  otherCategory: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+    default: ''
+  },
   seller: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -101,6 +111,9 @@ ProductSchema.index({ status: 1, createdAt: -1 });
 
 // Index on category field (Req 14)
 ProductSchema.index({ category: 1 });
+
+// Index on additional categories for multi-category lookup
+ProductSchema.index({ categories: 1 });
 
 // Index on price field (Req 14)
 ProductSchema.index({ price: 1 });

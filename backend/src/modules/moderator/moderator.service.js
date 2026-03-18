@@ -207,7 +207,7 @@ async function getDashboardStats() {
     Order.countDocuments({ status: { $in: ["awaiting_seller_confirmation", "awaiting_payment", "paid", "shipped"] } }),
     User.countDocuments({ isSuspended: true }),
     Dispute.countDocuments({ status: { $in: ["pending", "investigating"] } }),
-    Product.countDocuments({ status: "pending" }),
+    Product.countDocuments({ moderationStatus: "pending", status: { $ne: "deleted" } }),
     User.countDocuments({ kycStatus: "pending" }),
     Report.find({ status: { $in: ["pending", "reviewing"] } })
       .sort({ createdAt: -1 })
@@ -235,14 +235,15 @@ async function getDashboardStats() {
 }
 
 async function getPendingProducts() {
-  return Product.find({ status: "pending" }).populate("seller", "fullName email");
+  return Product.find({ moderationStatus: "pending", status: { $ne: "deleted" } })
+    .populate("seller", "fullName email");
 }
 
 async function approvePendingProduct(productId) {
   const product = await Product.findById(productId);
   if (!product) throw new Error("Sản phẩm không tồn tại");
 
-  if (!["pending", "rejected"].includes(product.status)) {
+  if (!["pending", "rejected"].includes(product.moderationStatus)) {
     throw new Error("Chỉ có thể duyệt sản phẩm đang chờ hoặc đã bị từ chối trước đó");
   }
 
@@ -258,7 +259,7 @@ async function rejectPendingProduct(productId, reason = "") {
   const product = await Product.findById(productId);
   if (!product) throw new Error("Sản phẩm không tồn tại");
 
-  if (!["pending", "active"].includes(product.status)) {
+  if (!["pending", "approved"].includes(product.moderationStatus)) {
     throw new Error("Không thể từ chối sản phẩm ở trạng thái hiện tại");
   }
 

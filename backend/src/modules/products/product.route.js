@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('./product.controller');
-const { authenticate } = require('../../common/middlewares/auth.middleware');
+const { authenticate, optionalAuthenticate } = require('../../common/middlewares/auth.middleware');
 
 /**
  * Product Routes
@@ -34,6 +34,6 @@ router.delete('/:id', authenticate, productController.deleteProduct);
 router.patch('/:id/visibility', authenticate, productController.updateProductVisibility);
 
 // GET /api/products/:id - Get product by ID
-router.get('/:id', productController.getProductById);
+router.get('/:id', optionalAuthenticate, productController.getProductById);
 
 module.exports = router;

@@ -50,7 +50,11 @@ const MyProducts = () => {
       };
       
       if (statusFilter) {
-        params.status = statusFilter;
+        if (statusFilter === 'waiting_moderation') {
+          params.moderationStatus = 'pending';
+        } else {
+          params.status = statusFilter;
+        }
       }
       const data = await productService.getMyProducts(params);
       
@@ -143,7 +147,7 @@ const MyProducts = () => {
       'hidden': { text: 'Đã ẩn', class: 'status-hidden' },
       'deleted': { text: 'Đã xóa', class: 'status-deleted' }
     };
-    
+
     const badge = badges[status] || { text: status, class: '' };
     
     return (
@@ -151,6 +155,14 @@ const MyProducts = () => {
         {badge.text}
       </span>
     );
+  };
+
+  const getProductStatusBadge = (product) => {
+    if (product?.moderationStatus === 'pending') {
+      return <span className="status-badge status-hidden">Chờ duyệt</span>;
+    }
+
+    return getStatusBadge(product.status);
   };
 
   const handlePageChange = (newPage) => {
@@ -205,6 +217,12 @@ const MyProducts = () => {
           Tất cả ({pagination.total})
         </button>
         <button
+          className={`filter-btn ${statusFilter === 'waiting_moderation' ? 'active' : ''}`}
+          onClick={() => applyFilter('waiting_moderation')}
+        >
+          Chờ duyệt
+        </button>
+        <button
           className={`filter-btn ${statusFilter === 'active' ? 'active' : ''}`}
           onClick={() => applyFilter('active')}
         >
@@ -251,7 +269,7 @@ const MyProducts = () => {
                     loading="lazy"
                     onError={(event) => handleImageError(event, 'product')}
                   />
-                  {getStatusBadge(product.status)}
+                  {getProductStatusBadge(product)}
                 </Link>
                 
                 <div className="product-info">

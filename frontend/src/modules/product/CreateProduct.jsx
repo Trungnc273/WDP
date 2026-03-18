@@ -14,6 +14,8 @@ const CONDITION_LABELS = {
   poor: 'Cũ'
 };
 
+const OTHER_CATEGORY_KEY = '__other__';
+
 const CreateProduct = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -26,7 +28,8 @@ const CreateProduct = () => {
     title: '',
     description: '',
     price: '',
-    category: '',
+    categories: [],
+    otherCategory: '',
     condition: 'like-new',
     images: [],
     location: {
@@ -101,6 +104,33 @@ const CreateProduct = () => {
     }
   };
 
+  const handleCategoryToggle = (categoryId) => {
+    setFormData(prev => {
+      const isSelected = prev.categories.includes(categoryId);
+      const nextCategories = isSelected
+        ? prev.categories.filter(id => id !== categoryId)
+        : [...prev.categories, categoryId];
+
+      const nextData = {
+        ...prev,
+        categories: nextCategories
+      };
+
+      if (isSelected && categoryId === OTHER_CATEGORY_KEY) {
+        nextData.otherCategory = '';
+      }
+
+      return nextData;
+    });
+
+    if (errors.categories || errors.category) {
+      setErrors(prev => ({ ...prev, categories: '', category: '' }));
+    }
+    if (errors.otherCategory && categoryId === OTHER_CATEGORY_KEY) {
+      setErrors(prev => ({ ...prev, otherCategory: '' }));
+    }
+  };
+
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     
@@ -150,8 +180,18 @@ const CreateProduct = () => {
       newErrors.price = 'Vui lòng nhập giá hợp lệ';
     }
 
-    if (!formData.category) {
-      newErrors.category = 'Vui lòng chọn danh mục';
+    const selectedRealCategories = formData.categories.filter(
+      categoryId => categoryId !== OTHER_CATEGORY_KEY
+    );
+
+    const hasOtherCategory = formData.categories.includes(OTHER_CATEGORY_KEY);
+
+    if (selectedRealCategories.length === 0 && !hasOtherCategory) {
+      newErrors.categories = 'Vui lòng chọn ít nhất 1 danh mục';
+    }
+
+    if (hasOtherCategory && !formData.otherCategory.trim()) {
+      newErrors.otherCategory = 'Vui lòng nhập tên danh mục khác';
     }
 
     if (imageFiles.length === 0) {
@@ -215,7 +255,11 @@ const CreateProduct = () => {
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
-        category: formData.category,
+        category: formData.categories.find(categoryId => categoryId !== OTHER_CATEGORY_KEY),
+        categories: formData.categories.filter(categoryId => categoryId !== OTHER_CATEGORY_KEY),
+        otherCategory: formData.categories.includes(OTHER_CATEGORY_KEY)
+          ? formData.otherCategory.trim()
+          : '',
         condition: formData.condition,
         images: imageUrls,
         location: {
@@ -225,10 +269,10 @@ const CreateProduct = () => {
         }
       };
 
-      const createdProduct = await productService.createProduct(productData);
+      await productService.createProduct(productData);
       
-      alert('Sản phẩm đã được đăng thành công!');
-      navigate(`/product/${createdProduct._id}`);
+      alert('Đã gửi tin đăng thành công. Bài viết sẽ hiển thị sau khi moderator duyệt.');
+      navigate('/my-products');
     } catch (error) {
       console.error('Create product error:', error);
       alert(error.response?.data?.message || error.message || 'Không thể tạo sản phẩm');
@@ -237,7 +281,13 @@ const CreateProduct = () => {
     }
   };
 
-  const selectedCategory = categories.find(cat => cat._id === formData.category);
+  const selectedCategories = categories.filter(cat => formData.categories.includes(cat._id));
+  const selectedCategoryLabel = selectedCategories.map(category => category.name).join(', ');
+  const hasOtherCategorySelected = formData.categories.includes(OTHER_CATEGORY_KEY);
+  const categoryPreviewLabel = [
+    selectedCategoryLabel,
+    hasOtherCategorySelected && formData.otherCategory.trim() ? `Khác: ${formData.otherCategory.trim()}` : null
+  ].filter(Boolean).join(', ');
   const formattedPrice = formData.price
     ? Number(formData.price).toLocaleString('vi-VN')
     : 'Chưa nhập';
@@ -248,7 +298,10 @@ const CreateProduct = () => {
     formData.title.trim(),
     formData.description.trim(),
     formData.price,
-    formData.category,
+    (
+      formData.categories.filter(categoryId => categoryId !== OTHER_CATEGORY_KEY).length > 0 ||
+      (formData.categories.includes(OTHER_CATEGORY_KEY) && Boolean(formData.otherCategory.trim()))
+    ),
     formData.location.city,
     formData.location.district,
     imageFiles.length > 0
@@ -361,28 +414,54 @@ const CreateProduct = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="category">Danh mục <span className="required">*</span></label>
-                  <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                  >
-                    <option value="">Chọn danh mục</option>
+                  <label>Danh mục <span className="required">*</span></label>
+                  <div className="category-picker-grid" role="group" aria-label="Chọn nhiều danh mục">
                     {categories && categories.length > 0 ? (
-                      categories.map(cat => (
-                        <option key={cat._id} value={cat._id}>
-                          {cat.icon} {cat.name}
-                        </option>
-                      ))
+                      categories.map(cat => {
+                        const isSelected = formData.categories.includes(cat._id);
+                        return (
+                          <button
+                            key={cat._id}
+                            type="button"
+                            className={`category-chip ${isSelected ? 'is-selected' : ''}`}
+                            onClick={() => handleCategoryToggle(cat._id)}
+                          >
+                            <span className="category-chip-check">{isSelected ? '✓' : ''}</span>
+                            <span className="category-chip-label">{cat.icon} {cat.name}</span>
+                          </button>
+                        );
+                      })
                     ) : (
-                      <option disabled>Đang tải danh mục...</option>
+                      <p className="help-text">Đang tải danh mục...</p>
                     )}
-                  </select>
-                  {errors.category && <p className="error-text">{errors.category}</p>}
-                  {categories.length === 0 && (
-                    <p className="help-text">Đang tải danh mục...</p>
+
+                    <button
+                      type="button"
+                      className={`category-chip category-chip-other ${hasOtherCategorySelected ? 'is-selected' : ''}`}
+                      onClick={() => handleCategoryToggle(OTHER_CATEGORY_KEY)}
+                    >
+                      <span className="category-chip-check">{hasOtherCategorySelected ? '✓' : ''}</span>
+                      <span className="category-chip-label">+ Danh mục khác</span>
+                    </button>
+                  </div>
+
+                  {hasOtherCategorySelected && (
+                    <div className="other-category-wrap">
+                      <input
+                        type="text"
+                        id="otherCategory"
+                        name="otherCategory"
+                        value={formData.otherCategory}
+                        onChange={handleChange}
+                        placeholder="Nhập danh mục khác bạn muốn thêm"
+                        maxLength={60}
+                      />
+                      {errors.otherCategory && <p className="error-text">{errors.otherCategory}</p>}
+                    </div>
                   )}
+
+                  {errors.categories && <p className="error-text">{errors.categories}</p>}
+                  <p className="help-text">Bạn có thể chọn nhiều danh mục để tăng khả năng tiếp cận người mua.</p>
                 </div>
 
                 <div className="form-group">
@@ -480,7 +559,7 @@ const CreateProduct = () => {
                   <ul className="preview-meta-list">
                     <li>
                       <span>Danh mục</span>
-                      <strong>{selectedCategory?.name || 'Chưa chọn'}</strong>
+                      <strong>{categoryPreviewLabel || 'Chưa chọn'}</strong>
                     </li>
                     <li>
                       <span>Khu vực</span>
