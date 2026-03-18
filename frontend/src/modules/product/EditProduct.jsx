@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
 import api from '../../services/api';
+import { getImageUrl, handleImageError } from '../../utils/imageHelper';
 import './CreateProduct.css';
 
 const EditProduct = () => {
@@ -64,13 +65,13 @@ const EditProduct = () => {
         title: product.title,
         description: product.description,
         price: product.price,
-        category: product.category._id,
+        category: product.category?._id || product.category || '',
         condition: product.condition,
-        images: product.images,
-        location: product.location
+        images: product.images || [],
+        location: product.location || { city: '', district: '', ward: '' }
       });
       
-      setExistingImages(product.images);
+      setExistingImages(Array.isArray(product.images) ? product.images : []);
     } catch (error) {
       alert('Không thể tải thông tin sản phẩm');
       navigate('/');
@@ -269,7 +270,11 @@ const EditProduct = () => {
               {/* Existing Images */}
               {existingImages.map((image, index) => (
                 <div key={`existing-${index}`} className="image-preview">
-                  <img src={image} alt={`Existing ${index + 1}`} />
+                  <img
+                    src={getImageUrl(image) || '/images/placeholders/product-placeholder.svg'}
+                    alt={`Existing ${index + 1}`}
+                    onError={(event) => handleImageError(event, 'product')}
+                  />
                   <button
                     type="button"
                     className="remove-image"
