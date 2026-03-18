@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
-import { getImageUrl } from '../../utils/imageHelper';
+import { getProductImageUrl, handleImageError } from '../../utils/imageHelper';
 import './MyProducts.css';
-
-const PRODUCT_PLACEHOLDER = '/images/placeholders/product-placeholder.svg';
 
 const MyProducts = () => {
   const navigate = useNavigate();
@@ -248,12 +246,10 @@ const MyProducts = () => {
               <div key={product._id} className="product-card">
                 <Link to={`/product/${product._id}`} className="product-image">
                   <img 
-                    src={getImageUrl(product.images?.[0]) || PRODUCT_PLACEHOLDER}
+                    src={getProductImageUrl(product)}
                     alt={product.title}
-                    onError={(event) => {
-                      event.currentTarget.onerror = null;
-                      event.currentTarget.src = PRODUCT_PLACEHOLDER;
-                    }}
+                    loading="lazy"
+                    onError={(event) => handleImageError(event, 'product')}
                   />
                   {getStatusBadge(product.status)}
                 </Link>

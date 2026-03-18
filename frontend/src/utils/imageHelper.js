@@ -13,20 +13,29 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 export const getImageUrl = (path) => {
   if (!path) return null;
 
+  // Ho tro du lieu anh dang object, vi du { url: '/uploads/...' }.
+  const rawPath = typeof path === 'string'
+    ? path
+    : (path.url || path.path || path.src || '');
+  if (!rawPath) return null;
+
+  const normalizedRawPath = String(rawPath).trim().replace(/\\/g, '/');
+  if (!normalizedRawPath) return null;
+
   // Giữ nguyên data/blob URL để hiển thị preview ảnh cục bộ.
-  if (path.startsWith('data:') || path.startsWith('blob:')) {
-    return path;
+  if (normalizedRawPath.startsWith('data:') || normalizedRawPath.startsWith('blob:')) {
+    return normalizedRawPath;
   }
   
   // Nếu đã là URL đầy đủ thì trả về luôn.
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
+  if (normalizedRawPath.startsWith('http://') || normalizedRawPath.startsWith('https://')) {
+    return normalizedRawPath;
   }
 
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const normalizedPath = normalizedRawPath.startsWith('/') ? normalizedRawPath : `/${normalizedRawPath}`;
   
   // Ghép với API URL để tạo đường dẫn ảnh hoàn chỉnh.
-  return `${API_URL}${normalizedPath}`;
+  return `${API_URL}${encodeURI(normalizedPath)}`;
 };
 
 /**

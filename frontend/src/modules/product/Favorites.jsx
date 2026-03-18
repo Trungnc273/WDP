@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import favoriteService from '../../services/favorite.service';
+import { getImageUrl, handleImageError } from '../../utils/imageHelper';
 import './Favorites.css';
 
 const Favorites = () => {
@@ -81,7 +82,7 @@ const Favorites = () => {
   if (loading && favorites.length === 0) {
     return (
       <div className="favorites-container">
-        <div className="loading">Đang tải...</div>
+        <div className="favorites-loading">Đang tải danh sách tin đã lưu...</div>
       </div>
     );
   }
@@ -89,16 +90,23 @@ const Favorites = () => {
   return (
     <div className="favorites-container">
       <div className="favorites-header">
-        <h1>❤️ Tin đã lưu</h1>
-        <p className="favorites-count">{pagination.total} sản phẩm</p>
+        <div>
+          <h1>Tin đã lưu</h1>
+          <p className="favorites-subtitle">Quản lý nhanh các sản phẩm bạn đang quan tâm</p>
+        </div>
+        <div className="favorites-stat">
+          <span className="favorites-stat__value">{pagination.total}</span>
+          <span className="favorites-stat__label">sản phẩm</span>
+        </div>
       </div>
 
       {favorites.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🤍</div>
-          <h2>Chưa có sản phẩm</h2>
-          <Link to="/" className="btn btn-primary">
-            Khám phá
+          <div className="empty-icon">♡</div>
+          <h2>Chưa có tin đã lưu</h2>
+          <p>Hãy khám phá sản phẩm và nhấn lưu để xem lại tại đây.</p>
+          <Link to="/" className="favorites-explore-btn">
+            Khám phá sản phẩm
           </Link>
         </div>
       ) : (
@@ -108,42 +116,47 @@ const Favorites = () => {
               const p = fav.product;
               if (!p) return null;
 
+              const productImage = getImageUrl(p.images?.[0]) || '/images/placeholders/product-placeholder.svg';
+
               return (
                 <div key={fav._id} className="favorite-card">
-
-                  {/* BADGE */}
-                  <div className="favorite-badge">Yêu thích</div>
 
                   <Link to={`/product/${p._id}`}>
                     <div className="product-image">
                       <img
-                        src={p.images?.[0] || '/images/placeholder.png'}
+                        src={productImage}
                         alt={p.title}
+                        loading="lazy"
+                        onError={(e) => handleImageError(e, 'product')}
                       />
+                      <div className="favorite-badge">Đã lưu</div>
                     </div>
 
                     <div className="product-info">
                       <div className="product-title">{p.title}</div>
-                      <div className="product-price">{formatPrice(p.price)}</div>
+                      <div className="product-price">{formatPrice(Number(p.price || 0))}</div>
                       <div className="product-meta">
-                        📍 {p.location?.district}, {p.location?.city}
+                        <span>{p.location?.district || 'N/A'}</span>
+                        <span>{p.location?.city || 'N/A'}</span>
+                      </div>
+                      <div className="product-seller">
+                        Người bán: <strong>{p.seller?.fullName || 'N/A'}</strong>
                       </div>
                     </div>
                   </Link>
 
-                  {/* REMOVE */}
                   <button
                     className="remove-favorite-btn"
                     onClick={(e) => handleRemoveFavorite(p._id, e)}
+                    title="Xóa khỏi yêu thích"
                   >
-                    🗑️
+                    Bỏ lưu
                   </button>
                 </div>
               );
             })}
           </div>
 
-          {/* PAGINATION */}
           {pagination.totalPages > 1 && (
             <div className="pagination">
               <button
@@ -153,11 +166,11 @@ const Favorites = () => {
                   setPagination(prev => ({ ...prev, page: prev.page - 1 }))
                 }
               >
-                ← Trước
+                Trang trước
               </button>
 
-              <span>
-                {pagination.page} / {pagination.totalPages}
+              <span className="pagination-text">
+                Trang {pagination.page} / {pagination.totalPages}
               </span>
 
               <button
@@ -167,7 +180,7 @@ const Favorites = () => {
                   setPagination(prev => ({ ...prev, page: prev.page + 1 }))
                 }
               >
-                Sau →
+                Trang sau
               </button>
             </div>
           )}
