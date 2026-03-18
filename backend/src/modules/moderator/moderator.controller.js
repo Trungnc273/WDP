@@ -9,6 +9,7 @@ const REPORT_DECISIONS = ["remove_content", "warn_user", "ban_user", "reply_feed
 const ORDER_STATUS = ["awaiting_seller_confirmation", "awaiting_payment", "paid", "shipped", "completed", "cancelled", "disputed"];
 const ORDER_STATUS_UPDATABLE = ["paid", "shipped", "completed", "cancelled", "disputed"];
 const REVIEW_STATUS = ["active", "hidden", "reported"];
+const REVIEW_ASSESSMENT = ["pending", "good", "bad"];
 const WITHDRAWAL_STATUS = ["pending", "completed", "failed", "cancelled"];
 const WITHDRAWAL_RESOLVE_STATUS = ["completed", "failed", "cancelled"];
 const DISPUTE_STATUS = ["pending", "investigating", "resolved"];
@@ -346,12 +347,24 @@ async function updateOrderStatus(req, res) {
 
 async function getReviews(req, res) {
   try {
-    const { status, page, limit } = req.query;
+    const { status, assessment, page, limit, keyword } = req.query;
 
     const statusError = ensureInList(status, REVIEW_STATUS, "Trạng thái đánh giá");
     if (statusError) return sendError(res, 400, statusError);
 
-    const result = await moderatorService.getReviews({ status }, { page, limit });
+    const assessmentError = ensureInList(assessment, REVIEW_ASSESSMENT, "Trạng thái đánh giá mod");
+    if (assessmentError) return sendError(res, 400, assessmentError);
+
+    const pageLimitError = ensureValidPageLimit(page, limit);
+    if (pageLimitError) return sendError(res, 400, pageLimitError);
+
+    const keywordError = ensureValidKeyword(keyword);
+    if (keywordError) return sendError(res, 400, keywordError);
+
+    const result = await moderatorService.getReviews(
+      { status, assessment, keyword },
+      { page, limit }
+    );
     return sendSuccess(res, 200, result);
   } catch (error) {
     return sendError(res, 400, error.message);
@@ -394,6 +407,31 @@ async function markSellerBadByReview(req, res) {
     );
 
     return sendSuccess(res, 200, result, "Đã đánh giá xấu và áp dụng xử lý cho người bán");
+  } catch (error) {
+    return sendError(res, 400, error.message);
+  }
+}
+
+async function markSellerGoodByReview(req, res) {
+  try {
+    const { reviewId } = req.params;
+    const { note } = req.body || {};
+
+    const idError = ensureObjectId(reviewId, "Mã đánh giá");
+    if (idError) return sendError(res, 400, idError);
+
+    const normalizedNote = String(note || '').trim();
+    if (normalizedNote.length > 500) {
+      return sendError(res, 400, "Ghi chú không được vượt quá 500 ký tự");
+    }
+
+    const result = await moderatorService.markSellerGoodByReview(
+      reviewId,
+      req.user.userId,
+      normalizedNote
+    );
+
+    return sendSuccess(res, 200, result, "Đã duyệt đánh giá tốt");
   } catch (error) {
     return sendError(res, 400, error.message);
   }
@@ -537,6 +575,7 @@ module.exports = {
   getReviews,
   hideReview,
   markSellerBadByReview,
+  markSellerGoodByReview,
   getWithdrawals,
   updateWithdrawalStatus,
   getDisputes,

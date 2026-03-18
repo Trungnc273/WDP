@@ -66,6 +66,7 @@
 .mod-table :where(.ant-table-tbody > tr > td) {
   padding-top: 12px;
   padding-bottom: 12px;
+  vertical-align: middle;
 }
 
 .mod-status-pill {
@@ -233,6 +234,124 @@
 
 .mod-table table {
   min-width: 760px;
+}
+
+/* Review list polish */
+.mod-review-primary-text {
+  color: #172554;
+}
+
+.mod-review-secondary-text {
+  color: #334155;
+}
+
+.mod-review-comment-cell {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 220px;
+}
+
+.mod-review-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 168px;
+}
+
+.mod-review-actions-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mod-review-btn {
+  border-radius: 8px;
+  height: 32px;
+  padding-inline: 10px;
+  font-weight: 600;
+  justify-content: center;
+  width: 100%;
+}
+
+.mod-review-btn-detail {
+  border-color: #d0d8e6;
+  color: #24324d;
+  background: #ffffff;
+}
+
+.mod-review-btn-detail:hover {
+  border-color: #9aaad0 !important;
+  color: #1d2d4f !important;
+}
+
+.mod-review-btn-approve {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+
+.mod-review-btn-approve:hover,
+.mod-review-btn-approve:focus {
+  background: #15803d !important;
+  border-color: #15803d !important;
+}
+
+.mod-review-btn-reject {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+}
+
+.mod-review-btn-reject:hover,
+.mod-review-btn-reject:focus {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.mod-review-btn.ant-btn[disabled],
+.mod-review-btn.ant-btn-disabled {
+  opacity: 0.6;
+}
+
+.mod-review-table .ant-table-content {
+  overflow-x: auto !important;
+}
+
+.mod-review-table table {
+  min-width: 0 !important;
+  table-layout: auto;
+}
+
+.mod-review-table :where(.ant-table-thead > tr > th),
+.mod-review-table :where(.ant-table-tbody > tr > td) {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.mod-review-table :where(.ant-table-thead > tr > th) {
+  background: #f4f7ff;
+  color: #1f2e4d;
+  font-weight: 700;
+}
+
+.mod-review-table :where(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid #edf1f7;
+}
+
+.mod-review-row-even {
+  background: #ffffff;
+}
+
+.mod-review-row-odd {
+  background: #fbfcff;
+}
+
+.mod-review-table :where(.ant-table-tbody > tr:hover > td) {
+  background: #f2f7ff !important;
 }
 
 /* Legacy stat cards (kept for compat) */

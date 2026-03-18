@@ -504,13 +504,45 @@ async function getReviews(filters = {}, pagination = {}) {
   const query = {};
   if (filters.status) query.status = filters.status;
 
+  if (filters.assessment === 'pending') {
+    query['moderatorAssessment.isReviewed'] = { $ne: true };
+  } else if (filters.assessment === 'good') {
+    query['moderatorAssessment.isReviewed'] = true;
+    query['moderatorAssessment.isBad'] = { $ne: true };
+  } else if (filters.assessment === 'bad') {
+    query['moderatorAssessment.isBad'] = true;
+  }
+
+  const keywordRegex = buildRegexKeyword(filters.keyword);
+  if (keywordRegex) {
+    const [matchedUsers, matchedProducts] = await Promise.all([
+      User.find({ fullName: keywordRegex }).select('_id').lean(),
+      Product.find({ title: keywordRegex }).select('_id').lean()
+    ]);
+
+    const userIds = matchedUsers.map((user) => user._id);
+    const productIds = matchedProducts.map((product) => product._id);
+    const orFilters = [{ comment: keywordRegex }];
+
+    if (userIds.length) {
+      orFilters.push({ reviewerId: { $in: userIds } });
+      orFilters.push({ reviewedUserId: { $in: userIds } });
+    }
+
+    if (productIds.length) {
+      orFilters.push({ productId: { $in: productIds } });
+    }
+
+    query.$or = orFilters;
+  }
+
   const { page, limit, skip } = parsePagination(pagination);
   const reviews = await Review.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
     .populate("reviewerId", "fullName email")
-    .populate("reviewedUserId", "fullName email isSuspended suspendedUntil modBadReviewCount")
+    .populate("reviewedUserId", "fullName email totalReviews isSuspended suspendedUntil modBadReviewCount")
     .populate("moderatorAssessment.moderatorId", "fullName email")
     .populate("productId", "title images")
     .populate("orderId", "status agreedAmount");
@@ -552,8 +584,8 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
   const review = await Review.findById(reviewId);
   if (!review) throw new Error('Đánh giá không tồn tại');
 
-  if (review?.moderatorAssessment?.isBad) {
-    throw new Error('Đánh giá này đã được moderator xử lý xấu trước đó');
+  if (review?.moderatorAssessment?.isReviewed || review?.moderatorAssessment?.isBad) {
+    throw new Error('Đánh giá này đã được moderator xử lý trước đó');
   }
 
   const seller = await User.findById(review.reviewedUserId);
@@ -580,7 +612,9 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
   await seller.save();
 
   review.moderatorAssessment = {
+    isReviewed: true,
     isBad: true,
+    verdict: 'bad',
     moderatorId,
     note,
     markedAt: new Date(),
@@ -627,6 +661,39 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
       suspensionLabel: suspensionConfig?.label || null,
       shouldSuspendNow
     }
+  };
+}
+
+async function markSellerGoodByReview(reviewId, moderatorId, note = '') {
+  const review = await Review.findById(reviewId);
+  if (!review) throw new Error('Đánh giá không tồn tại');
+
+  if (review?.moderatorAssessment?.isReviewed || review?.moderatorAssessment?.isBad) {
+    throw new Error('Đánh giá này đã được moderator xử lý trước đó');
+  }
+
+  review.moderatorAssessment = {
+    isReviewed: true,
+    isBad: false,
+    verdict: 'good',
+    moderatorId,
+    note,
+    markedAt: new Date(),
+    penaltyLevel: 0
+  };
+
+  await review.save();
+
+  await review.populate([
+    { path: 'reviewerId', select: 'fullName email' },
+    { path: 'reviewedUserId', select: 'fullName email isSuspended suspendedUntil modBadReviewCount' },
+    { path: 'moderatorAssessment.moderatorId', select: 'fullName email' },
+    { path: 'productId', select: 'title images' },
+    { path: 'orderId', select: 'status agreedAmount' }
+  ]);
+
+  return {
+    review
   };
 }
 
@@ -943,6 +1010,7 @@ module.exports = {
   getReviews,
   hideReview,
   markSellerBadByReview,
+  markSellerGoodByReview,
   getWithdrawals,
   updateWithdrawalStatus,
   getDisputes,

@@ -145,7 +145,15 @@ export async function updateModeratorOrderStatus(orderId, nextStatus, note = '')
 }
 
 export async function getModeratorReviews(params = {}) {
-  const response = await api.get('/moderator/reviews', { params });
+  const normalizedParams = normalizePaginationParams(params);
+  if (normalizedParams.assessment !== undefined) {
+    const allowedAssessment = ['pending', 'good', 'bad'];
+    if (!allowedAssessment.includes(normalizedParams.assessment)) {
+      throw new Error('assessment chỉ được là pending, good hoặc bad');
+    }
+  }
+
+  const response = await api.get('/moderator/reviews', { params: normalizedParams });
   return normalizeListResponse(response.data, 'reviews');
 }
 
@@ -163,6 +171,20 @@ export async function markBadModeratorReview(reviewId, note) {
   }
 
   const response = await api.patch(`/moderator/reviews/${reviewId}/mark-bad`, {
+    note: normalizedNote
+  });
+
+  return response.data?.data;
+}
+
+export async function markGoodModeratorReview(reviewId, note = '') {
+  ensureObjectId(reviewId, 'Mã đánh giá');
+  const normalizedNote = String(note || '').trim();
+  if (normalizedNote.length > 500) {
+    throw new Error('Ghi chú không được vượt quá 500 ký tự');
+  }
+
+  const response = await api.patch(`/moderator/reviews/${reviewId}/mark-good`, {
     note: normalizedNote
   });
 
@@ -294,6 +316,7 @@ const moderatorService = {
   getModeratorReviews,
   hideModeratorReview,
   markBadModeratorReview,
+  markGoodModeratorReview,
   getModeratorWithdrawals,
   updateModeratorWithdrawalStatus,
   getModeratorDisputes,
