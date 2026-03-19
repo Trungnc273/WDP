@@ -113,7 +113,7 @@ const AdminOrderDetail = () => {
   return (
     <div className="admin-module">
       <div className="admin-module__header">
-        <button 
+        <button
           className="btn btn-secondary"
           onClick={() => navigate('/admin/orders')}
         >
@@ -137,54 +137,31 @@ const AdminOrderDetail = () => {
         </div>
       ) : order ? (
         <div className="admin-module__content">
-          <div className="detail-grid">
-            <div className="detail-section">
-              <h3>Thông tin đơn hàng</h3>
-              <div className="detail-item">
-                <label>Mã đơn hàng:</label>
-                <span>{order.orderCode || order._id?.slice(-8)?.toUpperCase() || 'N/A'}</span>
+          <div className="order-receipt">
+            {/* PHẦN THÔNG TIN ĐƠN HÀNG */}
+            <div className="receipt-section">
+              <h3 className="receipt-title">Thông tin đơn hàng</h3>
+              <div className="receipt-row"><label>MÃ ĐƠN HÀNG:</label> <span>{order.orderCode}</span></div>
+              <div className="receipt-row"><label>MÃ VẬN ĐƠN:</label> <span>{order.trackingNumber || 'N/A'}</span></div>
+              <div className="receipt-row"><label>SẢN PHẨM:</label> <span>{order.productId?.title}</span></div>
+              <div className="receipt-row"><label>TỔNG TIỀN:</label> <span>{formatCurrency(order.totalToPay)}</span></div>
+
+              {/* KHUNG TRẠNG THÁI VÀ SỐ TIỀN (HIGHLIGHT BOX) */}
+              <div className="receipt-row"><label>TRẠNG THÁI:</label></div>
+              <div className="status-highlight-box">
+                <span className="status-text">{STATUS_LABEL[order.status]}</span>
+                <span className="amount-text">{formatCurrency(order.totalToPay)}</span>
               </div>
-              <div className="detail-item">
-                <label>Mã vận đơn:</label>
-                <span>{order.trackingNumber || 'N/A'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Sản phẩm:</label>
-                <span>{order.productId?.title || 'N/A'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Tổng tiền:</label>
-                <span className="currency">{formatCurrency(order.totalToPay)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Trạng thái:</label>
-                <span className={`status status-${order.status}`}>
-                  {STATUS_LABEL[order.status] || 'N/A'}
-                </span>
-              </div>
-              <div className="detail-item">
-                <label>Thanh toán:</label>
-                <span>
-                  {order.paymentStatus === 'paid' ? 'Đã thanh toán' : 
-                   order.paymentStatus === 'refunded' ? 'Đã hoàn tiền' : 'Chưa thanh toán'}
-                </span>
-              </div>
+
+              <div className="receipt-row"><label>THANH TOÁN:</label> <span>{order.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}</span></div>
             </div>
 
-            <div className="detail-section">
-              <h3>Thông tin người mua</h3>
-              <div className="detail-item">
-                <label>Họ tên:</label>
-                <span>{order.buyerId?.fullName || 'N/A'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Số điện thoại:</label>
-                <span>{order.buyerId?.phone || 'N/A'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Địa chỉ:</label>
-                <span>{order.buyerId?.address || 'N/A'}</span>
-              </div>
+            {/* PHẦN THÔNG TIN NGƯỜI MUA */}
+            <div className="receipt-section">
+              <h3 className="receipt-title">Thông tin người mua</h3>
+              <div className="receipt-row"><label>HỌ TÊN:</label> <span>{order.buyerId?.fullName}</span></div>
+              <div className="receipt-row"><label>SỐ ĐIỆN THOẠI:</label> <span>{order.buyerId?.phone}</span></div>
+              <div className="receipt-row"><label>ĐỊA CHỈ:</label> <span>{order.buyerId?.address}</span></div>
             </div>
 
             <div className="detail-section">
@@ -247,7 +224,7 @@ const AdminOrderDetail = () => {
           <div className="admin-actions">
             <div className="action-section">
               <h3>Thao tác quản trị</h3>
-              
+
               <div className="form-group">
                 <label>Lý do hủy đơn:</label>
                 <textarea
