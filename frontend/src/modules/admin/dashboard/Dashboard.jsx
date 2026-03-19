@@ -64,9 +64,7 @@ const AdminDashboard = () => {
       {/* Quick Stats */}
       <div className="stats-overview">
         <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-users"></i>
-          </div>
+          <div className="stat-icon">👥</div>
           <div className="stat-content">
             <div className="stat-number">{totalUsers}</div>
             <div className="stat-label">Tổng người dùng</div>
@@ -74,9 +72,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-exclamation-triangle"></i>
-          </div>
+          <div className="stat-icon">⚠️</div>
           <div className="stat-content">
             <div className="stat-number">{unresolvedReports}</div>
             <div className="stat-label">Báo cáo chưa xử lý</div>
@@ -84,9 +80,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-clock"></i>
-          </div>
+          <div className="stat-icon">⏳</div>
           <div className="stat-content">
             <div className="stat-number">{pendingKYC}</div>
             <div className="stat-label">KYC chờ duyệt</div>
@@ -94,9 +88,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-box"></i>
-          </div>
+          <div className="stat-icon">📦</div>
           <div className="stat-content">
             <div className="stat-number">{pendingProducts}</div>
             <div className="stat-label">Sản phẩm chờ duyệt</div>
@@ -104,9 +96,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">
-            <i className="fas fa-money-bill-wave"></i>
-          </div>
+          <div className="stat-icon">💵</div>
           <div className="stat-content">
             <div className="stat-number">{pendingWithdrawals}</div>
             <div className="stat-label">Rút tiền chờ duyệt</div>
@@ -121,9 +111,7 @@ const AdminDashboard = () => {
           <h3>Quản lý người dùng</h3>
           <div className="stats-cards">
             <div className="mini-stat-card">
-              <div className="mini-stat-icon">
-                <i className="fas fa-check-circle"></i>
-              </div>
+              <div className="mini-stat-icon">✅</div>
               <div className="mini-stat-content">
                 <div className="mini-stat-number">{activeUsers}</div>
                 <div className="mini-stat-label">Đang hoạt động</div>
@@ -131,9 +119,7 @@ const AdminDashboard = () => {
             </div>
             
             <div className="mini-stat-card">
-              <div className="mini-stat-icon">
-                <i className="fas fa-lock"></i>
-              </div>
+              <div className="mini-stat-icon">🔒</div>
               <div className="mini-stat-content">
                 <div className="mini-stat-number">{suspendedUsers}</div>
                 <div className="mini-stat-label">Bị khóa</div>
@@ -141,9 +127,7 @@ const AdminDashboard = () => {
             </div>
             
             <div className="mini-stat-card">
-              <div className="mini-stat-icon">
-                <i className="fas fa-user-check"></i>
-              </div>
+              <div className="mini-stat-icon">🛡️</div>
               <div className="mini-stat-content">
                 <div className="mini-stat-number">{verifiedUsers}</div>
                 <div className="mini-stat-label">Đã xác thực</div>
@@ -157,9 +141,7 @@ const AdminDashboard = () => {
           <h3>Kiểm duyệt nội dung</h3>
           <div className="stats-cards">
             <div className="mini-stat-card">
-              <div className="mini-stat-icon">
-                <i className="fas fa-flag"></i>
-              </div>
+              <div className="mini-stat-icon">🚩</div>
               <div className="mini-stat-content">
                 <div className="mini-stat-number">{pendingReports}</div>
                 <div className="mini-stat-label">Báo cáo mới</div>
@@ -167,9 +149,7 @@ const AdminDashboard = () => {
             </div>
             
             <div className="mini-stat-card">
-              <div className="mini-stat-icon">
-                <i className="fas fa-eye"></i>
-              </div>
+              <div className="mini-stat-icon">👁️</div>
               <div className="mini-stat-content">
                 <div className="mini-stat-number">{reviewingReports}</div>
                 <div className="mini-stat-label">Đang xem xét</div>
@@ -177,9 +157,7 @@ const AdminDashboard = () => {
             </div>
             
             <div className="mini-stat-card">
-              <div className="mini-stat-icon">
-                <i className="fas fa-star"></i>
-              </div>
+              <div className="mini-stat-icon">⭐</div>
               <div className="mini-stat-content">
                 <div className="mini-stat-number">{reportedReviews}</div>
                 <div className="mini-stat-label">Đánh giá bị báo cáo</div>

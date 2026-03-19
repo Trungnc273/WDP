@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getModeratorOrders } from '../../../services/moderator.service';
 import '../AdminModules.css';
@@ -32,7 +32,7 @@ const AdminOrderList = () => {
         keyword: keyword || undefined
       });
       
-      setOrders(result.items);
+      setOrders(result.items || []);
       setPagination({
         current: result.pagination.page,
         pageSize: result.pagination.limit,
@@ -45,6 +45,21 @@ const AdminOrderList = () => {
       setLoading(false);
     }
   };
+
+  const filteredOrders = useMemo(() => {
+    const k = filters.keyword.toLowerCase().trim();
+    if (!k) return orders;
+
+    return orders.filter((order) => {
+      return (
+        order.orderCode?.toLowerCase().includes(k) ||
+        order._id?.toLowerCase().includes(k) ||
+        order.buyerId?.fullName?.toLowerCase().includes(k) ||
+        order.sellerId?.fullName?.toLowerCase().includes(k) ||
+        order.trackingNumber?.toLowerCase().includes(k)
+      );
+    });
+  }, [orders, filters.keyword]);
 
   const handleResetFilters = () => {
     setFilters({ status: '', keyword: '' });
@@ -99,7 +114,7 @@ const AdminOrderList = () => {
         <div className="filter-group">
           <input
             type="text"
-            placeholder="Tìm đơn hàng..."
+            placeholder="Mã ĐH, người mua, người bán, mã vận đơn..."
             value={filters.keyword}
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onKeyPress={(e) => e.key === 'Enter' && fetchOrders(1, pagination.pageSize)}
@@ -162,14 +177,14 @@ const AdminOrderList = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.length === 0 ? (
+                  {filteredOrders.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="no-data">
                         Không có dữ liệu
                       </td>
                     </tr>
                   ) : (
-                    orders.map((order) => (
+                    filteredOrders.map((order) => (
                       <tr key={order._id}>
                         <td>
                           <strong>
@@ -179,7 +194,11 @@ const AdminOrderList = () => {
                         <td>{order.buyerId?.fullName || 'N/A'}</td>
                         <td>{order.sellerId?.fullName || 'N/A'}</td>
                         <td>{order.trackingNumber || '-'}</td>
-                        <td className="currency">{formatCurrency(order.totalToPay)}</td>
+                        <td className="currency-cell">
+                          <span className="currency-value">
+                            {formatCurrency(order.totalToPay || order.totalPrice || 0)}
+                          </span>
+                        </td>
                         <td>
                           <span className={`status status-${order.status}`}>
                             {STATUS_LABEL[order.status] || order.status}
