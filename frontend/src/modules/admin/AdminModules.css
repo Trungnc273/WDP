@@ -484,11 +484,15 @@
 /* Table */
 .table-container {
   overflow-x: auto;
+  width: 100%;
+  background: white;
+  border-radius: 8px;
 }
 
 .admin-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 1000px;
 }
 
 .admin-table th,
@@ -496,6 +500,8 @@
   padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+  position: relative;
 }
 
 .admin-table th {
@@ -956,47 +962,113 @@
   .admin-module {
     padding: 16px;
   }
-  
+
   .header-content {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
-  
+
   .btn-create-small {
     align-self: flex-end;
     width: auto;
   }
-  
+
   .filter-group {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .filter-input,
   .filter-select {
     min-width: auto;
   }
-  
+
   .admin-table {
     font-size: 12px;
   }
-  
+
   .admin-table th,
   .admin-table td {
     padding: 8px;
   }
-  
+
   .action-buttons {
     flex-direction: column;
   }
-  
+
   .review-details-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .modal-content {
     width: 95%;
     margin: 20px;
+  }
+}
+/* Container chính cho đơn hàng kiểu biên lai */
+.order-receipt {
+  padding: 20px;
+  background-color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.receipt-section {
+  margin-bottom: 25px;
+}
+
+.receipt-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.receipt-row {
+  margin-bottom: 6px;
+}
+
+.receipt-row label {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.receipt-row span {
+  font-size: 15px;
+  color: #333;
+}
+
+/* KHUNG TRẠNG THÁI MÀU XANH TRONG ẢNH */
+.status-highlight-box {
+  background-color: #f6ffed; /* Màu xanh lá cực nhạt */
+  border: 1px solid #e6f4ea;
+  border-radius: 4px;
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.status-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+  text-transform: uppercase;
+}
+
+.amount-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 600px) {
+  .status-highlight-box {
+    flex-direction: row; /* Vẫn giữ hàng ngang như ảnh mẫu */
   }
 }
