@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getModeratorOrders } from '../../../services/moderator.service';
 import '../AdminModules.css';
@@ -70,16 +70,6 @@ const AdminOrderList = () => {
     fetchOrders(1, pagination.pageSize);
   }, [filters.status]);
 
-  const STATUS_COLOR = {
-    awaiting_seller_confirmation: 'blue',
-    awaiting_payment: 'gold',
-    paid: 'cyan',
-    shipped: 'processing',
-    completed: 'green',
-    cancelled: 'red',
-    disputed: 'orange'
-  };
-
   const STATUS_LABEL = {
     awaiting_seller_confirmation: 'Chờ xác nhận',
     awaiting_payment: 'Chờ thanh toán',
@@ -120,7 +110,7 @@ const AdminOrderList = () => {
             placeholder="Mã ĐH, người mua, người bán, mã vận đơn..."
             value={filters.keyword}
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-            onKeyPress={(e) => e.key === 'Enter' && fetchOrders(1, pagination.pageSize)}
+            onKeyDown={(e) => e.key === 'Enter' && fetchOrders(1, pagination.pageSize)}
             className="filter-input"
           />
           
@@ -194,13 +184,31 @@ const AdminOrderList = () => {
                             {order.orderCode || `ORD-${order._id?.slice(-8)?.toUpperCase()}`}
                           </strong>
                         </td>
-                        <td>{order.buyerId?.fullName || 'N/A'}</td>
-                        <td>{order.sellerId?.fullName || 'N/A'}</td>
-                        <td>{order.trackingNumber || '-'}</td>
-                        <td className="currency-cell">
-                          <span className="currency-value">
-                            {formatCurrency(order.totalToPay || order.totalPrice || 0)}
+                        <td>
+                          <div style={{fontWeight: '500'}}>
+                            {order.buyerId?.fullName || 'Không xác định'}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{fontWeight: '500'}}>
+                            {order.sellerId?.fullName || 'Không xác định'}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontFamily: order.trackingNumber ? 'monospace' : 'inherit',
+                            background: order.trackingNumber ? '#f0f0f0' : 'transparent',
+                            padding: order.trackingNumber ? '2px 6px' : '0',
+                            borderRadius: order.trackingNumber ? '4px' : '0',
+                            fontSize: '12px',
+                            color: order.trackingNumber ? '#333' : '#999',
+                            fontStyle: order.trackingNumber ? 'normal' : 'italic'
+                          }}>
+                            {order.trackingNumber || 'Chưa có'}
                           </span>
+                        </td>
+                        <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>
+                          {formatCurrency(order.totalToPay || order.totalPrice || 0)}
                         </td>
                         <td>
                           <span className={`status status-${order.status}`}>
