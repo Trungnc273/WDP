@@ -164,15 +164,15 @@ const AdminWithdrawalList = () => {
         ) : (
           <>
             <div className="table-container">
-              <table className="admin-table">
+              <table className="withdrawals-table">
                 <thead>
                   <tr>
-                    <th>Mã YC</th>
-                    <th>Người dùng</th>
-                    <th>Số tiền</th>
-                    <th>Thông tin Bank</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                    <th style={{width: '100px'}}>Mã YC</th>
+                    <th style={{width: '160px'}}>Người dùng</th>
+                    <th style={{width: '130px', textAlign: 'right'}}>Số tiền</th>
+                    <th style={{width: '200px'}}>Thông tin Bank</th>
+                    <th style={{width: '120px'}}>Trạng thái</th>
+                    <th style={{width: '150px'}}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -190,12 +190,23 @@ const AdminWithdrawalList = () => {
                             {String(withdrawal._id).slice(-8).toUpperCase()}
                           </strong>
                         </td>
-                        <td>{withdrawal.userId?.fullName || 'N/A'}</td>
-                        <td className="currency">
-                          {Number(withdrawal.amount || 0).toLocaleString('vi-VN')} đ
+                        <td>
+                          <div style={{fontWeight: '500'}}>
+                            {withdrawal.userId?.fullName || 'N/A'}
+                          </div>
+                        </td>
+                        <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>
+                          {Number(withdrawal.amount || 0).toLocaleString('vi-VN')} ₫
                         </td>
                         <td>
-                          {withdrawal.metadata?.bankName || 'N/A'} - {withdrawal.metadata?.bankAccount || 'N/A'}
+                          <div style={{fontSize: '13px'}}>
+                            <div style={{fontWeight: '500', marginBottom: '2px'}}>
+                              {withdrawal.metadata?.bankName || 'N/A'}
+                            </div>
+                            <div style={{color: '#666', fontFamily: 'monospace'}}>
+                              {withdrawal.metadata?.bankAccount || 'N/A'}
+                            </div>
+                          </div>
                         </td>
                         <td>
                           <span className={`status ${getStatusClass(withdrawal.status)}`}>

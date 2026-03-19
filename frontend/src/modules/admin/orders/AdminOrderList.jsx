@@ -76,10 +76,13 @@ const AdminOrderList = () => {
   };
 
   const formatCurrency = (amount) => {
+    if (!amount || amount === 0) return '0 ₫';
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
-      currency: 'VND'
-    }).format(amount || 0);
+      currency: 'VND',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   return (
@@ -149,16 +152,16 @@ const AdminOrderList = () => {
         ) : (
           <>
             <div className="table-container">
-              <table className="admin-table">
+              <table className="orders-table">
                 <thead>
                   <tr>
-                    <th>Mã ĐH</th>
-                    <th>Người mua</th>
-                    <th>Người bán</th>
-                    <th>Mã vận đơn</th>
-                    <th>Tổng tiền</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                    <th style={{width: '120px'}}>Mã ĐH</th>
+                    <th style={{width: '160px'}}>Người mua</th>
+                    <th style={{width: '160px'}}>Người bán</th>
+                    <th style={{width: '140px'}}>Mã vận đơn</th>
+                    <th style={{width: '130px', textAlign: 'right'}}>Tổng tiền</th>
+                    <th style={{width: '120px'}}>Trạng thái</th>
+                    <th style={{width: '100px'}}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,13 +176,41 @@ const AdminOrderList = () => {
                       <tr key={order._id}>
                         <td>
                           <strong>
-                            {order.orderCode || order._id?.slice(-8)?.toUpperCase()}
+                            {order.orderCode || `ORD-${order._id?.slice(-8)?.toUpperCase()}`}
                           </strong>
                         </td>
-                        <td>{order.buyerId?.fullName || 'N/A'}</td>
-                        <td>{order.sellerId?.fullName || 'N/A'}</td>
-                        <td>{order.trackingNumber || '-'}</td>
-                        <td className="currency">{formatCurrency(order.totalToPay)}</td>
+                        <td>
+                          <div>
+                            <div style={{fontWeight: '500'}}>{order.buyerId?.fullName || 'Không xác định'}</div>
+                            {order.buyerId?.email && (
+                              <div style={{fontSize: '11px', color: '#999'}}>{order.buyerId.email}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div>
+                            <div style={{fontWeight: '500'}}>{order.sellerId?.fullName || 'Không xác định'}</div>
+                            {order.sellerId?.email && (
+                              <div style={{fontSize: '11px', color: '#999'}}>{order.sellerId.email}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontFamily: order.trackingNumber ? 'monospace' : 'inherit',
+                            background: order.trackingNumber ? '#f0f0f0' : 'transparent',
+                            padding: order.trackingNumber ? '2px 6px' : '0',
+                            borderRadius: order.trackingNumber ? '4px' : '0',
+                            fontSize: '12px',
+                            color: order.trackingNumber ? '#333' : '#999',
+                            fontStyle: order.trackingNumber ? 'normal' : 'italic'
+                          }}>
+                            {order.trackingNumber || 'Chưa có'}
+                          </span>
+                        </td>
+                        <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>
+                          {formatCurrency(order.totalToPay)}
+                        </td>
                         <td>
                           <span className={`status status-${order.status}`}>
                             {STATUS_LABEL[order.status] || order.status}

@@ -220,17 +220,17 @@ const AdminReviewList = () => {
         ) : (
           <>
             <div className="table-container">
-              <table className="admin-table">
+              <table className="reviews-table">
                 <thead>
                   <tr>
-                    <th>Người dùng</th>
-                    <th>Sản phẩm</th>
-                    <th>Giá đơn</th>
-                    <th>Điểm đánh giá</th>
-                    <th>Nội dung</th>
-                    <th>Trạng thái</th>
-                    <th>Đánh giá mod</th>
-                    <th>Thao tác</th>
+                    <th style={{width: '140px'}}>Người dùng</th>
+                    <th style={{width: '180px'}}>Sản phẩm</th>
+                    <th style={{width: '120px', textAlign: 'right'}}>Giá đơn</th>
+                    <th style={{width: '100px'}}>Điểm đánh giá</th>
+                    <th style={{width: '200px'}}>Nội dung</th>
+                    <th style={{width: '100px'}}>Trạng thái</th>
+                    <th style={{width: '140px'}}>Đánh giá mod</th>
+                    <th style={{width: '160px'}}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,19 +244,43 @@ const AdminReviewList = () => {
                     filteredReviews.map((review) => (
                       <tr key={review._id}>
                         <td>
-                          <strong>{review.reviewerId?.fullName || 'N/A'}</strong>
+                          <div style={{fontWeight: '500'}}>
+                            {review.reviewerId?.fullName || 'N/A'}
+                          </div>
                         </td>
-                        <td>{review.productId?.title || 'N/A'}</td>
-                        <td className="currency">
+                        <td>
+                          <div style={{
+                            maxWidth: '180px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {review.productId?.title || 'N/A'}
+                          </div>
+                        </td>
+                        <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>
                           {formatCurrency(review.orderId?.agreedAmount)}
                         </td>
                         <td>
-                          <span className="rating">
-                            {review.rating || 0} sao
-                          </span>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: '#f59e0b',
+                            fontWeight: '500'
+                          }}>
+                            <span>{review.rating || 0}</span>
+                            <span style={{fontSize: '12px'}}>★</span>
+                          </div>
                         </td>
                         <td>
-                          <div className="comment-preview">
+                          <div style={{
+                            maxWidth: '200px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: '13px'
+                          }}>
                             {review.comment || '(Không có nội dung)'}
                           </div>
                         </td>

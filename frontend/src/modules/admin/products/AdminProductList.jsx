@@ -122,16 +122,16 @@ const AdminProductList = () => {
           </div>
         ) : (
           <div className="table-container">
-            <table className="admin-table">
+            <table className="products-table">
               <thead>
                 <tr>
-                  <th>Ảnh</th>
-                  <th>Tên sản phẩm</th>
-                  <th>Người đăng</th>
-                  <th>Giá</th>
-                  <th>Tình trạng</th>
-                  <th>Ngày đăng</th>
-                  <th>Thao tác</th>
+                  <th style={{width: '80px'}}>Ảnh</th>
+                  <th style={{width: '200px'}}>Tên sản phẩm</th>
+                  <th style={{width: '140px'}}>Người đăng</th>
+                  <th style={{width: '120px', textAlign: 'right'}}>Giá</th>
+                  <th style={{width: '100px'}}>Tình trạng</th>
+                  <th style={{width: '100px'}}>Ngày đăng</th>
+                  <th style={{width: '140px'}}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,7 +152,8 @@ const AdminProductList = () => {
                             width: 60,
                             height: 60,
                             objectFit: 'cover',
-                            borderRadius: 4
+                            borderRadius: 4,
+                            border: '1px solid #e0e0e0'
                           }}
                           onError={(e) => {
                             e.target.src = '/images/placeholder.png';
@@ -161,15 +162,21 @@ const AdminProductList = () => {
                       </td>
                       <td>
                         <div>
-                          <strong>{product.title}</strong>
-                          <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                          <div style={{fontWeight: '500', marginBottom: '4px'}}>
+                            {product.title}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#999' }}>
                             {product.categoryId?.name || 'Chưa phân loại'}
                           </div>
                         </div>
                       </td>
-                      <td>{product.sellerId?.fullName || product.sellerId?.email || 'N/A'}</td>
-                      <td className="currency">
-                        {Number(product.price || 0).toLocaleString('vi-VN')} đ
+                      <td>
+                        <div style={{fontWeight: '500'}}>
+                          {product.sellerId?.fullName || product.sellerId?.email || 'N/A'}
+                        </div>
+                      </td>
+                      <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>
+                        {Number(product.price || 0).toLocaleString('vi-VN')} ₫
                       </td>
                       <td>
                         <span className="status status-blue">
@@ -177,7 +184,9 @@ const AdminProductList = () => {
                         </span>
                       </td>
                       <td>
-                        {product.createdAt ? new Date(product.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                        <div style={{fontSize: '13px'}}>
+                          {product.createdAt ? new Date(product.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                        </div>
                       </td>
                       <td>
                         <div className="action-buttons">
