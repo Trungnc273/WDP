@@ -24,7 +24,8 @@ function Home() {
     minPrice: null,
     maxPrice: null,
     cities: [],
-    sort: null
+    sort: null,
+    condition: null
   });
 
   const [provinces, setProvinces] = useState([]);
@@ -87,18 +88,27 @@ function Home() {
         ...(filters.category && { category: filters.category }),
         ...(filters.minPrice && { minPrice: filters.minPrice }),
         ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
-          ...(filters.cities && filters.cities.length > 0 && { cities: filters.cities }),
-          ...(filters.sort && { sort: filters.sort })
+        ...(filters.cities && filters.cities.length > 0 && { cities: filters.cities }),
+        ...(filters.sort && { sort: filters.sort }),
+        ...(filters.condition && { condition: filters.condition })
       };
 
       const result = await productService.getProducts(params);
 
       // Client-side fallback for name sorting: ensure loaded items are ordered by title
       const incoming = result.products || [];
+
+      // FILTER CONDITION
       let processed = incoming;
+
+      if (filters.condition) {
+        processed = processed.filter(p => p.condition === filters.condition);
+      }
+
+      // SORT fallback
       if (filters.sort === 'name_asc' || filters.sort === 'name_desc') {
         const direction = filters.sort === 'name_asc' ? 1 : -1;
-        processed = incoming.slice().sort((a, b) => {
+        processed = processed.slice().sort((a, b) => {
           const ta = (a.title || '').toString();
           const tb = (b.title || '').toString();
           return ta.localeCompare(tb, 'vi', { sensitivity: 'base' }) * direction;
@@ -310,7 +320,20 @@ function Home() {
 
       {/* Sort control: placed below categories and above products */}
       <div className="home__sort-container" style={{ maxWidth: 1200, margin: '16px auto', padding: '0 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <select
+            className="search-advanced__select"
+            onChange={(e) => handleFilterChange({ condition: e.target.value || null })}
+            value={filters.condition || ''}
+            style={{ minWidth: 160 }}
+          >
+            <option value="">Tình trạng</option>
+            <option value="new">Mới</option>
+            <option value="like-new">Như mới</option>
+            <option value="good">Tốt</option>
+            <option value="fair">Khá</option>
+            <option value="poor">Cũ</option>
+          </select>
           <select
             className="search-advanced__select"
             onChange={(e) => handleFilterChange({ sort: e.target.value || null })}
