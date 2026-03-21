@@ -1,7 +1,123 @@
-const bcrypt = require('bcryptjs');
-const User = require('../users/user.model');
-const { generateJWT, verifyToken } = require('../../common/utils/jwt.util');
-const { validateStrongPassword } = require('../../common/validators/password.validator');
+const bcrypt = require("bcryptjs");
+const User = require("../users/user.model");
+const { generateJWT, verifyToken } = require("../../common/utils/jwt.util");
+const {
+  validateStrongPassword,
+} = require("../../common/validators/password.validator");
+const admin = require("../../config/firebase");
+const crypto = require("crypto");
+
+/**
+ * Login or Register with Google Firebase idToken
+ * @param {String} idToken - Firebase idToken from client
+ */
+async function loginWithGoogle(idToken) {
+  // 1. Verify token với Firebase Admin
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    const err = new Error("Token Google không hợp lệ hoặc đã hết hạn");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const { email, name, picture } = decodedToken;
+
+  if (!email) {
+    const error = new Error("Không lấy được email từ tài khoản Google");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 2. Kiểm tra xem user đã tồn tại chưa
+  let user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    // 3. NẾU USER CHƯA TỒN TẠI: Tạo mới
+    // Sinh mật khẩu ngẫu nhiên cực mạnh để vượt qua mọi policy và đảm bảo bảo mật
+    const randomPassword = crypto.randomBytes(16).toString("hex") + "A1@";
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    // Tạo user mới. Model không bắt buộc phone và address nên không cần truyền.
+    user = await User.create({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      fullName: name || "Người dùng Google",
+      avatar: picture || "/images/placeholders/avatar-placeholder.svg",
+      role: "user",
+      isVerified: true, // Google email thường đã verify
+    });
+  } else {
+    // 4. NẾU USER ĐÃ TỒN TẠI: Kiểm tra khóa tài khoản (copy logic khóa từ hàm loginUser cũ)
+    if (user.isSuspended) {
+      const isModeratorReviewSuspension = String(
+        user.suspendedReason || "",
+      ).includes("Vi phạm đánh giá do moderator xử lý");
+      const belowModeratorThreshold = Number(user.modBadReviewCount || 0) < 3;
+      const isLegacyUnknownSuspension = !String(
+        user.suspendedReason || "",
+      ).trim();
+      const belowViolationThreshold = Number(user.violationCount || 0) < 3;
+
+      if (
+        (isModeratorReviewSuspension && belowModeratorThreshold) ||
+        (isLegacyUnknownSuspension &&
+          belowModeratorThreshold &&
+          belowViolationThreshold)
+      ) {
+        user.isSuspended = false;
+        user.suspendedUntil = undefined;
+        user.suspendedReason = undefined;
+        await user.save();
+      }
+
+      const suspensionExpired =
+        user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
+      if (!user.isSuspended || suspensionExpired) {
+        user.isSuspended = false;
+        user.suspendedUntil = undefined;
+        user.suspendedReason = undefined;
+        await user.save();
+      } else {
+        const suspendedUntilText = user.suspendedUntil
+          ? ` đến ${new Date(user.suspendedUntil).toLocaleString("vi-VN")}`
+          : "";
+        const reasonText = user.suspendedReason
+          ? ` Lý do: ${user.suspendedReason}`
+          : " Lý do: vi phạm chính sách của hệ thống.";
+        const error = new Error(
+          `Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`,
+        );
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+  }
+
+  // 5. Generate JWT token cho hệ thống nội bộ
+  const token = generateJWT(
+    {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    },
+    "7d",
+  );
+
+  // 6. Trả về response
+  const userResponse = {
+    id: user._id,
+    email: user.email,
+    fullName: user.fullName,
+    avatar: user.avatar,
+    role: user.role,
+    isVerified: user.isVerified,
+    kycStatus: user.kycStatus,
+  };
+
+  return { user: userResponse, token };
+}
 
 /**
  * Register a new user
@@ -14,7 +130,7 @@ async function registerUser(email, password, fullName, phone, address) {
   // Check if email already exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
-    const error = new Error('Email đã được sử dụng');
+    const error = new Error("Email đã được sử dụng");
     error.statusCode = 400;
     throw error;
   }
@@ -29,15 +145,18 @@ async function registerUser(email, password, fullName, phone, address) {
     fullName: fullName.trim(),
     phone: phone.trim(),
     address: address.trim(),
-    role: 'user'
+    role: "user",
   });
 
   // Generate JWT token
-  const token = generateJWT({
-    userId: user._id,
-    email: user.email,
-    role: user.role
-  }, '7d');
+  const token = generateJWT(
+    {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    },
+    "7d",
+  );
 
   // Return user without password
   const userResponse = {
@@ -48,7 +167,7 @@ async function registerUser(email, password, fullName, phone, address) {
     address: user.address,
     role: user.role,
     isVerified: user.isVerified,
-    kycStatus: user.kycStatus
+    kycStatus: user.kycStatus,
   };
 
   return { user: userResponse, token };
@@ -64,21 +183,27 @@ async function loginUser(email, password) {
   // Find user by email
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
-    const error = new Error('Email hoặc mật khẩu không đúng');
+    const error = new Error("Email hoặc mật khẩu không đúng");
     error.statusCode = 401;
     throw error;
   }
 
   // Check if account is suspended
   if (user.isSuspended) {
-    const isModeratorReviewSuspension = String(user.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
+    const isModeratorReviewSuspension = String(
+      user.suspendedReason || "",
+    ).includes("Vi phạm đánh giá do moderator xử lý");
     const belowModeratorThreshold = Number(user.modBadReviewCount || 0) < 3;
-    const isLegacyUnknownSuspension = !String(user.suspendedReason || '').trim();
+    const isLegacyUnknownSuspension = !String(
+      user.suspendedReason || "",
+    ).trim();
     const belowViolationThreshold = Number(user.violationCount || 0) < 3;
 
     if (
       (isModeratorReviewSuspension && belowModeratorThreshold) ||
-      (isLegacyUnknownSuspension && belowModeratorThreshold && belowViolationThreshold)
+      (isLegacyUnknownSuspension &&
+        belowModeratorThreshold &&
+        belowViolationThreshold)
     ) {
       user.isSuspended = false;
       user.suspendedUntil = undefined;
@@ -86,7 +211,8 @@ async function loginUser(email, password) {
       await user.save();
     }
 
-    const suspensionExpired = user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
+    const suspensionExpired =
+      user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
     if (!user.isSuspended || suspensionExpired) {
       user.isSuspended = false;
       user.suspendedUntil = undefined;
@@ -94,12 +220,14 @@ async function loginUser(email, password) {
       await user.save();
     } else {
       const suspendedUntilText = user.suspendedUntil
-        ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
-        : '';
+        ? ` đến ${new Date(user.suspendedUntil).toLocaleString("vi-VN")}`
+        : "";
       const reasonText = user.suspendedReason
         ? ` Lý do: ${user.suspendedReason}`
-        : ' Lý do: vi phạm chính sách của hệ thống.';
-      const error = new Error(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+        : " Lý do: vi phạm chính sách của hệ thống.";
+      const error = new Error(
+        `Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`,
+      );
       error.statusCode = 403;
       throw error;
     }
@@ -108,17 +236,20 @@ async function loginUser(email, password) {
   // Verify password
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
-    const error = new Error('Email hoặc mật khẩu không đúng');
+    const error = new Error("Email hoặc mật khẩu không đúng");
     error.statusCode = 401;
     throw error;
   }
 
   // Generate JWT token
-  const token = generateJWT({
-    userId: user._id,
-    email: user.email,
-    role: user.role
-  }, '7d');
+  const token = generateJWT(
+    {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    },
+    "7d",
+  );
 
   // Return user without password
   const userResponse = {
@@ -129,7 +260,7 @@ async function loginUser(email, password) {
     address: user.address,
     role: user.role,
     isVerified: user.isVerified,
-    kycStatus: user.kycStatus
+    kycStatus: user.kycStatus,
   };
 
   return { user: userResponse, token };
@@ -142,22 +273,28 @@ async function loginUser(email, password) {
  */
 async function getUserById(userId) {
   const user = await User.findById(userId);
-  
+
   if (!user) {
-    const error = new Error('User không tồn tại');
+    const error = new Error("User không tồn tại");
     error.statusCode = 404;
     throw error;
   }
 
   if (user.isSuspended) {
-    const isModeratorReviewSuspension = String(user.suspendedReason || '').includes('Vi phạm đánh giá do moderator xử lý');
+    const isModeratorReviewSuspension = String(
+      user.suspendedReason || "",
+    ).includes("Vi phạm đánh giá do moderator xử lý");
     const belowModeratorThreshold = Number(user.modBadReviewCount || 0) < 3;
-    const isLegacyUnknownSuspension = !String(user.suspendedReason || '').trim();
+    const isLegacyUnknownSuspension = !String(
+      user.suspendedReason || "",
+    ).trim();
     const belowViolationThreshold = Number(user.violationCount || 0) < 3;
 
     if (
       (isModeratorReviewSuspension && belowModeratorThreshold) ||
-      (isLegacyUnknownSuspension && belowModeratorThreshold && belowViolationThreshold)
+      (isLegacyUnknownSuspension &&
+        belowModeratorThreshold &&
+        belowViolationThreshold)
     ) {
       user.isSuspended = false;
       user.suspendedUntil = undefined;
@@ -165,7 +302,8 @@ async function getUserById(userId) {
       await user.save();
     }
 
-    const suspensionExpired = user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
+    const suspensionExpired =
+      user.suspendedUntil && new Date(user.suspendedUntil) <= new Date();
     if (!user.isSuspended || suspensionExpired) {
       user.isSuspended = false;
       user.suspendedUntil = undefined;
@@ -173,12 +311,14 @@ async function getUserById(userId) {
       await user.save();
     } else {
       const suspendedUntilText = user.suspendedUntil
-        ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
-        : '';
+        ? ` đến ${new Date(user.suspendedUntil).toLocaleString("vi-VN")}`
+        : "";
       const reasonText = user.suspendedReason
         ? ` Lý do: ${user.suspendedReason}`
-        : ' Lý do: vi phạm chính sách của hệ thống.';
-      const error = new Error(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+        : " Lý do: vi phạm chính sách của hệ thống.";
+      const error = new Error(
+        `Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`,
+      );
       error.statusCode = 403;
       throw error;
     }
@@ -190,7 +330,7 @@ async function getUserById(userId) {
     fullName: user.fullName,
     role: user.role,
     isVerified: user.isVerified,
-    kycStatus: user.kycStatus
+    kycStatus: user.kycStatus,
   };
 }
 
@@ -204,7 +344,7 @@ async function changeUserPassword(userId, currentPassword, newPassword) {
   const user = await User.findById(userId);
 
   if (!user) {
-    const error = new Error('User không tồn tại');
+    const error = new Error("User không tồn tại");
     error.statusCode = 404;
     throw error;
   }
@@ -218,7 +358,7 @@ async function changeUserPassword(userId, currentPassword, newPassword) {
 
   const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
   if (!isPasswordValid) {
-    const error = new Error('Mật khẩu hiện tại không đúng');
+    const error = new Error("Mật khẩu hiện tại không đúng");
     error.statusCode = 400;
     throw error;
   }
@@ -241,7 +381,7 @@ async function generatePasswordResetToken(email) {
   const user = await User.findOne({ email: email.toLowerCase() });
 
   if (!user) {
-    const error = new Error('Email không tồn tại');
+    const error = new Error("Email không tồn tại");
     error.statusCode = 404;
     throw error;
   }
@@ -251,9 +391,9 @@ async function generatePasswordResetToken(email) {
       userId: user._id,
       email: user.email,
       role: user.role,
-      purpose: 'password_reset'
+      purpose: "password_reset",
     },
-    '1h'
+    "1h",
   );
 
   return token;
@@ -274,8 +414,8 @@ async function resetPasswordWithToken(token, newPassword) {
     throw error;
   }
 
-  if (decoded.purpose !== 'password_reset') {
-    const err = new Error('Token đặt lại mật khẩu không hợp lệ');
+  if (decoded.purpose !== "password_reset") {
+    const err = new Error("Token đặt lại mật khẩu không hợp lệ");
     err.statusCode = 400;
     throw err;
   }
@@ -290,7 +430,7 @@ async function resetPasswordWithToken(token, newPassword) {
   const user = await User.findById(decoded.userId);
 
   if (!user) {
-    const error = new Error('User không tồn tại');
+    const error = new Error("User không tồn tại");
     error.statusCode = 404;
     throw error;
   }
@@ -308,5 +448,6 @@ module.exports = {
   getUserById,
   changeUserPassword,
   generatePasswordResetToken,
-  resetPasswordWithToken
+  resetPasswordWithToken,
+  loginWithGoogle,
 };
