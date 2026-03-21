@@ -53,7 +53,16 @@ export function AuthProvider({ children }) {
     setUser(result.user);
     setToken(result.token);
     localStorage.setItem('token', result.token);
-    localStorage.setItem('user', JSON.stringify(result.user)); 
+    localStorage.setItem('user', JSON.stringify(result.user));
+    return result.user;
+  };
+
+  const loginWithGoogle = async (idToken) => {
+    const result = await authService.loginWithGoogle(idToken);
+    setUser(result.user);
+    setToken(result.token);
+    localStorage.setItem('token', result.token);
+    localStorage.setItem('user', JSON.stringify(result.user));
     return result.user;
   };
 
@@ -88,6 +97,7 @@ export function AuthProvider({ children }) {
     token,
     isAuthenticated: !!user,
     login,
+    loginWithGoogle,
     register,
     logout,
     changePassword,

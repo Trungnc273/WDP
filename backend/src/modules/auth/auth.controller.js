@@ -4,6 +4,23 @@ const { validateStrongPassword } = require('../../common/validators/password.val
 const { createNotification } = require('../notifications/notification.service');
 const { verifyToken } = require('../../common/utils/jwt.util');
 
+
+async function googleLogin(req, res, next) {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return sendError(res, 400, 'Vui lòng cung cấp idToken của Google');
+    }
+
+    const result = await authService.loginWithGoogle(idToken);
+
+    return sendSuccess(res, 200, result, 'Đăng nhập Google thành công');
+  } catch (error) {
+    return sendError(res, error.statusCode || 500, error.message || 'Đăng nhập Google thất bại');
+  }
+}
+
 /**
  * Register a new user
  * POST /api/auth/register
@@ -232,5 +249,6 @@ module.exports = {
   logout,
   changePassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  googleLogin
 };
