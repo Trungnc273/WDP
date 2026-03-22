@@ -9,13 +9,11 @@ function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [resetToken, setResetToken] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setResetToken('');
 
     if (!email) {
       setError('Vui lòng nhập email');
@@ -24,15 +22,12 @@ function ForgotPassword() {
 
     setLoading(true);
     try {
-      //gọi API yêu cầu reset pass
-      const data = await forgotPassword(email);
-      setSuccess('Nếu email tồn tại, chúng tôi đã tạo token đặt lại mật khẩu.');
-      //backend trả về resetToken, lưu vào state để hiển thị box hỗ trợ tester
-      if (data?.resetToken) {
-        setResetToken(data.resetToken);
-      }
+      // Gọi API yêu cầu cấp mật khẩu tạm thời
+      await forgotPassword(email);
+      // Hiển thị câu thông báo thành công
+      setSuccess('Mật khẩu tạm thời đã được gửi vào email của bạn. Vui lòng kiểm tra hộp thư.');
     } catch (err) {
-      setError(err.message || 'Yêu cầu đặt lại mật khẩu thất bại');
+      setError(err.message || 'Yêu cầu cấp lại mật khẩu thất bại');
     } finally {
       setLoading(false);
     }
@@ -43,7 +38,7 @@ function ForgotPassword() {
       <div className="auth-card">
         <h2>Quên mật khẩu</h2>
         <p className="auth-description">
-          Nhập email của bạn để nhận token đặt lại mật khẩu.
+          Nhập email của bạn để nhận mật khẩu tạm thời.
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -71,24 +66,6 @@ function ForgotPassword() {
               <i className="fas fa-check-circle"></i> {success}
             </div>
           )}
-        {/* bên dưới phần Render */}
-          {resetToken && (
-            <div className="token-box">
-              <p><strong>Reset token (dùng để test):</strong></p>
-              <code>{resetToken}</code>
-              <p className="token-hint">
-                Bạn có thể nhấn nút dưới đây để chuyển sang trang Đặt lại mật khẩu với token này.
-              </p>
-              <div className="token-action">
-                <Link
-                  to={`/reset-password?token=${encodeURIComponent(resetToken)}`}
-                  className="btn-token-link"
-                >
-                  Đi đến trang Đặt lại mật khẩu
-                </Link>
-              </div>
-            </div>
-          )}
 
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Đang gửi...' : 'Gửi yêu cầu'}
@@ -106,4 +83,3 @@ function ForgotPassword() {
 }
 
 export default ForgotPassword;
-
