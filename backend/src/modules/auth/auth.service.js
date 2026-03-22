@@ -165,6 +165,13 @@ async function registerUser(email, password, fullName, phone, address) {
     throw error;
   }
 
+  const existingPhone = await User.findOne({ phone: phone.trim() });
+  if (existingPhone) {
+    const error = new Error("Số điện thoại này đã được đăng ký cho một tài khoản khác");
+    error.statusCode = 400;
+    throw error;
+  }
+
   // Hash password with bcrypt (10 salt rounds)
   const hashedPassword = await bcrypt.hash(password, 10);
 

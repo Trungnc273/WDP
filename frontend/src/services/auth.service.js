@@ -1,9 +1,9 @@
 import api from "./api";
 
 export const authService = {
-  async register(email, password, fullName, phone, address) {
+  async requestRegisterOtp(email, password, fullName, phone, address) {
     try {
-      const response = await api.post("/auth/register", {
+      const response = await api.post("/auth/register/request-otp", {
         email,
         password,
         fullName,
@@ -12,12 +12,29 @@ export const authService = {
       });
 
       if (response.data.success) {
-        return response.data.data;
+        return response.data;
       } else {
-        throw new Error(response.data.message || "Đăng ký thất bại");
+        throw new Error(response.data.message || "Yêu cầu gửi mã OTP thất bại");
       }
     } catch (error) {
-      throw error;
+      throw error.response?.data || error;
+    }
+  },
+
+  async verifyAndRegister(email, otpCode) {
+    try {
+      const response = await api.post("/auth/register/verify", {
+        email,
+        otpCode,
+      });
+
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || "Xác thực OTP thất bại");
+      }
+    } catch (error) {
+      throw error.response?.data || error;
     }
   },
 
