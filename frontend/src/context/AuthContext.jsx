@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { authService } from '../services/auth.service';
+import React, { createContext, useState, useEffect } from "react";
+import { authService } from "../services/auth.service";
 
 export const AuthContext = createContext();
 
@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Tai thong tin nguoi dung tu localStorage khi component mount
-    const storedToken = localStorage.getItem('token');
+    const storedToken = localStorage.getItem("token");
     if (storedToken) {
       loadUser(storedToken);
     } else {
@@ -23,11 +23,11 @@ export function AuthProvider({ children }) {
       const userData = await authService.getProfile(token);
       setUser(userData);
       setToken(token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem("user", JSON.stringify(userData));
     } catch (error) {
       // Token khong hop le hoac da het han
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       setUser(null);
       setToken(null);
     } finally {
@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
   };
 
   const refreshUser = async () => {
-    const currentToken = token || localStorage.getItem('token');
+    const currentToken = token || localStorage.getItem("token");
     if (!currentToken) {
       return null;
     }
@@ -44,7 +44,7 @@ export function AuthProvider({ children }) {
     const userData = await authService.getProfile(currentToken);
     setUser(userData);
     setToken(currentToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(userData));
     return userData;
   };
 
@@ -52,8 +52,8 @@ export function AuthProvider({ children }) {
     const result = await authService.login(email, password);
     setUser(result.user);
     setToken(result.token);
-    localStorage.setItem('token', result.token);
-    localStorage.setItem('user', JSON.stringify(result.user));
+    localStorage.setItem("token", result.token);
+    localStorage.setItem("user", JSON.stringify(result.user));
     return result.user;
   };
 
@@ -61,23 +61,29 @@ export function AuthProvider({ children }) {
     const result = await authService.loginWithGoogle(idToken);
     setUser(result.user);
     setToken(result.token);
-    localStorage.setItem('token', result.token);
-    localStorage.setItem('user', JSON.stringify(result.user));
+    localStorage.setItem("token", result.token);
+    localStorage.setItem("user", JSON.stringify(result.user));
     return result.user;
   };
 
   const register = async (email, password, fullName, phone, address) => {
-    const result = await authService.register(email, password, fullName, phone, address);
+    const result = await authService.register(
+      email,
+      password,
+      fullName,
+      phone,
+      address,
+    );
     setUser(result.user);
     setToken(result.token);
-    localStorage.setItem('token', result.token);
+    localStorage.setItem("token", result.token);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   };
 
   const changePassword = async (currentPassword, newPassword) => {
@@ -86,10 +92,6 @@ export function AuthProvider({ children }) {
 
   const forgotPassword = async (email) => {
     return authService.forgotPassword(email);
-  };
-
-  const resetPassword = async (token, newPassword) => {
-    return authService.resetPassword(token, newPassword);
   };
 
   const value = {
@@ -102,7 +104,6 @@ export function AuthProvider({ children }) {
     logout,
     changePassword,
     forgotPassword,
-    resetPassword,
     refreshUser,
     loading,
   };

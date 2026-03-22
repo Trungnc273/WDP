@@ -4,6 +4,7 @@ const { generateJWT, verifyToken } = require("../../common/utils/jwt.util");
 const {
   validateStrongPassword,
 } = require("../../common/validators/password.validator");
+const { createNotification } = require("../notifications/notification.service");
 const admin = require("../../config/firebase");
 const crypto = require("crypto");
 
@@ -117,6 +118,35 @@ async function loginWithGoogle(idToken) {
   };
 
   return { user: userResponse, token };
+}
+
+async function generateAndSetTempPassword(email) {
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    const error = new Error("Email không tồn tại trong hệ thống");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Tạo mật khẩu ngẫu nhiên: 8 ký tự hex + 'A1@' để thỏa mãn mọi điều kiện validation
+  const tempPassword = crypto.randomBytes(4).toString("hex") + "A1@";
+
+  // Mã hóa mật khẩu tạm thời và lưu đè vào DB
+  const hashedPassword = await bcrypt.hash(tempPassword, 10);
+  user.password = hashedPassword;
+  await user.save();
+  try {
+    await createNotification(user._id, {
+      type: "security",
+      title: "⚠️ Đổi mật khẩu bảo mật",
+      message:
+        'Tài khoản của bạn vừa được đăng nhập bằng mật khẩu tạm thời. Để đảm bảo an toàn tuyệt đối, vui lòng vào mục "Đổi mật khẩu" để cập nhật lại mật khẩu mới của riêng bạn ngay lập tức.',
+    });
+  } catch (notifError) {
+    console.error("Lỗi khi tạo thông báo nhắc đổi pass:", notifError);
+  }
+  return tempPassword;
 }
 
 /**
@@ -450,4 +480,5 @@ module.exports = {
   generatePasswordResetToken,
   resetPasswordWithToken,
   loginWithGoogle,
+  generateAndSetTempPassword,
 };
