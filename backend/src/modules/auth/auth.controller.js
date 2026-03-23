@@ -5,7 +5,7 @@ const {
 } = require("../../common/validators/password.validator");
 const { createNotification } = require("../notifications/notification.service");
 const { verifyToken } = require("../../common/utils/jwt.util");
-const { sendTempPasswordEmail, sendRegisterOtpEmail } = require("../../common/utils/email.util");
+const { sendTempPasswordEmail, sendRegisterOtpEmail, sendLogin2faOtpEmail } = require("../../common/utils/email.util");
 const otpManager = require("../../common/utils/otp.manager");
 const User = require("../users/user.model");
 
@@ -157,6 +157,12 @@ async function login(req, res, next) {
 
     // Call service to login user
     const result = await authService.loginUser(email, password);
+    if (result.requires2FA) {
+      const otpCode = otpManager.generateAndSaveOtp(result.user.email, { purpose: 'login_2fa', userId: result.user.id });
+      await sendLogin2faOtpEmail(result.user.email, otpCode);
+      
+      return sendSuccess(res, 200, { requires2FA: true, email: result.user.email }, "Mã OTP đã được gửi đến email để xác thực 2FA");
+    }
 
     return sendSuccess(res, 200, result, "Đăng nhập thành công");
   } catch (error) {
@@ -165,6 +171,25 @@ async function login(req, res, next) {
       error.statusCode || 500,
       error.message || "Đăng nhập thất bại",
     );
+  }
+}
+
+
+async function verifyLogin2FA(req, res, next) {
+  try {
+    const { email, otpCode } = req.body;
+    if (!email || !otpCode) return sendError(res, 400, "Vui lòng cung cấp email và mã OTP");
+
+    const otpCheck = otpManager.verifyOtp(email, otpCode);
+    if (!otpCheck.valid || otpCheck.userData.purpose !== 'login_2fa') {
+      return sendError(res, 400, otpCheck.message || "Mã OTP không hợp lệ");
+    }
+
+    // Đã verify OTP đúng, tiến hành cấp Token
+    const result = await authService.complete2FALogin(otpCheck.userData.userId);
+    return sendSuccess(res, 200, result, "Đăng nhập 2FA thành công");
+  } catch (error) {
+    return sendError(res, error.statusCode || 500, error.message || "Xác thực 2FA thất bại");
   }
 }
 
@@ -344,6 +369,7 @@ module.exports = {
   requestRegisterOtp,
   verifyAndRegister,
   login,
+  verifyLogin2FA,
   getProfile,
   logout,
   changePassword,

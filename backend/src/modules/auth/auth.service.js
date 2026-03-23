@@ -278,6 +278,10 @@ async function loginUser(email, password) {
     throw error;
   }
 
+  if (user.role === 'user') {
+    return { requires2FA: true, user: { id: user._id, email: user.email } };
+  }
+
   // Generate JWT token
   const token = generateJWT(
     {

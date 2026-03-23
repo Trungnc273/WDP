@@ -21,6 +21,7 @@ router.post('/register/verify', authController.verifyAndRegister);
  * Public route
  */
 router.post('/login', authController.login);
+router.post('/login/verify-2fa', authController.verifyLogin2FA);
 
 /**
  * GET /api/auth/profile

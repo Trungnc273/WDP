@@ -55,6 +55,16 @@ export const authService = {
     }
   },
 
+  async verifyLogin2FA(email, otpCode) {
+    try {
+      const response = await api.post("/auth/login/verify-2fa", { email, otpCode });
+      if (response.data.success) return response.data.data;
+      throw new Error(response.data.message);
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   async loginWithGoogle(idToken) {
     try {
       const response = await api.post("/auth/google", { idToken });
