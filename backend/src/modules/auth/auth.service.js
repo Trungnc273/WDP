@@ -278,10 +278,6 @@ async function loginUser(email, password) {
     throw error;
   }
 
-  if (user.role === 'user') {
-    return { requires2FA: true, user: { id: user._id, email: user.email } };
-  }
-
   // Generate JWT token
   const token = generateJWT(
     {
@@ -369,6 +365,9 @@ async function getUserById(userId) {
     id: user._id,
     email: user.email,
     fullName: user.fullName,
+    avatar: user.avatar,
+    phone: user.phone,
+    address: user.address,
     role: user.role,
     isVerified: user.isVerified,
     kycStatus: user.kycStatus,

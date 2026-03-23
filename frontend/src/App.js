@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Link, useLocation, useNavigate } from 'react-router-dom';
+import { getUserAvatarUrl } from './utils/imageHelper';
 import { useAuth } from './hooks/useAuth';
 import AppRoutes from './routes';
 import MobileMenu from './components/MobileMenu';
@@ -291,8 +292,9 @@ function AppShell() {
                       onClick={() => setShowUserMenu(!showUserMenu)}
                     >
                       <img 
-                        src="/images/placeholders/avatar-placeholder.svg"
+                        src={getUserAvatarUrl(user)}
                         alt={user?.fullName}
+                        onError={(e) => { e.currentTarget.src = '/images/placeholders/avatar-placeholder.svg'; }}
                       />
                       <span className="navbar__user-arrow">▼</span>
                     </button>
@@ -302,8 +304,9 @@ function AppShell() {
                         <div className="user-dropdown-menu__header">
                           <div className="user-dropdown-menu__avatar">
                             <img 
-                              src="/images/placeholders/avatar-placeholder.svg"
+                              src={getUserAvatarUrl(user)}
                               alt={user?.fullName}
+                              onError={(e) => { e.currentTarget.src = '/images/placeholders/avatar-placeholder.svg'; }}
                             />
                           </div>
                           <div className="user-dropdown-menu__info">

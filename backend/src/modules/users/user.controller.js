@@ -1,6 +1,30 @@
 const userService = require('./user.service');
 const { sendSuccess, sendError } = require('../../common/utils/response.util');
 const { validateStrongPassword } = require('../../common/validators/password.validator');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+
+// Multer storage dành riêng cho avatar
+const avatarStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../../../uploads/avatars');
+    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `avatar-${req.user.userId}-${Date.now()}${ext}`);
+  }
+});
+const uploadAvatarMiddleware = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Chỉ chấp nhận file ảnh'));
+  }
+}).single('avatar');
 
 /**
  * User Controller
@@ -50,21 +74,30 @@ async function updateProfile(req, res) {
  * POST /api/users/avatar
  */
 async function uploadAvatar(req, res) {
-  try {
-    const userId = req.user.userId;
-    const { avatarUrl } = req.body;
-    
-    if (!avatarUrl) {
-      return sendError(res, 400, 'Vui lòng cung cấp URL avatar');
+  uploadAvatarMiddleware(req, res, async (err) => {
+    if (err) return sendError(res, 400, err.message);
+
+    try {
+      const userId = req.user.userId;
+      let avatarUrl;
+
+      if (req.file) {
+        // File upload thực tế qua multipart/form-data
+        avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      } else if (req.body?.avatarUrl) {
+        // Backward compat: gửi URL string qua JSON
+        avatarUrl = req.body.avatarUrl;
+      } else {
+        return sendError(res, 400, 'Vui lòng cung cấp file ảnh hoặc URL avatar');
+      }
+
+      const user = await userService.uploadAvatar(userId, avatarUrl);
+      sendSuccess(res, 200, user, 'Cập nhật avatar thành công');
+    } catch (error) {
+      console.error('Upload avatar error:', error);
+      sendError(res, 400, error.message);
     }
-    
-    const user = await userService.uploadAvatar(userId, avatarUrl);
-    
-    sendSuccess(res, 200, user, 'Cập nhật avatar thành công');
-  } catch (error) {
-    console.error('Upload avatar error:', error);
-    sendError(res, 400, error.message);
-  }
+  });
 }
 
 /**

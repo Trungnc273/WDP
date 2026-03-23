@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import { getProfile, getKYCStatus } from '../../services/user.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './Profile.css';
 
 function Profile() {
@@ -123,7 +124,12 @@ function Profile() {
           <div className="profile-avatar-section">
             <div className="avatar-container">
               {profile?.avatar ? (
-                <img src={profile.avatar} alt={profile.fullName} className="profile-avatar" />
+                <img 
+                  src={getImageUrl(profile.avatar)} 
+                  alt={profile.fullName} 
+                  className="profile-avatar"
+                  onError={(e) => { e.currentTarget.style.display='none'; }}
+                />
               ) : (
                 <div className="avatar-placeholder">
                   {profile?.fullName?.charAt(0).toUpperCase()}

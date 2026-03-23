@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, uploadAvatar } from '../../services/user.service';
+import { useAuth } from '../../hooks/useAuth';
+import { getImageUrl } from '../../utils/imageHelper';
 import './EditProfile.css';
 
 const EditProfile = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   
   const [profile, setProfile] = useState({
     fullName: '',
@@ -35,7 +38,7 @@ const EditProfile = () => {
         address: userData.address || '',
         avatar: userData.avatar || ''
       });
-      setAvatarPreview(userData.avatar || '');
+      setAvatarPreview(userData.avatar ? getImageUrl(userData.avatar) : '');
       setError('');
     } catch (error) {
       setError('Không thể tải thông tin profile');
@@ -98,13 +101,12 @@ const EditProfile = () => {
     setSuccess('');
 
     try {
-      // Upload avatar truoc neu co file moi
       let avatarUrl = profile.avatar;
       if (avatarFile) {
-        // Trong he thong that, ban se upload len dich vu luu tru file
-        // Tam thoi dung URL preview lam du lieu thay the
-        avatarUrl = avatarPreview;
-        await uploadAvatar(avatarUrl);
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        const uploadRes = await uploadAvatar(formData);
+        avatarUrl = uploadRes?.data?.avatar || uploadRes?.avatar || avatarUrl;
       }
 
       // Cap nhat thong tin ca nhan
@@ -116,6 +118,9 @@ const EditProfile = () => {
 
       setSuccess('Cập nhật thông tin thành công!');
       
+      // Dong bo lai AuthContext de avatar moi hien thi ngay tren navbar
+      try { await refreshUser(); } catch (_) {}
+
       // Chuyen huong sau 2 giay
       setTimeout(() => {
         navigate('/profile');

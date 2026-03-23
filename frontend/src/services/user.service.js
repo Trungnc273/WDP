@@ -26,8 +26,10 @@ export const updateProfile = async (profileData) => {
  * Cập nhật ảnh đại diện
  * @param {string} avatarUrl - Đường dẫn ảnh đại diện
  */
-export const uploadAvatar = async (avatarUrl) => {
-  const response = await api.post('/users/avatar', { avatarUrl });
+export const uploadAvatar = async (formData) => {
+  const response = await api.post('/users/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
   return response.data;
 };
 
