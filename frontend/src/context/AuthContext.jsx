@@ -50,6 +50,18 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const result = await authService.login(email, password);
+    if (result.requires2FA) {
+      return result; 
+    }
+    setUser(result.user);
+    setToken(result.token);
+    localStorage.setItem("token", result.token);
+    localStorage.setItem("user", JSON.stringify(result.user));
+    return result.user;
+  };
+
+  const verifyLogin2FA = async (email, otpCode) => {
+    const result = await authService.verifyLogin2FA(email, otpCode);
     setUser(result.user);
     setToken(result.token);
     localStorage.setItem("token", result.token);
@@ -111,6 +123,7 @@ export function AuthProvider({ children }) {
     token,
     isAuthenticated: !!user,
     login,
+    verifyLogin2FA,
     loginWithGoogle,
     requestRegisterOtp,
     verifyAndRegister,

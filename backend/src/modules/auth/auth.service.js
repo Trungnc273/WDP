@@ -278,6 +278,10 @@ async function loginUser(email, password) {
     throw error;
   }
 
+  if (user.role === 'user') {
+    return { requires2FA: true, user: { id: user._id, email: user.email } };
+  }
+
   // Generate JWT token
   const token = generateJWT(
     {
@@ -479,6 +483,20 @@ async function resetPasswordWithToken(token, newPassword) {
   return true;
 }
 
+async function complete2FALogin(userId) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User không tồn tại");
+
+  const token = generateJWT({ userId: user._id, email: user.email, role: user.role }, "7d");
+  
+  const userResponse = {
+    id: user._id, email: user.email, fullName: user.fullName, phone: user.phone,
+    address: user.address, role: user.role, isVerified: user.isVerified, kycStatus: user.kycStatus,
+  };
+
+  return { user: userResponse, token };
+}
+
 module.exports = {
   registerUser,
   loginUser,
@@ -488,4 +506,5 @@ module.exports = {
   resetPasswordWithToken,
   loginWithGoogle,
   generateAndSetTempPassword,
+  complete2FALogin
 };
