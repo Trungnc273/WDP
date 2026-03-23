@@ -64,4 +64,27 @@ async function sendRegisterOtpEmail(toEmail, otpCode) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendTempPasswordEmail, sendRegisterOtpEmail };
+async function sendLogin2faOtpEmail(toEmail, otpCode) {
+  const mailOptions = {
+    from: `"Reflow Security" <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: "Mã xác thực đăng nhập 2FA",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6; color: #333;">
+        <h2 style="color: #000;">Xác thực đăng nhập,</h2>
+        <p>Hệ thống phát hiện yêu cầu đăng nhập vào tài khoản của bạn. Vui lòng sử dụng mã xác thực (OTP) dưới đây để hoàn tất đăng nhập:</p>
+        
+        <div style="background-color: #e6f7ff; padding: 15px; text-align: center; border-radius: 8px; font-size: 28px; letter-spacing: 5px; font-weight: bold; color: #0050b3; margin: 20px 0; border: 1px solid #91d5ff;">
+          ${otpCode}
+        </div>
+        
+        <p style="color: #cf1322; font-size: 14px;"><strong>Lưu ý:</strong> Mã OTP có hiệu lực trong 5 phút. KHÔNG CHIA SẺ mã này cho bất kỳ ai.</p>
+        <p>Nếu bạn không thực hiện đăng nhập, tài khoản của bạn có thể đang gặp rủi ro. Vui lòng đổi mật khẩu ngay lập tức.</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+module.exports = { sendTempPasswordEmail, sendRegisterOtpEmail, sendLogin2faOtpEmail };
