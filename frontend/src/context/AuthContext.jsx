@@ -66,17 +66,29 @@ export function AuthProvider({ children }) {
     return result.user;
   };
 
-  const register = async (email, password, fullName, phone, address) => {
-    const result = await authService.register(
+  const requestRegisterOtp = async (
+    email,
+    password,
+    fullName,
+    phone,
+    address,
+  ) => {
+    return await authService.requestRegisterOtp(
       email,
       password,
       fullName,
       phone,
       address,
     );
+  };
+
+  const verifyAndRegister = async (email, otpCode) => {
+    const result = await authService.verifyAndRegister(email, otpCode);
     setUser(result.user);
     setToken(result.token);
     localStorage.setItem("token", result.token);
+    localStorage.setItem("user", JSON.stringify(result.user));
+    return result.user;
   };
 
   const logout = () => {
@@ -100,7 +112,8 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     login,
     loginWithGoogle,
-    register,
+    requestRegisterOtp,
+    verifyAndRegister,
     logout,
     changePassword,
     forgotPassword,

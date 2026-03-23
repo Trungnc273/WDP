@@ -39,4 +39,29 @@ async function sendTempPasswordEmail(toEmail, tempPassword) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendTempPasswordEmail };
+async function sendRegisterOtpEmail(toEmail, otpCode) {
+  const mailOptions = {
+    from: `"Reflow Security" <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: "Mã xác thực đăng ký tài khoản",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6; color: #333;">
+        <h2 style="color: #000;">Xác thực tài khoản,</h2>
+        <p>Cảm ơn bạn đã đăng ký tài khoản tại Reflow. Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã xác thực (OTP) dưới đây:</p>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; text-align: center; border-radius: 8px; font-size: 28px; letter-spacing: 5px; font-weight: bold; color: #1a1a1a; margin: 20px 0; border: 1px solid #ccc;">
+          ${otpCode}
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">Mã OTP này có hiệu lực trong vòng <strong>5 phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+        <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+        <br/>
+        <p>Trân trọng,<br/><strong>Đội ngũ Reflow</strong></p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+module.exports = { sendTempPasswordEmail, sendRegisterOtpEmail };

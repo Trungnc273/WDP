@@ -5,7 +5,122 @@ const {
 } = require("../../common/validators/password.validator");
 const { createNotification } = require("../notifications/notification.service");
 const { verifyToken } = require("../../common/utils/jwt.util");
-const { sendTempPasswordEmail } = require("../../common/utils/email.util");
+const { sendTempPasswordEmail, sendRegisterOtpEmail } = require("../../common/utils/email.util");
+const otpManager = require("../../common/utils/otp.manager");
+const User = require("../users/user.model");
+
+/**
+ * Yêu cầu gửi OTP đăng ký
+ * POST /api/auth/register/request-otp
+ */
+async function requestRegisterOtp(req, res, next) {
+  try {
+    const { email, password, fullName, phone, address } = req.body;
+
+    // Validate (giữ nguyên logic validate cũ của bảnh)
+    if (!email || !password || !fullName || !phone || !address) {
+      return sendError(res, 400, "Vui lòng điền đầy đủ thông tin");
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return sendError(res, 400, "Email không hợp lệ");
+    }
+    if (password.length < 6) {
+      return sendError(res, 400, "Mật khẩu phải có ít nhất 6 ký tự");
+    }
+    if (fullName.trim().length === 0) {
+      return sendError(res, 400, "Họ tên không được để trống");
+    }
+    const phoneRegex = /^0\d{9,10}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      return sendError(
+        res,
+        400,
+        "Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số",
+      );
+    }
+    if (address.trim().length === 0) {
+      return sendError(res, 400, "Địa chỉ không được để trống");
+    }
+
+    // Kiểm tra xem email đã tồn tại trong DB chưa trước khi gửi OTP
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return sendError(res, 400, "Email đã được sử dụng trong hệ thống");
+    }
+
+    const existingPhone = await User.findOne({ phone: phone.trim() });
+    if (existingPhone) {
+      return sendError(res, 400, "Số điện thoại này đã được đăng ký cho một tài khoản khác");
+    }
+
+    // Đưa data vào quản lý OTP và lấy mã
+    const otpCode = otpManager.generateAndSaveOtp(email, {
+      email,
+      password,
+      fullName,
+      phone,
+      address,
+    });
+
+    // Gửi email
+    await sendRegisterOtpEmail(email, otpCode);
+
+    return sendSuccess(
+      res,
+      200,
+      null,
+      "Mã xác thực OTP đã được gửi đến email của bạn.",
+    );
+  } catch (error) {
+    return sendError(res, 500, error.message || "Yêu cầu gửi OTP thất bại");
+  }
+}
+
+/**
+ * Xác thực OTP và Tạo tài khoản
+ * POST /api/auth/register/verify
+ */
+async function verifyAndRegister(req, res, next) {
+  try {
+    const { email, otpCode } = req.body;
+
+    if (!email || !otpCode) {
+      return sendError(res, 400, "Vui lòng cung cấp email và mã OTP");
+    }
+
+    // Kiểm tra OTP
+    const otpCheck = otpManager.verifyOtp(email, otpCode);
+    if (!otpCheck.valid) {
+      return sendError(res, 400, otpCheck.message);
+    }
+
+    // Nếu OTP đúng, gọi service đăng ký gốc (bản thân service registerUser đã băm mật khẩu và lưu DB)
+    const {
+      email: savedEmail,
+      password,
+      fullName,
+      phone,
+      address,
+    } = otpCheck.userData;
+
+    const result = await authService.registerUser(
+      savedEmail,
+      password,
+      fullName,
+      phone,
+      address,
+    );
+
+    return sendSuccess(res, 201, result, "Đăng ký tài khoản thành công");
+  } catch (error) {
+    return sendError(
+      res,
+      error.statusCode || 500,
+      error.message || "Đăng ký thất bại",
+    );
+  }
+}
 
 async function googleLogin(req, res, next) {
   try {
@@ -23,69 +138,6 @@ async function googleLogin(req, res, next) {
       res,
       error.statusCode || 500,
       error.message || "Đăng nhập Google thất bại",
-    );
-  }
-}
-
-/**
- * Register a new user
- * POST /api/auth/register
- */
-async function register(req, res, next) {
-  try {
-    const { email, password, fullName, phone, address } = req.body;
-
-    // Validate required fields
-    if (!email || !password || !fullName || !phone || !address) {
-      return sendError(res, 400, "Vui lòng điền đầy đủ thông tin");
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return sendError(res, 400, "Email không hợp lệ");
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      return sendError(res, 400, "Mật khẩu phải có ít nhất 6 ký tự");
-    }
-
-    // Validate full name not empty
-    if (fullName.trim().length === 0) {
-      return sendError(res, 400, "Họ tên không được để trống");
-    }
-
-    // Validate phone
-    const phoneRegex = /^0\d{9,10}$/;
-    if (!phoneRegex.test(phone.trim())) {
-      return sendError(
-        res,
-        400,
-        "Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số",
-      );
-    }
-
-    // Validate address not empty
-    if (address.trim().length === 0) {
-      return sendError(res, 400, "Địa chỉ không được để trống");
-    }
-
-    // Call service to register user
-    const result = await authService.registerUser(
-      email,
-      password,
-      fullName,
-      phone,
-      address,
-    );
-
-    return sendSuccess(res, 201, result, "Đăng ký thành công");
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Đăng ký thất bại",
     );
   }
 }
@@ -289,7 +341,8 @@ async function resetPassword(req, res, next) {
 }
 
 module.exports = {
-  register,
+  requestRegisterOtp,
+  verifyAndRegister,
   login,
   getProfile,
   logout,

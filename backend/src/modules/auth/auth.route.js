@@ -4,11 +4,16 @@ const authController = require('./auth.controller');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
 
 /**
- * POST /api/auth/register
- * Register a new user
- * Public route
+ * POST /api/auth/register/request-otp
+ * Request an OTP for registration
  */
-router.post('/register', authController.register);
+router.post('/register/request-otp', authController.requestRegisterOtp);
+
+/**
+ * POST /api/auth/register/verify
+ * Verify OTP and actually create the user
+ */
+router.post('/register/verify', authController.verifyAndRegister);
 
 /**
  * POST /api/auth/login
