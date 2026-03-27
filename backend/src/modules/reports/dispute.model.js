@@ -88,6 +88,32 @@ const disputeSchema = new mongoose.Schema({
     maxlength: 1000
   },
 
+  // Luu hoi thoai tranh chap theo thoi gian giua buyer/seller/moderator.
+  disputeConversation: [{
+    senderRole: {
+      type: String,
+      enum: ['buyer', 'seller', 'moderator', 'system'],
+      required: true
+    },
+    senderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    content: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      required: true
+    },
+    evidenceFiles: [{
+      type: String
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
   // Nhat ky cap nhat tu moderator de hien thi trong dong thoi gian tranh chap.
   moderatorUpdates: [{
     moderatorId: {

@@ -126,6 +126,71 @@ const OrderDetail = () => {
     release: 'Nhả tiền cho người bán'
   };
 
+  const buildDisputeConversationEvents = (disputeData) => {
+    if (!disputeData) return [];
+
+    const roleLabelMap = {
+      buyer: 'Người mua',
+      seller: 'Người bán',
+      moderator: 'Moderator',
+      system: 'Hệ thống'
+    };
+
+    const events = Array.isArray(disputeData.disputeConversation)
+      ? disputeData.disputeConversation.map((entry, index) => ({
+          key: `conversation-${index}`,
+          senderRole: entry?.senderRole || 'system',
+          senderLabel: roleLabelMap[entry?.senderRole] || 'Cập nhật',
+          content: entry?.content || '',
+          evidenceFiles: entry?.evidenceFiles || [],
+          createdAt: entry?.createdAt || null
+        }))
+      : [];
+
+    // Fallback cho du lieu cu chua migrate.
+    if (!events.length) {
+      events.push({
+        key: 'initial',
+        senderRole: 'buyer',
+        senderLabel: 'Người mua',
+        content: disputeData.description || '',
+        evidenceFiles: disputeData.evidenceImages || [],
+        createdAt: disputeData.createdAt || null
+      });
+
+      if (disputeData.sellerResponse || disputeData.sellerEvidenceImages?.length) {
+        events.push({
+          key: 'seller-legacy',
+          senderRole: 'seller',
+          senderLabel: 'Người bán',
+          content: disputeData.sellerResponse || 'Người bán đã gửi bằng chứng',
+          evidenceFiles: disputeData.sellerEvidenceImages || [],
+          createdAt: disputeData.sellerResponseUpdatedAt || null
+        });
+      }
+
+      if (disputeData.buyerFollowUpNote || disputeData.buyerAdditionalEvidenceImages?.length) {
+        events.push({
+          key: 'buyer-legacy',
+          senderRole: 'buyer',
+          senderLabel: 'Người mua',
+          content: disputeData.buyerFollowUpNote || 'Người mua đã bổ sung bằng chứng',
+          evidenceFiles: disputeData.buyerAdditionalEvidenceImages || [],
+          createdAt: disputeData.buyerFollowUpUpdatedAt || null
+        });
+      }
+    }
+
+    return events
+      .map((event, index) => ({ ...event, __index: index }))
+      .sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : Number.MAX_SAFE_INTEGER;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : Number.MAX_SAFE_INTEGER;
+        if (timeA === timeB) return a.__index - b.__index;
+        return timeA - timeB;
+      });
+  };
+
   const translateCancellationReason = (reason = '') => {
     if (!reason) return '';
 
@@ -970,37 +1035,24 @@ const OrderDetail = () => {
                 </div>
               )}
               <div className="dispute-summary-row full-width">
-                <span className="label">Bằng chứng ban đầu:</span>
-                <div className="value">{renderEvidencePreview(dispute.evidenceImages || []) || 'Chưa có'}</div>
+                <span className="label">Hội thoại khiếu nại:</span>
+                <div className="value" style={{ width: '100%' }}>
+                  <div className="timeline-events-grid">
+                    {buildDisputeConversationEvents(dispute).map((event) => (
+                      <div key={event.key} className="timeline-event-card">
+                        <div className="timeline-event-header">
+                          <span className="timeline-event-badge">{event.senderLabel}</span>
+                          {event.createdAt && (
+                            <span className="timeline-event-time">{formatDate(event.createdAt)}</span>
+                          )}
+                        </div>
+                        <div className="timeline-event-content">{event.content}</div>
+                        {!!event.evidenceFiles?.length && renderEvidencePreview(event.evidenceFiles)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              {dispute.sellerResponse && (
-                <div className="dispute-summary-row full-width">
-                  <span className="label">Phản hồi người bán:</span>
-                  <span className="value">{dispute.sellerResponse}</span>
-                </div>
-              )}
-              {!!dispute.sellerEvidenceImages?.length && (
-                <div className="dispute-summary-row full-width">
-                  <span className="label">Bằng chứng người bán:</span>
-                  <div className="value">{renderEvidencePreview(dispute.sellerEvidenceImages)}</div>
-                </div>
-              )}
-              {(dispute.buyerFollowUpNote || dispute.buyerAdditionalEvidenceImages?.length) && (
-                <>
-                  {dispute.buyerFollowUpNote && (
-                    <div className="dispute-summary-row full-width">
-                      <span className="label">Tin mới từ người mua:</span>
-                      <span className="value">{dispute.buyerFollowUpNote}</span>
-                    </div>
-                  )}
-                  {!!dispute.buyerAdditionalEvidenceImages?.length && (
-                    <div className="dispute-summary-row full-width">
-                      <span className="label">Tệp mới từ người mua:</span>
-                      <div className="value">{renderEvidencePreview(dispute.buyerAdditionalEvidenceImages)}</div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           </div>
         )}

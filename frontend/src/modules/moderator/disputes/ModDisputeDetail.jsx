@@ -54,46 +54,52 @@ const ModDisputeDetail = () => {
   const buildDisputeTimeline = (disputeData) => {
     if (!disputeData) return [];
 
-    const timeline = [];
+    const roleTitleMap = {
+      buyer: 'Người mua',
+      seller: 'Người bán',
+      moderator: 'Moderator',
+      system: 'Hệ thống'
+    };
 
-    timeline.push({
-      key: 'initial',
-      title: 'Người mua tạo khiếu nại',
-      description: disputeData.description || 'Không có mô tả',
-      media: disputeData.evidenceImages || [],
-      time: disputeData.createdAt
-    });
+    const timeline = Array.isArray(disputeData.disputeConversation)
+      ? disputeData.disputeConversation.map((event, index) => ({
+          key: `conversation-${index}`,
+          title: roleTitleMap[event?.senderRole] || 'Cập nhật',
+          description: event?.content || '',
+          media: event?.evidenceFiles || [],
+          time: event?.createdAt || null
+        }))
+      : [];
 
-    if (disputeData.sellerResponse || disputeData.sellerEvidenceImages?.length) {
+    // Fallback cho du lieu cu chua co disputeConversation.
+    if (!timeline.length) {
       timeline.push({
-        key: 'seller-response',
-        title: 'Người bán phản hồi',
-        description: disputeData.sellerResponse || 'Người bán đã gửi tệp đính kèm',
-        media: disputeData.sellerEvidenceImages || [],
-        time: disputeData.sellerResponseUpdatedAt || null
+        key: 'initial',
+        title: 'Người mua tạo khiếu nại',
+        description: disputeData.description || 'Không có mô tả',
+        media: disputeData.evidenceImages || [],
+        time: disputeData.createdAt
       });
-    }
 
-    if (disputeData.buyerFollowUpNote || disputeData.buyerAdditionalEvidenceImages?.length) {
-      timeline.push({
-        key: 'buyer-followup',
-        title: 'Tin mới từ người mua',
-        description: disputeData.buyerFollowUpNote || 'Người mua đã gửi tệp mới',
-        media: disputeData.buyerAdditionalEvidenceImages || [],
-        time: disputeData.buyerFollowUpUpdatedAt || null
-      });
-    }
-
-    if (Array.isArray(disputeData.moderatorUpdates) && disputeData.moderatorUpdates.length > 0) {
-      disputeData.moderatorUpdates.forEach((updateItem, index) => {
+      if (disputeData.sellerResponse || disputeData.sellerEvidenceImages?.length) {
         timeline.push({
-          key: `moderator-update-${index}`,
-          title: 'Moderator cập nhật',
-          description: updateItem?.content || 'Moderator đã gửi cập nhật mới',
-          media: [],
-          time: updateItem?.createdAt || null
+          key: 'seller-response',
+          title: 'Người bán',
+          description: disputeData.sellerResponse || 'Người bán đã gửi tệp đính kèm',
+          media: disputeData.sellerEvidenceImages || [],
+          time: disputeData.sellerResponseUpdatedAt || null
         });
-      });
+      }
+
+      if (disputeData.buyerFollowUpNote || disputeData.buyerAdditionalEvidenceImages?.length) {
+        timeline.push({
+          key: 'buyer-followup',
+          title: 'Người mua',
+          description: disputeData.buyerFollowUpNote || 'Người mua đã gửi tệp mới',
+          media: disputeData.buyerAdditionalEvidenceImages || [],
+          time: disputeData.buyerFollowUpUpdatedAt || null
+        });
+      }
     }
 
     if (disputeData.resolution || disputeData.status === 'resolved') {

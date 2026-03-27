@@ -287,7 +287,16 @@ async function createDispute(buyerId, orderId, reason, description, evidenceImag
     reason: reason,
     description: description.trim(),
     evidenceImages: evidenceImages,
-    status: 'pending'
+    status: 'pending',
+    disputeConversation: [
+      {
+        senderRole: 'buyer',
+        senderId: order.buyerId,
+        content: description.trim(),
+        evidenceFiles: evidenceImages,
+        createdAt: new Date()
+      }
+    ]
   });
   
   // Chuyen trang thai don sang disputed.
@@ -358,7 +367,8 @@ async function getDisputeById(disputeId, userId) {
     .populate('buyerId', 'fullName email avatar phone')
     .populate('sellerId', 'fullName email avatar phone')
     .populate('productId', 'title price images description')
-    .populate('moderatorId', 'fullName email');
+    .populate('moderatorId', 'fullName email')
+    .populate('disputeConversation.senderId', 'fullName email avatar');
   
   if (!dispute) {
     throw new Error('Khiếu nại không tồn tại');
@@ -415,6 +425,16 @@ async function addSellerResponse(disputeId, sellerId, response, evidenceImages =
     ].slice(0, 10);
   }
   dispute.sellerResponseUpdatedAt = new Date();
+  dispute.disputeConversation = [
+    ...(dispute.disputeConversation || []),
+    {
+      senderRole: 'seller',
+      senderId: sellerId,
+      content: response.trim(),
+      evidenceFiles: evidenceImages || [],
+      createdAt: dispute.sellerResponseUpdatedAt
+    }
+  ];
   
   // Giu nguyen status hien tai.
   await dispute.save();
@@ -463,6 +483,16 @@ async function addBuyerFollowUp(disputeId, buyerId, note = '', evidenceImages = 
   }
 
   dispute.buyerFollowUpUpdatedAt = new Date();
+  dispute.disputeConversation = [
+    ...(dispute.disputeConversation || []),
+    {
+      senderRole: 'buyer',
+      senderId: buyerId,
+      content: trimmedNote || 'Người mua gửi bổ sung bằng chứng',
+      evidenceFiles: evidenceImages || [],
+      createdAt: dispute.buyerFollowUpUpdatedAt
+    }
+  ];
   await dispute.save();
 
   if (dispute.moderatorId) {

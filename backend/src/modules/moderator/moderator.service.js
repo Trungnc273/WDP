@@ -884,7 +884,8 @@ async function getDisputeById(disputeId) {
     .populate("sellerId", "fullName email avatar violationCount isSuspended")
     .populate("productId", "title images price")
     .populate("moderatorId", "fullName email")
-    .populate("moderatorUpdates.moderatorId", "fullName email");
+    .populate("moderatorUpdates.moderatorId", "fullName email")
+    .populate("disputeConversation.senderId", "fullName email avatar");
 
   if (!dispute) {
     throw new Error("Khiếu nại không tồn tại");
@@ -910,6 +911,17 @@ async function sendDisputeModeratorMessage(disputeId, moderatorId, content) {
     {
       moderatorId,
       content: normalizedContent,
+      createdAt: new Date()
+    }
+  ];
+
+  dispute.disputeConversation = [
+    ...(dispute.disputeConversation || []),
+    {
+      senderRole: 'moderator',
+      senderId: moderatorId,
+      content: normalizedContent,
+      evidenceFiles: [],
       createdAt: new Date()
     }
   ];

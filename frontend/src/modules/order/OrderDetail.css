@@ -670,6 +670,48 @@
   border: none;
 }
 
+.timeline-events-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timeline-event-card {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #dbe4f0;
+  background: #ffffff;
+}
+
+.timeline-event-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.timeline-event-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #e8f3ff;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.timeline-event-time {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.timeline-event-content {
+  color: #1f2937;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
 .dispute-modal {
   position: fixed;
   inset: 0;
