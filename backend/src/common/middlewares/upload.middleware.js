@@ -6,7 +6,8 @@ const fs = require('fs');
 const IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'gif'];
 
 // Allowed formats for dispute/report evidence (images + videos)
-const EVIDENCE_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'webm', 'avi', 'mkv'];
+// Bo sung webp/heic/heif/m4v de ho tro tep tu dien thoai va trinh duyet hien dai.
+const EVIDENCE_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'mp4', 'mov', 'm4v', 'webm', 'avi', 'mkv'];
 
 // Max file size for product images: 5MB
 const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024;

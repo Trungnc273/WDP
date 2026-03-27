@@ -94,9 +94,13 @@ const Dispute = ({ order, onSuccess, onCancel, initialReason = '' }) => {
             <h4>Thông tin đơn hàng</h4>
             <div className="order-item">
               <img 
-                src={order.listing?.images?.[0] || '/placeholder-image.jpg'} 
+                src={getImageUrl(order?.listing?.images?.[0]) || '/images/placeholders/product-placeholder.svg'} 
                 alt={order.listing?.title}
                 className="product-image"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = '/images/placeholders/product-placeholder.svg';
+                }}
               />
               <div className="product-details">
                 <h5>{order.listing?.title}</h5>
@@ -110,9 +114,13 @@ const Dispute = ({ order, onSuccess, onCancel, initialReason = '' }) => {
             <h4>Người bán</h4>
             <div className="seller-details">
               <img 
-                src={order.seller?.avatar || '/default-avatar.png'} 
+                src={getImageUrl(order?.seller?.avatar) || '/images/placeholders/avatar-placeholder.svg'} 
                 alt={order.seller?.fullName}
                 className="seller-avatar"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = '/images/placeholders/avatar-placeholder.svg';
+                }}
               />
               <span className="seller-name">{order.seller?.fullName}</span>
             </div>

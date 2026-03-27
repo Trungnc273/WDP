@@ -19,6 +19,8 @@ const ReportUser = ({ reportedUser, onSuccess, onCancel }) => {
     { value: 'other', label: 'Khác' }
   ];
 
+  const isVideoEvidence = (url = '') => /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(url);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -127,23 +129,27 @@ const ReportUser = ({ reportedUser, onSuccess, onCancel }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="user-report-evidence">Ảnh bằng chứng (tùy chọn)</label>
+            <label htmlFor="user-report-evidence">Bằng chứng (ảnh/video, tùy chọn)</label>
             <input
               type="file"
               id="user-report-evidence"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               onChange={handleImageUpload}
               disabled={evidenceImages.length >= 5 || loading || uploadingImages}
             />
-            <div className="upload-note">Tối đa 5 ảnh. Bằng chứng rõ ràng sẽ giúp xử lý nhanh hơn.</div>
-            {uploadingImages && <div className="upload-note">Đang upload ảnh...</div>}
+            <div className="upload-note">Tối đa 5 tệp (ảnh hoặc video). Bằng chứng rõ ràng sẽ giúp xử lý nhanh hơn.</div>
+            {uploadingImages && <div className="upload-note">Đang upload bằng chứng...</div>}
 
             {evidenceImages.length > 0 && (
               <div className="evidence-preview">
                 {evidenceImages.map((url, index) => (
                   <div key={`${url}-${index}`} className="evidence-item">
-                    <img src={getImageUrl(url)} alt={`Bằng chứng ${index + 1}`} />
+                    {isVideoEvidence(url) ? (
+                      <video src={getImageUrl(url)} controls />
+                    ) : (
+                      <img src={getImageUrl(url)} alt={`Bằng chứng ${index + 1}`} />
+                    )}
                     <button type="button" className="remove-image" onClick={() => removeImage(index)}>
                       ×
                     </button>

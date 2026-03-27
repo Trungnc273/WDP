@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createReview } from '../../services/review.service';
+import { getImageUrl } from '../../utils/imageHelper';
 import './RateSeller.css';
 
 const RateSeller = ({ order, onSuccess, onCancel }) => {
@@ -71,9 +72,13 @@ const RateSeller = ({ order, onSuccess, onCancel }) => {
         <div className="order-info">
           <div className="product-info">
             <img 
-              src={order.listing?.images?.[0] || '/placeholder-image.jpg'} 
+              src={getImageUrl(order?.listing?.images?.[0]) || '/images/placeholders/product-placeholder.svg'} 
               alt={order.listing?.title}
               className="product-image"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = '/images/placeholders/product-placeholder.svg';
+              }}
             />
             <div className="product-details">
               <h4>{order.listing?.title}</h4>
@@ -83,9 +88,13 @@ const RateSeller = ({ order, onSuccess, onCancel }) => {
           
           <div className="seller-info">
             <img 
-              src={order.seller?.avatar || '/default-avatar.png'} 
+              src={getImageUrl(order?.seller?.avatar) || '/images/placeholders/avatar-placeholder.svg'} 
               alt={order.seller?.fullName}
               className="seller-avatar"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = '/images/placeholders/avatar-placeholder.svg';
+              }}
             />
             <span className="seller-name">{order.seller?.fullName}</span>
           </div>

@@ -5,6 +5,7 @@ const User = require('../users/user.model');
 const Conversation = require('../chat/conversation.model');
 const Message = require('../chat/message.model');
 const { emitMessageToConversation, emitToUser } = require('../chat/chat.socket');
+const { encryptChatContent, decryptChatContent } = require('../../common/utils/chat-crypto.util');
 const notificationService = require('../notifications/notification.service');
 const mongoose = require('mongoose');
 
@@ -12,6 +13,31 @@ const mongoose = require('mongoose');
  * Order Service
  * Handles purchase requests and order management
  */
+
+/**
+ * Chuẩn hóa message offer để trả về client ở dạng plaintext,
+ * trong khi dữ liệu trong DB vẫn lưu encrypted.
+ */
+function normalizeOfferMessageForClient(messageDoc) {
+  if (!messageDoc) {
+    return null;
+  }
+
+  const message = typeof messageDoc.toObject === 'function'
+    ? messageDoc.toObject()
+    : { ...messageDoc };
+
+  const rawContent = typeof message.content === 'string' ? message.content : '';
+
+  return {
+    ...message,
+    content: rawContent ? decryptChatContent(rawContent) : rawContent,
+    conversation:
+      message?.conversationId?.toString?.() ||
+      message?.conversationId ||
+      message?.conversation
+  };
+}
 
 /**
  * Create a purchase request or direct order (for quick buy)
@@ -353,10 +379,8 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       }).populate('senderId', 'fullName avatar');
 
       if (updatedOfferMessage?.conversationId) {
-        emitMessageToConversation(updatedOfferMessage.conversationId.toString(), {
-          ...updatedOfferMessage.toObject(),
-          conversation: updatedOfferMessage.conversationId.toString()
-        });
+        const normalizedMessage = normalizeOfferMessageForClient(updatedOfferMessage);
+        emitMessageToConversation(updatedOfferMessage.conversationId.toString(), normalizedMessage);
       }
     } catch (emitError) {
       console.error('Error emitting accepted offer update:', emitError);
@@ -463,10 +487,8 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
     }).populate('senderId', 'fullName avatar');
 
     if (updatedOfferMessage?.conversationId) {
-      emitMessageToConversation(updatedOfferMessage.conversationId.toString(), {
-        ...updatedOfferMessage.toObject(),
-        conversation: updatedOfferMessage.conversationId.toString()
-      });
+      const normalizedMessage = normalizeOfferMessageForClient(updatedOfferMessage);
+      emitMessageToConversation(updatedOfferMessage.conversationId.toString(), normalizedMessage);
     }
   } catch (emitError) {
     console.error('Error emitting rejected offer update:', emitError);
@@ -551,7 +573,7 @@ async function createSellerOfferFromConversation(sellerId, conversationId, messa
   const chatMessage = await Message.create({
     conversationId,
     senderId: sellerId,
-    content: offerMessage,
+    content: encryptChatContent(offerMessage),
     type: 'offer',
     metadata: {
       purchaseRequestId: purchaseRequest._id,
@@ -567,10 +589,7 @@ async function createSellerOfferFromConversation(sellerId, conversationId, messa
   await conversation.updateLastMessage(`Người bán gửi đề nghị: ${Number(agreedPrice).toLocaleString('vi-VN')}đ`);
   await conversation.incrementUnreadCount(buyerId);
 
-  const normalizedMessage = {
-    ...chatMessage.toObject(),
-    conversation: conversationId
-  };
+  const normalizedMessage = normalizeOfferMessageForClient(chatMessage);
 
   emitMessageToConversation(conversationId, normalizedMessage);
 
@@ -586,7 +605,7 @@ async function createSellerOfferFromConversation(sellerId, conversationId, messa
 
   return {
     request: purchaseRequest,
-    chatMessage
+    chatMessage: normalizedMessage
   };
 }
 
@@ -662,7 +681,7 @@ async function createBuyerOfferFromConversation(buyerId, conversationId, message
   const chatMessage = await Message.create({
     conversationId,
     senderId: buyerId,
-    content: offerMessage,
+    content: encryptChatContent(offerMessage),
     type: 'offer',
     metadata: {
       purchaseRequestId: purchaseRequest._id,
@@ -678,10 +697,7 @@ async function createBuyerOfferFromConversation(buyerId, conversationId, message
   await conversation.updateLastMessage(`Người mua đề nghị giá: ${Number(agreedPrice).toLocaleString('vi-VN')}đ`);
   await conversation.incrementUnreadCount(sellerId);
 
-  const normalizedMessage = {
-    ...chatMessage.toObject(),
-    conversation: conversationId
-  };
+  const normalizedMessage = normalizeOfferMessageForClient(chatMessage);
 
   emitMessageToConversation(conversationId, normalizedMessage);
 
@@ -697,7 +713,7 @@ async function createBuyerOfferFromConversation(buyerId, conversationId, message
 
   return {
     request: purchaseRequest,
-    chatMessage
+    chatMessage: normalizedMessage
   };
 }
 

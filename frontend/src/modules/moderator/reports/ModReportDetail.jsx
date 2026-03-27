@@ -32,6 +32,10 @@ function getWarningLevel(warningCount, isSuspended, shouldLockAccount) {
   };
 }
 
+function isVideoEvidence(url = "") {
+  return /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(url);
+}
+
 const ModReportDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -142,20 +146,28 @@ const ModReportDetail = () => {
           )}
           <Descriptions.Item label="Ảnh bằng chứng (tối đa 4)">
             {report?.evidenceImages?.length ? (
-              <Image.PreviewGroup>
-                <Space size={8} wrap>
-                  {report.evidenceImages.slice(0, 4).map((imageUrl, index) => (
-                    <Image
-                      key={`${imageUrl}-${index}`}
-                      src={getImageUrl(imageUrl)}
-                      width={84}
-                      height={84}
-                      style={{ objectFit: "cover", borderRadius: 8 }}
-                      fallback="https://via.placeholder.com/84x84?text=Error"
+              <Space size={8} wrap>
+                {report.evidenceImages.slice(0, 4).map((mediaUrl, index) => (
+                  isVideoEvidence(mediaUrl) ? (
+                    <video
+                      key={`${mediaUrl}-${index}`}
+                      src={getImageUrl(mediaUrl)}
+                      controls
+                      style={{ width: 180, maxWidth: "100%", borderRadius: 8, background: "#000" }}
                     />
-                  ))}
-                </Space>
-              </Image.PreviewGroup>
+                  ) : (
+                    <Image.PreviewGroup key={`${mediaUrl}-${index}`}>
+                      <Image
+                        src={getImageUrl(mediaUrl)}
+                        width={84}
+                        height={84}
+                        style={{ objectFit: "cover", borderRadius: 8 }}
+                        fallback="https://via.placeholder.com/84x84?text=Error"
+                      />
+                    </Image.PreviewGroup>
+                  )
+                ))}
+              </Space>
             ) : (
               <span>Không có ảnh bằng chứng</span>
             )}

@@ -79,9 +79,13 @@ const ReportProduct = ({ product, onSuccess, onCancel }) => {
 
         <div className="product-info">
           <img 
-            src={product.images?.[0] || '/placeholder-image.jpg'} 
+            src={getImageUrl(product?.images?.[0]) || '/images/placeholders/product-placeholder.svg'} 
             alt={product.title}
             className="product-image"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = '/images/placeholders/product-placeholder.svg';
+            }}
           />
           <div className="product-details">
             <h4>{product.title}</h4>
