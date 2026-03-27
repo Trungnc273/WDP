@@ -143,6 +143,15 @@ const ModDisputeDetail = () => {
     }
   };
 
+  const handleContinueChat = () => {
+    if (!dispute?.chatConversationId) {
+      message.warning('Chưa tìm thấy cuộc trò chuyện liên quan để tiếp tục.');
+      return;
+    }
+
+    navigate(`/chat/${dispute.chatConversationId}`);
+  };
+
   if (error) {
     return <Alert type="error" showIcon message={error} />;
   }
@@ -169,13 +178,13 @@ const ModDisputeDetail = () => {
               "Người mua chưa cung cấp bằng chứng"
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="Bổ sung ghi chú từ người mua">
-            {dispute?.buyerFollowUpNote || "Người mua chưa bổ sung thông tin mới"}
+          <Descriptions.Item label="Tin mới từ người mua">
+            {dispute?.buyerFollowUpNote || "Người mua chưa gửi tin mới"}
           </Descriptions.Item>
-          <Descriptions.Item label="Bằng chứng bổ sung từ người mua">
+          <Descriptions.Item label="Tệp mới từ người mua">
             {renderEvidenceSection(
               dispute?.buyerAdditionalEvidenceImages || [],
-              "Chưa có bằng chứng bổ sung từ người mua"
+              "Chưa có tệp mới từ người mua"
             )}
           </Descriptions.Item>
           <Descriptions.Item label="Phản hồi người bán">
@@ -219,6 +228,13 @@ const ModDisputeDetail = () => {
               disabled={dispute?.status === "investigating"}
             >
               Chuyển sang Đang điều tra
+            </Button>
+
+            <Button
+              type="default"
+              onClick={handleContinueChat}
+            >
+              Chat tiếp trong report
             </Button>
 
             <Popconfirm title="Xác nhận hoàn tiền cho người mua?" onConfirm={() => handleResolve("refund")}>

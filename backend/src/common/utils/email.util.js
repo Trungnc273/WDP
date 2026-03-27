@@ -13,6 +13,44 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Chuyen loi ky thuat SMTP/Nodemailer thanh thong bao de hieu cho nguoi dung.
+function mapEmailErrorToUserMessage(error) {
+  const raw = String(error?.message || '').toLowerCase();
+  const code = String(error?.code || '').toUpperCase();
+  const responseCode = Number(error?.responseCode || 0);
+
+  if (code === 'EAUTH' || raw.includes('invalid login') || raw.includes('authentication unsuccessful') || responseCode === 535) {
+    return 'Hệ thống gửi email đang tạm thời gặp sự cố xác thực. Vui lòng thử lại sau ít phút.';
+  }
+
+  if (['ESOCKET', 'ECONNECTION', 'ETIMEDOUT'].includes(code) || raw.includes('connection') || raw.includes('timeout')) {
+    return 'Không thể kết nối đến dịch vụ email lúc này. Vui lòng thử lại sau.';
+  }
+
+  if (responseCode === 550 || responseCode === 553 || responseCode === 554 || raw.includes('recipient')) {
+    return 'Địa chỉ email không thể nhận thư. Vui lòng kiểm tra lại email và thử lại.';
+  }
+
+  return 'Không thể gửi email xác thực lúc này. Vui lòng thử lại sau.';
+}
+
+async function sendMailSafely(mailOptions, contextLabel) {
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error(`[EMAIL][${contextLabel}]`, {
+      code: error?.code,
+      responseCode: error?.responseCode,
+      message: error?.message,
+      response: error?.response
+    });
+
+    const friendlyError = new Error(mapEmailErrorToUserMessage(error));
+    friendlyError.statusCode = 503;
+    throw friendlyError;
+  }
+}
+
 async function sendTempPasswordEmail(toEmail, tempPassword) {
   const mailOptions = {
     from: `"Reflow" <${process.env.EMAIL_USER}>`,
@@ -41,7 +79,7 @@ async function sendTempPasswordEmail(toEmail, tempPassword) {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendMailSafely(mailOptions, 'TEMP_PASSWORD');
 }
 
 async function sendRegisterOtpEmail(toEmail, otpCode) {
@@ -66,7 +104,7 @@ async function sendRegisterOtpEmail(toEmail, otpCode) {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendMailSafely(mailOptions, 'REGISTER_OTP');
 }
 
 async function sendLogin2faOtpEmail(toEmail, otpCode) {
@@ -89,7 +127,7 @@ async function sendLogin2faOtpEmail(toEmail, otpCode) {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendMailSafely(mailOptions, 'LOGIN_2FA_OTP');
 }
 
 module.exports = { sendTempPasswordEmail, sendRegisterOtpEmail, sendLogin2faOtpEmail };

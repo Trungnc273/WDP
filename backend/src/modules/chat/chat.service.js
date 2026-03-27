@@ -1,6 +1,7 @@
 const Conversation = require('./conversation.model');
 const Message = require('./message.model');
 const Product = require('../products/product.model');
+const User = require('../users/user.model');
 const { encryptChatContent, decryptChatContent } = require('../../common/utils/chat-crypto.util');
 
 /**
@@ -129,11 +130,18 @@ async function getConversationById(conversationId, userId) {
   if (!conversation) {
     throw new Error('Cuộc trò chuyện không tồn tại');
   }
-  
-  // Check authorization
-  if (conversation.buyerId._id.toString() !== userId.toString() && 
-      conversation.sellerId._id.toString() !== userId.toString()) {
-    throw new Error('Bạn không có quyền truy cập cuộc trò chuyện này');
+
+  const isParticipant =
+    conversation.buyerId._id.toString() === userId.toString() ||
+    conversation.sellerId._id.toString() === userId.toString();
+
+  // Moderator/Admin duoc phep vao chat de tiep tuc xu ly report/dispute.
+  if (!isParticipant) {
+    const actor = await User.findById(userId).select('role').lean();
+    const isPrivilegedModerator = ['moderator', 'admin'].includes(String(actor?.role || ''));
+    if (!isPrivilegedModerator) {
+      throw new Error('Bạn không có quyền truy cập cuộc trò chuyện này');
+    }
   }
   
   return conversation;
@@ -236,12 +244,13 @@ async function sendMessage(conversationId, senderId, payload) {
     : normalizedContent;
   await conversation.updateLastMessage(conversationPreview);
   
-  // Increment unread count for the other user
-  const otherUserId = conversation.buyerId._id.toString() === senderId.toString() 
-    ? conversation.sellerId._id 
-    : conversation.buyerId._id;
-  
-  await conversation.incrementUnreadCount(otherUserId);
+  // Chi cap nhat unread khi nguoi gui la buyer/seller trong conversation.
+  const isBuyerSender = conversation.buyerId._id.toString() === senderId.toString();
+  const isSellerSender = conversation.sellerId._id.toString() === senderId.toString();
+  if (isBuyerSender || isSellerSender) {
+    const otherUserId = isBuyerSender ? conversation.sellerId._id : conversation.buyerId._id;
+    await conversation.incrementUnreadCount(otherUserId);
+  }
   
   // Populate sender details
   await message.populate('senderId', 'fullName avatar');

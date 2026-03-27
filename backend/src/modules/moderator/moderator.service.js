@@ -6,6 +6,7 @@ const Report = require("../reports/report.model");
 const Order = require("../orders/order.model");
 const Review = require("../reports/review.model");
 const Dispute = require("../reports/dispute.model");
+const Conversation = require("../chat/conversation.model");
 const Transaction = require("../payments/transaction.model");
 const reviewService = require("../reports/review.service");
 const reportService = require("../reports/report.service");
@@ -889,7 +890,20 @@ async function getDisputeById(disputeId) {
     throw new Error("Khiếu nại không tồn tại");
   }
 
-  return dispute;
+  // Gan them conversation chat lien quan de moderator co the tiep tuc trao doi trong luong report/dispute.
+  const chatConversation = await Conversation.findOne({
+    buyerId: dispute.buyerId,
+    sellerId: dispute.sellerId,
+    productId: dispute.productId,
+    status: "active"
+  })
+    .select("_id")
+    .lean();
+
+  const disputeDetail = dispute.toObject();
+  disputeDetail.chatConversationId = chatConversation?._id || null;
+
+  return disputeDetail;
 }
 
 async function increaseViolationAndMaybeSuspend(userId) {

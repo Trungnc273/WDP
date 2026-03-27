@@ -989,13 +989,13 @@ const OrderDetail = () => {
                 <>
                   {dispute.buyerFollowUpNote && (
                     <div className="dispute-summary-row full-width">
-                      <span className="label">Bổ sung từ người mua:</span>
+                      <span className="label">Tin mới từ người mua:</span>
                       <span className="value">{dispute.buyerFollowUpNote}</span>
                     </div>
                   )}
                   {!!dispute.buyerAdditionalEvidenceImages?.length && (
                     <div className="dispute-summary-row full-width">
-                      <span className="label">Bằng chứng bổ sung:</span>
+                      <span className="label">Tệp mới từ người mua:</span>
                       <div className="value">{renderEvidencePreview(dispute.buyerAdditionalEvidenceImages)}</div>
                     </div>
                   )}
@@ -1106,7 +1106,7 @@ const OrderDetail = () => {
         <div className="dispute-modal">
           <div className="dispute-content">
             <div className="dispute-header">
-              <h3>Bổ sung bằng chứng cho khiếu nại</h3>
+              <h3>Gửi tin mới cho moderator</h3>
               <button className="close-btn" onClick={() => setShowBuyerFollowUpModal(false)}>×</button>
             </div>
             <div className="dispute-form">

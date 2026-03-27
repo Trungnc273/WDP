@@ -1,6 +1,30 @@
 import axios from 'axios';
 import { NETWORK_CONFIG } from './network.config';
 
+function normalizeUserFacingErrorMessage(rawMessage = '') {
+  const message = String(rawMessage || '').trim();
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes('invalid login') ||
+    lowerMessage.includes('authentication unsuccessful') ||
+    lowerMessage.includes('535 5.7.3')
+  ) {
+    return 'Không thể gửi email xác thực lúc này. Vui lòng thử lại sau ít phút.';
+  }
+
+  if (
+    lowerMessage.includes('esocket') ||
+    lowerMessage.includes('econnection') ||
+    lowerMessage.includes('etimedout') ||
+    lowerMessage.includes('connection timeout')
+  ) {
+    return 'Không thể kết nối đến dịch vụ email lúc này. Vui lòng thử lại sau.';
+  }
+
+  return message;
+}
+
 const api = axios.create({
   baseURL: NETWORK_CONFIG.API_BASE_URL,
   headers: {
@@ -43,8 +67,9 @@ api.interceptors.response.use(
       }
       
       // Tra ve thong bao loi tu backend
-      const message = error.response.data?.message || 'Đã có lỗi xảy ra';
-      return Promise.reject(new Error(message));
+      const rawMessage = error.response.data?.message || 'Đã có lỗi xảy ra';
+      const normalizedMessage = normalizeUserFacingErrorMessage(rawMessage);
+      return Promise.reject(new Error(normalizedMessage));
     } else if (error.request) {
       // Loi mang
       return Promise.reject(new Error('Không thể kết nối đến server'));
