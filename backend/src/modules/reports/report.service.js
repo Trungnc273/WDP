@@ -414,6 +414,7 @@ async function addSellerResponse(disputeId, sellerId, response, evidenceImages =
       ...evidenceImages
     ].slice(0, 10);
   }
+  dispute.sellerResponseUpdatedAt = new Date();
   
   // Giu nguyen status hien tai.
   await dispute.save();

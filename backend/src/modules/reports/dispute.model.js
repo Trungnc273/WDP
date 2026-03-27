@@ -94,6 +94,10 @@ const disputeSchema = new mongoose.Schema({
     trim: true,
     maxlength: 1000
   },
+
+  sellerResponseUpdatedAt: {
+    type: Date
+  },
   
   // Seller's evidence
   sellerEvidenceImages: [{

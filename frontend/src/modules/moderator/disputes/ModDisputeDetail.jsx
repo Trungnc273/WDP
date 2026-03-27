@@ -49,6 +49,61 @@ const ModDisputeDetail = () => {
 
   const isVideoEvidence = (url = "") => /\.(mp4|mov|webm|avi|mkv)$/i.test(url);
 
+  const buildDisputeTimeline = (disputeData) => {
+    if (!disputeData) return [];
+
+    const timeline = [];
+
+    timeline.push({
+      key: 'initial',
+      title: 'Người mua tạo khiếu nại',
+      description: disputeData.description || 'Không có mô tả',
+      media: disputeData.evidenceImages || [],
+      time: disputeData.createdAt
+    });
+
+    if (disputeData.sellerResponse || disputeData.sellerEvidenceImages?.length) {
+      timeline.push({
+        key: 'seller-response',
+        title: 'Người bán phản hồi',
+        description: disputeData.sellerResponse || 'Người bán đã gửi tệp đính kèm',
+        media: disputeData.sellerEvidenceImages || [],
+        time: disputeData.sellerResponseUpdatedAt || null
+      });
+    }
+
+    if (disputeData.buyerFollowUpNote || disputeData.buyerAdditionalEvidenceImages?.length) {
+      timeline.push({
+        key: 'buyer-followup',
+        title: 'Tin mới từ người mua',
+        description: disputeData.buyerFollowUpNote || 'Người mua đã gửi tệp mới',
+        media: disputeData.buyerAdditionalEvidenceImages || [],
+        time: disputeData.buyerFollowUpUpdatedAt || null
+      });
+    }
+
+    if (disputeData.resolution || disputeData.status === 'resolved') {
+      timeline.push({
+        key: 'resolved',
+        title: 'Moderator chốt kết quả',
+        description: disputeData.resolution
+          ? (disputeResolutionLabels[disputeData.resolution] || disputeData.resolution)
+          : 'Đã xử lý',
+        media: [],
+        time: disputeData.resolvedAt || null
+      });
+    }
+
+    return timeline
+      .map((item, index) => ({ ...item, __index: index }))
+      .sort((a, b) => {
+        const timeA = a.time ? new Date(a.time).getTime() : Number.MAX_SAFE_INTEGER;
+        const timeB = b.time ? new Date(b.time).getTime() : Number.MAX_SAFE_INTEGER;
+        if (timeA === timeB) return a.__index - b.__index;
+        return timeA - timeB;
+      });
+  };
+
   // Render bang chung theo tung loai media de moderator doi chieu de dang.
   const renderEvidenceSection = (files = [], emptyText) => {
     if (!files.length) {
@@ -156,9 +211,14 @@ const ModDisputeDetail = () => {
     return <Alert type="error" showIcon message={error} />;
   }
 
+  const disputeTimeline = buildDisputeTimeline(dispute);
+
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/moderator/disputes")}>Quay lại danh sách</Button>
+      <Space>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/moderator/disputes")}>Quay lại danh sách</Button>
+        <Button onClick={handleContinueChat}>Chat tiếp trong report</Button>
+      </Space>
 
       <Card className="mod-panel" title={`Chi tiết Khiếu nại: ${dispute?._id?.slice(-8)?.toUpperCase() || ""}`} loading={loading}>
         <Descriptions bordered column={1} labelStyle={{ width: 220, fontWeight: 700 }}>
@@ -171,29 +231,26 @@ const ModDisputeDetail = () => {
               {disputeReasonLabels[dispute?.reason] || dispute?.reason || "Không có"}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Mô tả">{dispute?.description || "Không có"}</Descriptions.Item>
-          <Descriptions.Item label="Bằng chứng người mua">
-            {renderEvidenceSection(
-              dispute?.evidenceImages || [],
-              "Người mua chưa cung cấp bằng chứng"
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="Tin mới từ người mua">
-            {dispute?.buyerFollowUpNote || "Người mua chưa gửi tin mới"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Tệp mới từ người mua">
-            {renderEvidenceSection(
-              dispute?.buyerAdditionalEvidenceImages || [],
-              "Chưa có tệp mới từ người mua"
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="Phản hồi người bán">
-            {dispute?.sellerResponse || "Người bán chưa phản hồi"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Bằng chứng người bán">
-            {renderEvidenceSection(
-              dispute?.sellerEvidenceImages || [],
-              "Người bán chưa cung cấp bằng chứng"
+          <Descriptions.Item label="Diễn biến theo thời gian">
+            {disputeTimeline.length === 0 ? (
+              <Text type="secondary">Chưa có dữ liệu diễn biến</Text>
+            ) : (
+              <Space direction="vertical" size={14} style={{ width: "100%" }}>
+                {disputeTimeline.map((event) => (
+                  <Card key={event.key} size="small" style={{ borderRadius: 8 }}>
+                    <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                      <Space size={8} wrap>
+                        <Tag color="blue">{event.title}</Tag>
+                        {event.time && (
+                          <Text type="secondary">{new Date(event.time).toLocaleString('vi-VN')}</Text>
+                        )}
+                      </Space>
+                      <Text>{event.description}</Text>
+                      {!!event.media?.length && renderEvidenceSection(event.media, "")}
+                    </Space>
+                  </Card>
+                ))}
+              </Space>
             )}
           </Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
@@ -228,13 +285,6 @@ const ModDisputeDetail = () => {
               disabled={dispute?.status === "investigating"}
             >
               Chuyển sang Đang điều tra
-            </Button>
-
-            <Button
-              type="default"
-              onClick={handleContinueChat}
-            >
-              Chat tiếp trong report
             </Button>
 
             <Popconfirm title="Xác nhận hoàn tiền cho người mua?" onConfirm={() => handleResolve("refund")}>

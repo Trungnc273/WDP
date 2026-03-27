@@ -31,6 +31,13 @@ function getAllowedNextStatuses(currentStatus) {
   return MODERATOR_ORDER_TRANSITIONS[currentStatus] || [];
 }
 
+function toObjectIdString(value) {
+  if (!value) return null;
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (value._id) return String(value._id);
+  return null;
+}
+
 function parsePagination(pagination = {}) {
   const page = Math.max(1, parseInt(pagination.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(pagination.limit, 10) || 20));
@@ -891,17 +898,36 @@ async function getDisputeById(disputeId) {
   }
 
   // Gan them conversation chat lien quan de moderator co the tiep tuc trao doi trong luong report/dispute.
-  const chatConversation = await Conversation.findOne({
-    buyerId: dispute.buyerId,
-    sellerId: dispute.sellerId,
-    productId: dispute.productId,
-    status: "active"
-  })
-    .select("_id")
-    .lean();
+  const buyerId = toObjectIdString(dispute.buyerId);
+  const sellerId = toObjectIdString(dispute.sellerId);
+  const productId = toObjectIdString(dispute.productId);
+
+  let chatConversation = null;
+
+  if (buyerId && sellerId && productId) {
+    chatConversation = await Conversation.findOne({
+      buyerId,
+      sellerId,
+      productId
+    })
+      .sort({ lastMessageAt: -1 })
+      .select("_id")
+      .lean();
+  }
+
+  // Fallback: mot so du lieu cu co the chat theo buyer/seller nhung khac product.
+  if (!chatConversation && buyerId && sellerId) {
+    chatConversation = await Conversation.findOne({
+      buyerId,
+      sellerId
+    })
+      .sort({ lastMessageAt: -1 })
+      .select("_id")
+      .lean();
+  }
 
   const disputeDetail = dispute.toObject();
-  disputeDetail.chatConversationId = chatConversation?._id || null;
+  disputeDetail.chatConversationId = chatConversation?._id ? String(chatConversation._id) : null;
 
   return disputeDetail;
 }
