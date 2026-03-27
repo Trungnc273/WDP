@@ -6,7 +6,6 @@ const Report = require("../reports/report.model");
 const Order = require("../orders/order.model");
 const Review = require("../reports/review.model");
 const Dispute = require("../reports/dispute.model");
-const Conversation = require("../chat/conversation.model");
 const Transaction = require("../payments/transaction.model");
 const reviewService = require("../reports/review.service");
 const reportService = require("../reports/report.service");
@@ -29,13 +28,6 @@ const MODERATOR_ORDER_TRANSITIONS = {
 
 function getAllowedNextStatuses(currentStatus) {
   return MODERATOR_ORDER_TRANSITIONS[currentStatus] || [];
-}
-
-function toObjectIdString(value) {
-  if (!value) return null;
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
-  if (value._id) return String(value._id);
-  return null;
 }
 
 function parsePagination(pagination = {}) {
@@ -891,45 +883,53 @@ async function getDisputeById(disputeId) {
     .populate("buyerId", "fullName email avatar violationCount isSuspended")
     .populate("sellerId", "fullName email avatar violationCount isSuspended")
     .populate("productId", "title images price")
-    .populate("moderatorId", "fullName email");
+    .populate("moderatorId", "fullName email")
+    .populate("moderatorUpdates.moderatorId", "fullName email");
 
   if (!dispute) {
     throw new Error("Khiếu nại không tồn tại");
   }
 
-  // Gan them conversation chat lien quan de moderator co the tiep tuc trao doi trong luong report/dispute.
-  const buyerId = toObjectIdString(dispute.buyerId);
-  const sellerId = toObjectIdString(dispute.sellerId);
-  const productId = toObjectIdString(dispute.productId);
+  return dispute;
+}
 
-  let chatConversation = null;
-
-  if (buyerId && sellerId && productId) {
-    chatConversation = await Conversation.findOne({
-      buyerId,
-      sellerId,
-      productId
-    })
-      .sort({ lastMessageAt: -1 })
-      .select("_id")
-      .lean();
+// Moderator gui cap nhat trong dispute: chi luu vao dien bien tranh chap + thong bao 2 ben.
+async function sendDisputeModeratorMessage(disputeId, moderatorId, content) {
+  const dispute = await Dispute.findById(disputeId);
+  if (!dispute) {
+    throw new Error('Khiếu nại không tồn tại');
   }
 
-  // Fallback: mot so du lieu cu co the chat theo buyer/seller nhung khac product.
-  if (!chatConversation && buyerId && sellerId) {
-    chatConversation = await Conversation.findOne({
-      buyerId,
-      sellerId
-    })
-      .sort({ lastMessageAt: -1 })
-      .select("_id")
-      .lean();
+  const normalizedContent = String(content || '').trim();
+  if (!normalizedContent) {
+    throw new Error('Nội dung tin nhắn không được để trống');
   }
 
-  const disputeDetail = dispute.toObject();
-  disputeDetail.chatConversationId = chatConversation?._id ? String(chatConversation._id) : null;
+  dispute.moderatorUpdates = [
+    ...(dispute.moderatorUpdates || []),
+    {
+      moderatorId,
+      content: normalizedContent,
+      createdAt: new Date()
+    }
+  ];
+  await dispute.save();
 
-  return disputeDetail;
+  await Promise.all([
+    pushDisputeNotification(dispute.buyerId, 'Moderator có cập nhật mới', 'Moderator vừa gửi cập nhật mới trong khiếu nại. Vui lòng kiểm tra và phản hồi.', disputeId),
+    pushDisputeNotification(dispute.sellerId, 'Moderator có cập nhật mới', 'Moderator vừa gửi cập nhật mới trong khiếu nại. Vui lòng kiểm tra và phản hồi.', disputeId)
+  ]);
+
+  const updatedDispute = await getDisputeById(disputeId);
+
+  return {
+    message: {
+      type: 'moderator_update',
+      content: normalizedContent,
+      createdAt: new Date()
+    },
+    dispute: updatedDispute
+  };
 }
 
 async function increaseViolationAndMaybeSuspend(userId) {
@@ -1084,5 +1084,6 @@ module.exports = {
   getDisputes,
   getDisputeById,
   resolveDispute,
-  markDisputeInvestigating
+  markDisputeInvestigating,
+  sendDisputeModeratorMessage
 };

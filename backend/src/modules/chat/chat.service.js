@@ -244,12 +244,19 @@ async function sendMessage(conversationId, senderId, payload) {
     : normalizedContent;
   await conversation.updateLastMessage(conversationPreview);
   
-  // Chi cap nhat unread khi nguoi gui la buyer/seller trong conversation.
+  // Cap nhat unread theo vai tro nguoi gui.
   const isBuyerSender = conversation.buyerId._id.toString() === senderId.toString();
   const isSellerSender = conversation.sellerId._id.toString() === senderId.toString();
+
   if (isBuyerSender || isSellerSender) {
     const otherUserId = isBuyerSender ? conversation.sellerId._id : conversation.buyerId._id;
     await conversation.incrementUnreadCount(otherUserId);
+  } else {
+    // Truong hop moderator/admin gui tin: day thong bao cho ca buyer va seller.
+    await Conversation.updateOne(
+      { _id: conversation._id },
+      { $inc: { buyerUnreadCount: 1, sellerUnreadCount: 1 } }
+    );
   }
   
   // Populate sender details

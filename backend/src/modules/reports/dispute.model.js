@@ -87,6 +87,25 @@ const disputeSchema = new mongoose.Schema({
     trim: true,
     maxlength: 1000
   },
+
+  // Nhat ky cap nhat tu moderator de hien thi trong dong thoi gian tranh chap.
+  moderatorUpdates: [{
+    moderatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    content: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   
   // Seller's response
   sellerResponse: {

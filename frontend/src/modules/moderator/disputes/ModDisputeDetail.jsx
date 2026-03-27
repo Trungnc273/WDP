@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   getModeratorDisputeById,
   markModeratorDisputeInvestigating,
+  sendModeratorDisputeMessage,
   resolveModeratorDispute
 } from "../../../services/moderator.service";
 import { getImageUrl } from "../../../utils/imageHelper";
@@ -20,6 +21,7 @@ const ModDisputeDetail = () => {
   const [error, setError] = useState("");
   const [dispute, setDispute] = useState(null);
   const [notes, setNotes] = useState("");
+  const [sendingTimelineUpdate, setSendingTimelineUpdate] = useState(false);
 
   const disputeReasonLabels = {
     not_as_described: "Không đúng mô tả",
@@ -79,6 +81,18 @@ const ModDisputeDetail = () => {
         description: disputeData.buyerFollowUpNote || 'Người mua đã gửi tệp mới',
         media: disputeData.buyerAdditionalEvidenceImages || [],
         time: disputeData.buyerFollowUpUpdatedAt || null
+      });
+    }
+
+    if (Array.isArray(disputeData.moderatorUpdates) && disputeData.moderatorUpdates.length > 0) {
+      disputeData.moderatorUpdates.forEach((updateItem, index) => {
+        timeline.push({
+          key: `moderator-update-${index}`,
+          title: 'Moderator cập nhật',
+          description: updateItem?.content || 'Moderator đã gửi cập nhật mới',
+          media: [],
+          time: updateItem?.createdAt || null
+        });
       });
     }
 
@@ -198,13 +212,28 @@ const ModDisputeDetail = () => {
     }
   };
 
-  const handleContinueChat = () => {
-    if (!dispute?.chatConversationId) {
-      message.warning('Chưa tìm thấy cuộc trò chuyện liên quan để tiếp tục.');
+  const handleSendTimelineUpdate = async () => {
+    const content = String(notes || "").trim();
+    if (!content) {
+      message.warning('Vui lòng nhập nội dung phản hồi để cập nhật diễn biến.');
       return;
     }
 
-    navigate(`/chat/${dispute.chatConversationId}`);
+    setSendingTimelineUpdate(true);
+    try {
+      const result = await sendModeratorDisputeMessage(id, content);
+      const updatedDispute = result?.dispute;
+
+      if (updatedDispute) {
+        setDispute(updatedDispute);
+      }
+      setNotes("");
+      message.success("Đã gửi phản hồi và cập nhật vào diễn biến");
+    } catch (err) {
+      message.error(viMessage(err.message) || "Không thể cập nhật diễn biến");
+    } finally {
+      setSendingTimelineUpdate(false);
+    }
   };
 
   if (error) {
@@ -215,10 +244,7 @@ const ModDisputeDetail = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
-      <Space>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/moderator/disputes")}>Quay lại danh sách</Button>
-        <Button onClick={handleContinueChat}>Chat tiếp trong report</Button>
-      </Space>
+      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/moderator/disputes")}>Quay lại danh sách</Button>
 
       <Card className="mod-panel" title={`Chi tiết Khiếu nại: ${dispute?._id?.slice(-8)?.toUpperCase() || ""}`} loading={loading}>
         <Descriptions bordered column={1} labelStyle={{ width: 220, fontWeight: 700 }}>
@@ -274,7 +300,7 @@ const ModDisputeDetail = () => {
               rows={4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ghi chú xử lý của moderator (tùy chọn)"
+              placeholder="Nhập phản hồi gửi 2 bên (sẽ hiển thị trong diễn biến theo thời gian)"
               style={{ minWidth: 320, flex: 1 }}
             />
 
@@ -285,6 +311,14 @@ const ModDisputeDetail = () => {
               disabled={dispute?.status === "investigating"}
             >
               Chuyển sang Đang điều tra
+            </Button>
+
+            <Button
+              type="default"
+              onClick={handleSendTimelineUpdate}
+              loading={sendingTimelineUpdate}
+            >
+              Gửi phản hồi vào diễn biến
             </Button>
 
             <Popconfirm title="Xác nhận hoàn tiền cho người mua?" onConfirm={() => handleResolve("refund")}>

@@ -116,6 +116,11 @@ router.patch(
   moderatorController.markDisputeInvestigating
 );
 
+router.post(
+  "/disputes/:disputeId/message",
+  moderatorController.sendDisputeMessage
+);
+
 router.put(
   "/disputes/:disputeId/resolve",
   moderatorController.resolveDispute

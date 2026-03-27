@@ -556,6 +556,36 @@ async function markDisputeInvestigating(req, res) {
   }
 }
 
+// Moderator gui tin nhan tiep theo trong dispute va dong bo vao dien bien tranh chap.
+async function sendDisputeMessage(req, res) {
+  try {
+    const { disputeId } = req.params;
+    const { content } = req.body || {};
+
+    const idError = ensureObjectId(disputeId, 'Mã tranh chấp');
+    if (idError) return sendError(res, 400, idError);
+
+    const normalizedContent = String(content || '').trim();
+    if (!normalizedContent) {
+      return sendError(res, 400, 'Vui lòng nhập nội dung tin nhắn');
+    }
+
+    if (normalizedContent.length > 1000) {
+      return sendError(res, 400, 'Nội dung tin nhắn không được vượt quá 1000 ký tự');
+    }
+
+    const result = await moderatorService.sendDisputeModeratorMessage(
+      disputeId,
+      req.user.userId,
+      normalizedContent
+    );
+
+    return sendSuccess(res, 200, result, 'Đã gửi cập nhật cho hai bên');
+  } catch (error) {
+    return sendError(res, 400, error.message);
+  }
+}
+
 module.exports = {
   getDashboardStats,
   getPendingProducts,
@@ -581,5 +611,6 @@ module.exports = {
   getDisputes,
   getDisputeById,
   resolveDispute,
-  markDisputeInvestigating
+  markDisputeInvestigating,
+  sendDisputeMessage
 };

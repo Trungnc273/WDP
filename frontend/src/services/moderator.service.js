@@ -270,6 +270,25 @@ export async function resolveModeratorDispute(disputeId, payload) {
   return response.data?.data;
 }
 
+export async function sendModeratorDisputeMessage(disputeId, content) {
+  ensureObjectId(disputeId, 'Mã tranh chấp');
+  const normalizedContent = String(content || '').trim();
+
+  if (!normalizedContent) {
+    throw new Error('Vui lòng nhập nội dung tin nhắn');
+  }
+
+  if (normalizedContent.length > 1000) {
+    throw new Error('Nội dung tin nhắn không được vượt quá 1000 ký tự');
+  }
+
+  const response = await api.post(`/moderator/disputes/${disputeId}/message`, {
+    content: normalizedContent
+  });
+
+  return response.data?.data;
+}
+
 export async function getModeratorPendingProducts() {
   const response = await api.get('/moderator/products/pending');
   return response.data?.data || [];
@@ -332,6 +351,7 @@ const moderatorService = {
   getModeratorDisputes,
   getModeratorDisputeById,
   markModeratorDisputeInvestigating,
+  sendModeratorDisputeMessage,
   resolveModeratorDispute,
   getModeratorPendingProducts,
   approveModeratorProduct,
