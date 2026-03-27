@@ -8,6 +8,10 @@ const config = {
     secret: process.env.JWT_SECRET,
     expiresIn: '7d',
   },
+  chat: {
+    // Uu tien khoa rieng cho chat; fallback JWT_SECRET de khong vo moi truong cu.
+    encryptionKey: process.env.CHAT_ENCRYPTION_KEY || process.env.JWT_SECRET,
+  },
   server: {
     port: process.env.PORT || 5000,
   },

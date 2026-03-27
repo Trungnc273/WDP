@@ -217,7 +217,7 @@ async function getReportById(req, res) {
     return sendError(res, 404, error.message);
   }
 }
-
+//validate
 async function resolveReport(req, res) {
   try {
     const { reportId } = req.params;

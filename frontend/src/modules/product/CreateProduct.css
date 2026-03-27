@@ -611,6 +611,9 @@
   font-size: 18px;
   font-weight: 800;
   line-height: 1.55;
+  /* Chuoi dai khong co dau cach van phai tu xuong dong, khong tran khoi card. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .listing-preview-price {
@@ -653,6 +656,9 @@
   font-size: 13px;
   font-weight: 800;
   text-align: right;
+  /* Bao ve layout khi danh muc/khu vuc co text dai bat thuong. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .tips-list li {

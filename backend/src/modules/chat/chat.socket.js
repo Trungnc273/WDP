@@ -93,12 +93,17 @@ function initializeChatSocket(io) {
           type,
           metadata
         });
+
+        // Tuong thich ca 2 truong hop: service tra mongoose doc hoac plain object.
+        const normalizedMessage = typeof message?.toObject === 'function'
+          ? message.toObject()
+          : message;
         
         // Emit to conversation room
         io.to(`conversation:${conversationId}`).emit('receive_message', {
           conversationId,
           message: {
-            ...message.toObject(),
+            ...normalizedMessage,
             conversation: conversationId
           }
         });

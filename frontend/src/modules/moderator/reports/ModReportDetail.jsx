@@ -12,6 +12,7 @@ import { getImageUrl } from "../../../utils/imageHelper";
 const { TextArea } = Input;
 
 function getWarningLevel(warningCount, isSuspended, shouldLockAccount) {
+  // Hien thi muc do rui ro de mod ra quyet dinh nhanh.
   if (isSuspended) {
     return { color: "error", message: "Tài khoản đang bị khóa do vi phạm từ báo cáo." };
   }
@@ -42,7 +43,7 @@ const ModReportDetail = () => {
   const [decision, setDecision] = useState("warn_user");
   const [error, setError] = useState("");
 
-  // Dùng một hàm tải chi tiết duy nhất để sau thao tác có thể gọi lại đúng dữ liệu mới nhất.
+  // Luong bao cao: tai chi tiet report va dong bo state form moderator.
   const fetchDetail = async () => {
     setLoading(true);
     setError("");
@@ -65,6 +66,7 @@ const ModReportDetail = () => {
   }, [id]);
 
   const handleAction = async (status) => {
+    // Luong bao cao: gui quyet dinh xu ly (resolved/dismissed) len backend.
     try {
       await resolveModeratorReport(id, {
         status,
@@ -183,6 +185,7 @@ const ModReportDetail = () => {
         )}
 
         {(report?.status === "pending" || report?.status === "reviewing") && (
+          // Khu thao tac moderation: chon decision va noi dung phan hoi 2 ben.
           <div className="mod-action-row mod-action-grid">
             <div className="mod-action-field">
               <span className="mod-action-label">Quyết định xử lý</span>

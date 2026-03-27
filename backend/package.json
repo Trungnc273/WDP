@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "migrate:consistency": "node migrate-data-consistency.js"
   },
   "keywords": [
     "marketplace",

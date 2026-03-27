@@ -5,6 +5,7 @@ import { getOrderById } from '../../services/order.service';
 import { canReviewOrder, getReviewByOrderId } from '../../services/review.service';
 import { getDisputeByOrderId, addSellerResponse, addBuyerFollowUp, confirmSellerReturn, uploadEvidenceMedia } from '../../services/report.service';
 import { getImageUrl } from '../../utils/imageHelper';
+import { formatCategoryText } from '../../utils/categoryHelper';
 import ShipOrder from './ShipOrder';
 import ConfirmReceipt from './ConfirmReceipt';
 import RateSeller from '../review/RateSeller';
@@ -751,7 +752,8 @@ const OrderDetail = () => {
                 </div>
                 <div className="meta-item">
                   <span className="label">Danh mục:</span>
-                  <span className="value">{order.listing?.category?.name || 'Chưa phân loại'}</span>
+                  {/* Chuoi danh muc da chuan hoa, hien thi du category phu neu co. */}
+                  <span className="value">{formatCategoryText(order.listing)}</span>
                 </div>
                 <div className="meta-item">
                   <span className="label">Khu vực:</span>

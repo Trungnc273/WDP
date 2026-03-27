@@ -3,43 +3,42 @@ const Order = require('../orders/order.model');
 const User = require('../users/user.model');
 
 /**
- * Review Service
- * Handles seller ratings and reviews
+ * Service xu ly nghiep vu danh gia va diem so seller.
  */
 
 /**
- * Create a review (rate seller after order completion)
+ * Tao danh gia cho seller sau khi don hoan thanh.
  */
 async function createReview(reviewerId, orderId, rating, comment = '') {
-  // Validate rating
+  // Kiem tra rating hop le 1..5.
   if (!rating || rating < 1 || rating > 5) {
     throw new Error('Đánh giá phải từ 1 đến 5 sao');
   }
   
-  // Get order
+  // Lay don hang de doi chieu quyen va trang thai.
   const order = await Order.findById(orderId);
   
   if (!order) {
     throw new Error('Đơn hàng không tồn tại');
   }
   
-  // Verify reviewer is the buyer
+  // Chi buyer cua don moi duoc review.
   if (order.buyerId.toString() !== reviewerId.toString()) {
     throw new Error('Chỉ người mua mới có thể đánh giá');
   }
   
-  // Check if order is completed
+  // Don phai hoan thanh moi duoc danh gia.
   if (order.status !== 'completed') {
     throw new Error('Chỉ có thể đánh giá sau khi đơn hàng hoàn thành');
   }
   
-  // Check if review already exists
+  // Moi don chi duoc tao 1 review.
   const existingReview = await Review.findOne({ orderId: orderId });
   if (existingReview) {
     throw new Error('Bạn đã đánh giá đơn hàng này rồi');
   }
   
-  // Create review
+  // Tao review active.
   const review = await Review.create({
     orderId: orderId,
     reviewerId: reviewerId,
@@ -50,10 +49,10 @@ async function createReview(reviewerId, orderId, rating, comment = '') {
     status: 'active'
   });
   
-  // Update seller's rating
+  // Cap nhat lai diem trung binh seller sau khi co review moi.
   await updateUserRating(order.sellerId);
   
-  // Populate details
+  // Bo sung thong tin lien quan de frontend hien thi.
   await review.populate([
     { path: 'reviewerId', select: 'fullName avatar' },
     { path: 'reviewedUserId', select: 'fullName avatar' },
@@ -65,13 +64,13 @@ async function createReview(reviewerId, orderId, rating, comment = '') {
 }
 
 /**
- * Update user's average rating
+ * Tinh va cap nhat diem trung binh + tong review cho seller.
  */
 async function updateUserRating(userId) {
-  // Calculate average rating
+  // Tinh thong ke tu cac review active.
   const stats = await Review.calculateAverageRating(userId);
   
-  // Update user
+  // Luu thong ke vao user profile.
   await User.findByIdAndUpdate(userId, {
     rating: stats.averageRating,
     totalReviews: stats.totalReviews
@@ -81,7 +80,7 @@ async function updateUserRating(userId) {
 }
 
 /**
- * Get reviews for a user (seller)
+ * Lay danh sach review cua seller theo bo loc + phan trang.
  */
 async function getReviews(userId, filters = {}, pagination = {}) {
   const page = parseInt(pagination.page) || 1;
@@ -107,7 +106,7 @@ async function getReviews(userId, filters = {}, pagination = {}) {
   
   const total = await Review.countDocuments(query);
   
-  // Get rating statistics
+  // Tra kem thong ke diem tong quan.
   const stats = await Review.calculateAverageRating(userId);
   
   return {
@@ -126,7 +125,7 @@ async function getReviews(userId, filters = {}, pagination = {}) {
 }
 
 /**
- * Get review by ID
+ * Lay chi tiet 1 review.
  */
 async function getReviewById(reviewId) {
   const review = await Review.findById(reviewId)
@@ -143,7 +142,7 @@ async function getReviewById(reviewId) {
 }
 
 /**
- * Get review by order ID
+ * Lay review theo order (neu da ton tai).
  */
 async function getReviewByOrderId(orderId) {
   const review = await Review.findOne({ orderId: orderId })
@@ -151,31 +150,31 @@ async function getReviewByOrderId(orderId) {
     .populate('reviewedUserId', 'fullName avatar')
     .populate('productId', 'title images');
   
-  return review; // Can be null if no review exists
+  return review; // Co the null neu don chua duoc review.
 }
 
 /**
- * Update review
+ * Sua review cua chinh reviewer.
  */
 async function updateReview(reviewId, reviewerId, rating, comment) {
-  // Validate rating
+  // Kiem tra rating neu co thay doi.
   if (rating && (rating < 1 || rating > 5)) {
     throw new Error('Đánh giá phải từ 1 đến 5 sao');
   }
   
-  // Get review
+  // Lay review can sua.
   const review = await Review.findById(reviewId);
   
   if (!review) {
     throw new Error('Đánh giá không tồn tại');
   }
   
-  // Verify reviewer
+  // Chi tac gia review moi duoc sua.
   if (review.reviewerId.toString() !== reviewerId.toString()) {
     throw new Error('Bạn không có quyền chỉnh sửa đánh giá này');
   }
   
-  // Update review
+  // Cap nhat truong duoc phep.
   if (rating) {
     review.rating = rating;
   }
@@ -186,45 +185,45 @@ async function updateReview(reviewId, reviewerId, rating, comment) {
   
   await review.save();
   
-  // Recalculate seller's rating
+  // Tinh lai diem seller sau khi sua.
   await updateUserRating(review.reviewedUserId);
   
   return review;
 }
 
 /**
- * Delete review (hide)
+ * Xoa mem review (an review), khong xoa cung du lieu.
  */
 async function deleteReview(reviewId, reviewerId) {
-  // Get review
+  // Lay review can xoa.
   const review = await Review.findById(reviewId);
   
   if (!review) {
     throw new Error('Đánh giá không tồn tại');
   }
   
-  // Verify reviewer
+  // Chi tac gia review moi duoc xoa.
   if (review.reviewerId.toString() !== reviewerId.toString()) {
     throw new Error('Bạn không có quyền xóa đánh giá này');
   }
   
-  // Hide review (soft delete)
+  // Chuyen status sang hidden.
   review.status = 'hidden';
   await review.save();
   
-  // Recalculate seller's rating
+  // Tinh lai diem seller sau khi an review.
   await updateUserRating(review.reviewedUserId);
   
   return review;
 }
 
 /**
- * Get rating statistics for a user
+ * Lay thong ke phan bo sao cua seller.
  */
 async function getRatingStats(userId) {
   const stats = await Review.calculateAverageRating(userId);
   
-  // Get rating distribution
+  // Gom nhom so luong review theo tung muc sao.
   const distribution = await Review.aggregate([
     {
       $match: {
@@ -243,7 +242,7 @@ async function getRatingStats(userId) {
     }
   ]);
   
-  // Format distribution
+  // Chuan hoa response 1..5 sao cho frontend.
   const ratingDistribution = {
     5: 0,
     4: 0,
@@ -264,27 +263,27 @@ async function getRatingStats(userId) {
 }
 
 /**
- * Check if user can review an order
+ * Kiem tra user co du dieu kien review don hay khong.
  */
 async function canReviewOrder(userId, orderId) {
-  // Get order
+  // Lay don de check quyen + trang thai.
   const order = await Order.findById(orderId);
   
   if (!order) {
     return { canReview: false, reason: 'Đơn hàng không tồn tại' };
   }
   
-  // Check if user is the buyer
+  // Chi buyer duoc review.
   if (order.buyerId.toString() !== userId.toString()) {
     return { canReview: false, reason: 'Chỉ người mua mới có thể đánh giá' };
   }
   
-  // Check if order is completed
+  // Don chua completed thi chua duoc review.
   if (order.status !== 'completed') {
     return { canReview: false, reason: 'Đơn hàng chưa hoàn thành' };
   }
   
-  // Check if review already exists
+  // Da co review thi chan tao moi.
   const existingReview = await Review.findOne({ orderId: orderId });
   if (existingReview) {
     return { canReview: false, reason: 'Bạn đã đánh giá đơn hàng này rồi' };
@@ -294,7 +293,7 @@ async function canReviewOrder(userId, orderId) {
 }
 
 /**
- * Get reviews written by a user
+ * Lay cac review ma user da viet.
  */
 async function getReviewsByReviewer(reviewerId, pagination = {}) {
   const page = parseInt(pagination.page) || 1;

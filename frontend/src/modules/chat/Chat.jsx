@@ -41,6 +41,10 @@ const Chat = () => {
   const socketRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  // Ref cua khung message de chi scroll ben trong chat area.
+  const messagesContainerRef = useRef(null);
+  // Ref cua sidebar de giu nguyen vi tri cuon khi danh sach duoc cap nhat.
+  const conversationsListRef = useRef(null);
   const activeConversationIdRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -66,11 +70,12 @@ const Chat = () => {
   }, [user, token]);
 
   useEffect(() => {
-    if (conversationId && conversations.length > 0) {
+    if (conversationId) {
+      // Chi reload khi doi conversation id, tranh reload lai khi state conversations thay doi.
       loadConversation(conversationId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, conversations]);
+  }, [conversationId]);
 
   useEffect(() => {
     activeConversationIdRef.current = conversationId || null;
@@ -79,6 +84,25 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const setConversationsPreserveScroll = (updater) => {
+    // Luu vi tri sidebar truoc khi render lai.
+    const previousScrollTop = conversationsListRef.current?.scrollTop || 0;
+
+    setConversations((prev) => {
+      if (typeof updater === 'function') {
+        return updater(prev);
+      }
+      return updater;
+    });
+
+    requestAnimationFrame(() => {
+      if (conversationsListRef.current) {
+        // Khoi phuc vi tri cuon sau khi React cap nhat DOM.
+        conversationsListRef.current.scrollTop = previousScrollTop;
+      }
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -133,7 +157,7 @@ const Chat = () => {
       }
       
       // Cap nhat preview doan chat va unread theo dung vai tro buyer/seller.
-      setConversations(prev => prev.map((conv) => {
+      setConversationsPreserveScroll(prev => prev.map((conv) => {
         if (conv._id !== messageConversationId) return conv;
 
         const buyerId = getConversationBuyerId(conv)?.toString?.();
@@ -325,7 +349,14 @@ const Chat = () => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Chi cuon trong khung tin nhan, khong keo toan bo trang.
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    });
   };
 
   const formatTime = (date) => {
@@ -480,7 +511,7 @@ const Chat = () => {
     if (!conversationIdValue) return;
 
     const role = getMyRoleInConversation(conversation);
-    setConversations((prev) => prev.map((conv) => {
+    setConversationsPreserveScroll((prev) => prev.map((conv) => {
       if (conv._id !== conversationIdValue) return conv;
 
       if (role === 'Người Mua') {
@@ -627,7 +658,7 @@ const Chat = () => {
         });
       }
 
-      setConversations((prev) => prev.map((conv) =>
+      setConversationsPreserveScroll((prev) => prev.map((conv) =>
         conv._id === currentConversation._id
           ? {
               ...conv,
@@ -688,7 +719,7 @@ const Chat = () => {
         });
       }
 
-      setConversations((prev) => prev.map((conv) =>
+      setConversationsPreserveScroll((prev) => prev.map((conv) =>
         conv._id === currentConversation._id
           ? {
               ...conv,
@@ -911,7 +942,7 @@ const Chat = () => {
           </div>
         </div>
         
-        <div className="conversations-list">
+        <div className="conversations-list" ref={conversationsListRef}>
           {filteredConversations.length === 0 ? (
             <div className="empty-conversations">
               <p>{normalizedConversationSearch ? 'Không tìm thấy cuộc trò chuyện phù hợp' : 'Chưa có cuộc trò chuyện nào'}</p>
@@ -1062,7 +1093,7 @@ const Chat = () => {
             </div>
 
             {/* Messages */}
-            <div className="messages-container">
+            <div className="messages-container" ref={messagesContainerRef}>
               {messages.map((message, index) => {
                 const isOwn = getMessageSenderId(message)?.toString() === getCurrentUserId()?.toString();
                 const showDate = index === 0 || 

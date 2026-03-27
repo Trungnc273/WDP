@@ -5,6 +5,7 @@ import {
   rejectModeratorProduct 
 } from '../../../services/moderator.service';
 import { getImageUrl } from '../../../utils/imageHelper';
+import { formatCategoryText } from '../../../utils/categoryHelper';
 import '../AdminModules.css';
 
 const AdminProductList = () => {
@@ -62,7 +63,8 @@ const AdminProductList = () => {
   const filteredProducts = filters.keyword
     ? products.filter((p) => {
         const title = (p.title || '').toLowerCase();
-        const seller = (p.sellerId?.fullName || p.sellerId?.email || '').toLowerCase();
+        // Ho tro ca schema cu (sellerId) va schema moi (seller).
+        const seller = (p.seller?.fullName || p.seller?.email || p.sellerId?.fullName || p.sellerId?.email || '').toLowerCase();
         const kw = filters.keyword.toLowerCase();
         return title.includes(kw) || seller.includes(kw);
       })
@@ -70,7 +72,7 @@ const AdminProductList = () => {
 
   const conditionMap = { 
     new: 'Mới', 
-    like_new: 'Như mới', 
+    'like-new': 'Như mới', 
     good: 'Tốt', 
     fair: 'Khá', 
     poor: 'Kém' 
@@ -166,13 +168,14 @@ const AdminProductList = () => {
                             {product.title}
                           </div>
                           <div style={{ fontSize: '12px', color: '#999' }}>
-                            {product.categoryId?.name || 'Chưa phân loại'}
+                            {/* Hien thi nhieu danh muc dong bo voi man moderator/user. */}
+                            {formatCategoryText(product)}
                           </div>
                         </div>
                       </td>
                       <td>
                         <div style={{fontWeight: '500'}}>
-                          {product.sellerId?.fullName || product.sellerId?.email || 'N/A'}
+                          {product.seller?.fullName || product.seller?.email || product.sellerId?.fullName || product.sellerId?.email || 'N/A'}
                         </div>
                       </td>
                       <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>

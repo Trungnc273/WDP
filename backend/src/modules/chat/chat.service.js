@@ -1,11 +1,34 @@
 const Conversation = require('./conversation.model');
 const Message = require('./message.model');
 const Product = require('../products/product.model');
+const { encryptChatContent, decryptChatContent } = require('../../common/utils/chat-crypto.util');
 
 /**
  * Chat Service
  * Handles conversation and message management
  */
+
+function toClientMessage(messageDoc) {
+  if (!messageDoc) {
+    return messageDoc;
+  }
+
+  const message = typeof messageDoc.toObject === 'function'
+    ? messageDoc.toObject()
+    : { ...messageDoc };
+
+  if (typeof message.content === 'string') {
+    try {
+      // Giai ma truoc khi tra ve client de UI hien plaintext.
+      message.content = decryptChatContent(message.content);
+    } catch (error) {
+      // Khong nem loi de tranh vo luong chat; hien thong bao de user biet.
+      message.content = '[Tin nhắn không thể giải mã]';
+    }
+  }
+
+  return message;
+}
 
 /**
  * Create or get existing conversation
@@ -137,9 +160,11 @@ async function getMessages(conversationId, userId, pagination = {}) {
   
   // Reverse to show oldest first
   messages.reverse();
+
+  const normalizedMessages = messages.map(toClientMessage);
   
   return {
-    messages,
+    messages: normalizedMessages,
     pagination: {
       page,
       limit,
@@ -193,10 +218,13 @@ async function sendMessage(conversationId, senderId, payload) {
     ? (content || 'Đã gửi một ảnh')
     : content;
 
+  const encryptedContent = encryptChatContent(normalizedContent);
+
   const message = await Message.create({
     conversationId,
     senderId,
-    content: normalizedContent,
+    // Chi luu ciphertext trong DB.
+    content: encryptedContent,
     type: messageType,
     metadata
   });
@@ -218,7 +246,7 @@ async function sendMessage(conversationId, senderId, payload) {
   // Populate sender details
   await message.populate('senderId', 'fullName avatar');
   
-  return message;
+  return toClientMessage(message);
 }
 
 /**

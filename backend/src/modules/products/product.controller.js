@@ -2,6 +2,90 @@ const productService = require('./product.service');
 const Category = require('./category.model');
 const { sendSuccess, sendError } = require('../../common/utils/response.util');
 
+function parseCategoryInput(value) {
+  // Chap nhan nhieu dinh dang payload: array, JSON string, comma string, object indexed.
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!normalized) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(normalized);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      // Fall through to comma/single value parsing.
+    }
+
+    if (normalized.includes(',')) {
+      return normalized.split(',').map(item => item.trim()).filter(Boolean);
+    }
+
+    return [normalized];
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.values(value).filter(Boolean);
+  }
+
+  return [];
+}
+
+async function normalizeCategorySelection(productData, resolveCategoryId) {
+  // Gom category theo nhieu key de tranh mat du lieu giua cac client version.
+  const candidateCategoryValues = [
+    ...parseCategoryInput(productData.categories),
+    ...parseCategoryInput(productData.categoryIds)
+  ];
+
+  const normalizedCategories = [];
+  for (const rawCategory of candidateCategoryValues) {
+    const categoryId = await resolveCategoryId(String(rawCategory || '').trim());
+    if (!categoryId) {
+      throw new Error('Danh mục không hợp lệ');
+    }
+    if (!normalizedCategories.includes(categoryId)) {
+      normalizedCategories.push(categoryId);
+    }
+  }
+
+  let primaryCategoryId = null;
+  const singleCategoryCandidates = [productData.category, productData.categoryId];
+
+  for (const candidate of singleCategoryCandidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    const resolved = await resolveCategoryId(String(candidate).trim());
+    if (!resolved) {
+      throw new Error('Danh mục không hợp lệ');
+    }
+    primaryCategoryId = resolved;
+    break;
+  }
+
+  if (!primaryCategoryId && normalizedCategories.length > 0) {
+    primaryCategoryId = normalizedCategories[0];
+  }
+
+  if (primaryCategoryId && !normalizedCategories.includes(primaryCategoryId)) {
+    // Dam bao category chinh luon nam trong mang categories.
+    normalizedCategories.unshift(primaryCategoryId);
+  }
+
+  return {
+    primaryCategoryId,
+    normalizedCategories
+  };
+}
+
 /**
  * Get all products with filters and pagination
  * GET /api/products
@@ -155,8 +239,8 @@ async function createProduct(req, res, next) {
       }
     };
     
-    // Allow post when account is verified or KYC status is approved.
-    const canPostProduct = Boolean(req.user.isVerified) || req.user.kycStatus === 'approved';
+    // Bat buoc KYC approved moi duoc dang tin.
+    const canPostProduct = req.user.kycStatus === 'approved';
     if (!canPostProduct) {
       return sendError(
         res,
@@ -172,35 +256,14 @@ async function createProduct(req, res, next) {
       return sendError(res, 400, 'Thiếu thông tin bắt buộc: tiêu đề, mô tả, giá');
     }
     
-    const inputCategories = Array.isArray(productData.categories)
-      ? productData.categories
-      : [];
-    const normalizedCategories = [];
-
-    for (const rawCategory of inputCategories) {
-      const categoryId = await resolveCategoryId(String(rawCategory || '').trim());
-      if (!categoryId) {
-        return sendError(res, 400, 'Danh mục không hợp lệ');
-      }
-      if (!normalizedCategories.includes(categoryId)) {
-        normalizedCategories.push(categoryId);
-      }
-    }
-
     let primaryCategoryId = null;
-    if (productData.category) {
-      primaryCategoryId = await resolveCategoryId(String(productData.category).trim());
-      if (!primaryCategoryId) {
-        return sendError(res, 400, 'Danh mục không hợp lệ');
-      }
-    }
-
-    if (!primaryCategoryId && normalizedCategories.length > 0) {
-      primaryCategoryId = normalizedCategories[0];
-    }
-
-    if (primaryCategoryId && !normalizedCategories.includes(primaryCategoryId)) {
-      normalizedCategories.unshift(primaryCategoryId);
+    let normalizedCategories = [];
+    try {
+      const normalizedSelection = await normalizeCategorySelection(productData, resolveCategoryId);
+      primaryCategoryId = normalizedSelection.primaryCategoryId;
+      normalizedCategories = normalizedSelection.normalizedCategories;
+    } catch (error) {
+      return sendError(res, 400, error.message);
     }
 
     const normalizedOtherCategory = String(productData.otherCategory || '').trim();
@@ -250,7 +313,41 @@ async function updateProduct(req, res, next) {
   try {
     const { id } = req.params;
     const userId = req.user.userId;
-    const updateData = req.body;
+    const updateData = { ...req.body };
+
+    const resolveCategoryId = async (value) => {
+      if (!value || typeof value !== 'string') return null;
+
+      const categoryBySlug = await Category.findOne({ slug: value }).select('_id');
+      if (categoryBySlug) {
+        return categoryBySlug._id.toString();
+      }
+
+      const categoryById = await Category.findById(value).select('_id');
+      if (categoryById) {
+        return categoryById._id.toString();
+      }
+
+      return null;
+    };
+
+    const shouldNormalizeCategories =
+      updateData.category !== undefined ||
+      updateData.categoryId !== undefined ||
+      updateData.categories !== undefined ||
+      updateData.categoryIds !== undefined;
+
+    if (shouldNormalizeCategories) {
+      try {
+        const normalizedSelection = await normalizeCategorySelection(updateData, resolveCategoryId);
+        if (normalizedSelection.primaryCategoryId) {
+          updateData.category = normalizedSelection.primaryCategoryId;
+        }
+        updateData.categories = normalizedSelection.normalizedCategories;
+      } catch (error) {
+        return sendError(res, 400, error.message);
+      }
+    }
     
     const product = await productService.updateProduct(id, userId, updateData);
     

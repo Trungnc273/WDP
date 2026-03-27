@@ -1,7 +1,8 @@
 import { Card, Table, Button, Typography, Tag, Space, message, Modal, Input, Image } from "antd";
 import { CheckOutlined, CloseOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
-import { getImageUrl } from "../../../utils/imageHelper";
+import { getProductImageUrl } from "../../../utils/imageHelper";
+import { formatCategoryText } from "../../../utils/categoryHelper";
 import {
   getModeratorPendingProducts,
   approveModeratorProduct,
@@ -23,7 +24,7 @@ const ModProductList = () => {
   const filteredProducts = keyword
     ? products.filter((p) => {
         const title = (p.title || "").toLowerCase();
-        const seller = (p.sellerId?.fullName || p.sellerId?.email || "").toLowerCase();
+        const seller = (p.seller?.fullName || p.seller?.email || "").toLowerCase();
         const kw = keyword.toLowerCase();
         return title.includes(kw) || seller.includes(kw);
       })
@@ -77,13 +78,13 @@ const ModProductList = () => {
       dataIndex: "images",
       key: "image",
       width: 80,
-      render: (images) => (
+      render: (_, record) => (
         <Image
-          src={getImageUrl(images?.[0]) || "/images/placeholder.png"}
+          src={getProductImageUrl(record)}
           width={60}
           height={60}
           style={{ objectFit: "cover", borderRadius: 4 }}
-          fallback="/images/placeholder.png"
+          fallback="/images/placeholders/product-placeholder.svg"
         />
       )
     },
@@ -95,14 +96,15 @@ const ModProductList = () => {
         <Space direction="vertical" size={2}>
           <Text strong>{title}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.categoryId?.name || "Chưa phân loại"}
+            {/* Dung helper chung de tranh manh nao chi hien 1 category. */}
+            {formatCategoryText(record)}
           </Text>
         </Space>
       )
     },
     {
       title: "Người đăng",
-      dataIndex: "sellerId",
+      dataIndex: "seller",
       key: "seller",
       render: (seller) => seller?.fullName || seller?.email || "N/A"
     },
@@ -119,7 +121,7 @@ const ModProductList = () => {
       dataIndex: "condition",
       key: "condition",
       render: (c) => {
-        const map = { new: "Mới", like_new: "Như mới", good: "Tốt", fair: "Khá", poor: "Kém" };
+        const map = { new: "Mới", "like-new": "Như mới", good: "Tốt", fair: "Khá", poor: "Kém" };
         return <Tag>{map[c] || c}</Tag>;
       }
     },

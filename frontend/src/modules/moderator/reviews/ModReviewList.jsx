@@ -33,7 +33,7 @@ const ModReviewList = () => {
   const [moderatorNote, setModeratorNote] = useState("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
-  // Tập trung gọi API tại một chỗ để dễ bảo trì bộ lọc và phân trang.
+  // Luong danh gia: lay danh sach review theo filter moderation.
   const fetchReviews = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
@@ -97,6 +97,7 @@ const ModReviewList = () => {
   };
 
   const openMarkBadModal = (review) => {
+    // Mo popup danh dau xau va nhap noi dung giai trinh cho seller.
     const reviewId = review?._id;
     if (!reviewId) return;
 
@@ -112,6 +113,7 @@ const ModReviewList = () => {
   };
 
   const getNextPenaltyPreview = (review) => {
+    // Preview muc phat tiep theo dua tren moc 3/6/9.
     const nextCount = Number(review?.reviewedUserId?.modBadReviewCount || 0) + 1;
     const nextLevel = Math.min(Math.floor(nextCount / 3), 3);
     const shouldSuspendNow = nextCount % 3 === 0;
@@ -130,6 +132,7 @@ const ModReviewList = () => {
   };
 
   const submitMarkBad = async () => {
+    // Luong danh gia: chot verdict bad va nhan ket qua penalty.
     const review = pendingReview;
     const reviewId = review?._id;
     if (!reviewId) return;
@@ -163,6 +166,7 @@ const ModReviewList = () => {
   };
 
   const submitMarkGood = async (review) => {
+    // Luong danh gia: chot verdict good (khong penalty).
     const reviewId = review?._id;
     if (!reviewId) return;
 
@@ -188,6 +192,7 @@ const ModReviewList = () => {
   };
 
   const openReviewDetail = (review) => {
+    // Xem full thong tin review truoc khi ra quyet dinh moderation.
     setSelectedReview(review);
     setDetailModalOpen(true);
   };

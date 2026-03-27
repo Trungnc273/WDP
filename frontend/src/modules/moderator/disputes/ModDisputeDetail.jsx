@@ -49,6 +49,7 @@ const ModDisputeDetail = () => {
 
   const isVideoEvidence = (url = "") => /\.(mp4|mov|webm|avi|mkv)$/i.test(url);
 
+  // Render bang chung theo tung loai media de moderator doi chieu de dang.
   const renderEvidenceSection = (files = [], emptyText) => {
     if (!files.length) {
       return <Text type="secondary">{emptyText}</Text>;
@@ -92,7 +93,7 @@ const ModDisputeDetail = () => {
     );
   };
 
-  // Tải lại chi tiết sau mỗi thao tác để luôn hiển thị dữ liệu chuẩn từ server.
+  // Luong tranh chap: tai chi tiet tranh chap (bao gom bang chung 2 ben).
   const fetchDetail = async () => {
     setLoading(true);
     setError("");
@@ -113,6 +114,7 @@ const ModDisputeDetail = () => {
   }, [id]);
 
   const handleResolve = async (resolution) => {
+    // Luong tranh chap: quyet dinh cuoi refund/release.
     try {
       const updatedDispute = await resolveModeratorDispute(id, {
         resolution,
@@ -131,6 +133,7 @@ const ModDisputeDetail = () => {
   };
 
   const handleInvestigating = async () => {
+    // Luong tranh chap: chuyen sang investigating de mo giai doan dieu tra.
     try {
       await markModeratorDisputeInvestigating(id, notes);
       message.success("Đã chuyển trạng thái sang đang điều tra");

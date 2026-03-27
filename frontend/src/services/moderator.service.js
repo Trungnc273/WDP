@@ -60,17 +60,20 @@ export async function getModeratorDashboard() {
 }
 
 export async function getModeratorReports(params = {}) {
+  // Luong bao cao: lay danh sach report cho man hinh moderator.
   const response = await api.get('/moderator/reports', { params: normalizePaginationParams(params) });
   return normalizeListResponse(response.data, 'reports');
 }
 
 export async function getModeratorReportById(reportId) {
+  // Luong bao cao: lay chi tiet 1 report.
   ensureObjectId(reportId, 'Mã báo cáo');
   const response = await api.get(`/moderator/reports/${reportId}`);
   return response.data?.data;
 }
 
 export async function resolveModeratorReport(reportId, payload) {
+  // Luong bao cao: moderator chot quyet dinh xu ly report.
   ensureObjectId(reportId, 'Mã báo cáo');
   const { status, moderatorDecision, moderatorReply, moderatorReplyToReportedUser } = payload || {};
 
@@ -89,7 +92,7 @@ export async function resolveModeratorReport(reportId, payload) {
   if (moderatorReplyToReportedUser && moderatorReplyToReportedUser.trim().length > 500) {
     throw new Error('Phản hồi cho người bị báo cáo không được vượt quá 500 ký tự');
   }
-
+//Api
   const response = await api.put(`/moderator/reports/${reportId}/resolve`, {
     status,
     moderatorDecision,
@@ -145,6 +148,7 @@ export async function updateModeratorOrderStatus(orderId, nextStatus, note = '')
 }
 
 export async function getModeratorReviews(params = {}) {
+  // Luong danh gia: lay danh sach review cho moderation.
   const normalizedParams = normalizePaginationParams(params);
   if (normalizedParams.assessment !== undefined) {
     const allowedAssessment = ['pending', 'good', 'bad'];
@@ -158,12 +162,14 @@ export async function getModeratorReviews(params = {}) {
 }
 
 export async function hideModeratorReview(reviewId) {
+  // Luong danh gia: an review vi pham.
   ensureObjectId(reviewId, 'Mã đánh giá');
   const response = await api.patch(`/moderator/reviews/${reviewId}/hide`);
   return response.data?.data;
 }
 
 export async function markBadModeratorReview(reviewId, note) {
+  // Luong danh gia: danh dau review xau de ap dung penalty seller.
   ensureObjectId(reviewId, 'Mã đánh giá');
   const normalizedNote = String(note || '').trim();
   if (normalizedNote.length < 10) {
@@ -178,6 +184,7 @@ export async function markBadModeratorReview(reviewId, note) {
 }
 
 export async function markGoodModeratorReview(reviewId, note = '') {
+  // Luong danh gia: danh dau review hop le (khong phat).
   ensureObjectId(reviewId, 'Mã đánh giá');
   const normalizedNote = String(note || '').trim();
   if (normalizedNote.length > 500) {
@@ -216,17 +223,19 @@ export async function updateModeratorWithdrawalStatus(withdrawalId, status, note
 }
 
 export async function getModeratorDisputes(params = {}) {
+  // Luong tranh chap: lay danh sach tranh chap cho moderator.
   const response = await api.get('/moderator/disputes', { params });
   return normalizeListResponse(response.data, 'disputes');
 }
 
 export async function getModeratorDisputeById(disputeId) {
+  // Luong tranh chap: lay chi tiet de tham dinh bang chung 2 ben.
   ensureObjectId(disputeId, 'Mã tranh chấp');
   const response = await api.get(`/moderator/disputes/${disputeId}`);
   return response.data?.data;
 }
 
-// Bước trung gian: moderator nhận xử lý trước khi ra quyết định cuối cùng.
+// Luong tranh chap: buoc trung gian tiep nhan dieu tra.
 export async function markModeratorDisputeInvestigating(disputeId, moderatorNotes = '') {
   ensureObjectId(disputeId, 'Mã tranh chấp');
   if (moderatorNotes && moderatorNotes.trim().length > 500) {
@@ -241,6 +250,7 @@ export async function markModeratorDisputeInvestigating(disputeId, moderatorNote
 }
 
 export async function resolveModeratorDispute(disputeId, payload) {
+  // Luong tranh chap: quyet dinh cuoi refund/release (anh huong dong tien escrow).
   ensureObjectId(disputeId, 'Mã tranh chấp');
   const { resolution, moderatorNotes } = payload || {};
 

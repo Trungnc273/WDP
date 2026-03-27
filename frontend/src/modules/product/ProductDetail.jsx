@@ -356,6 +356,48 @@ const ProductDetail = () => {
   const sellerCreatedAt = product?.seller?.createdAt;
   const sellerJoinYear = sellerCreatedAt ? new Date(sellerCreatedAt).getFullYear() : null;
 
+  // Gom category chinh + categories phu thanh danh sach khong trung lap cho man chi tiet.
+  const categoryMap = new Map();
+  const registerCategory = (category) => {
+    if (!category) return;
+
+    if (typeof category === 'string') {
+      const key = category.trim();
+      if (!key) return;
+      categoryMap.set(key, {
+        key,
+        name: key,
+        slug: ''
+      });
+      return;
+    }
+
+    const idKey = String(category._id || category.id || category.slug || category.name || '').trim();
+    if (!idKey) return;
+    categoryMap.set(idKey, {
+      key: idKey,
+      name: String(category.name || category.slug || '').trim() || 'Chưa phân loại',
+      slug: String(category.slug || '').trim()
+    });
+  };
+
+  registerCategory(product.category);
+  (Array.isArray(product.categories) ? product.categories : []).forEach(registerCategory);
+
+  const detailCategories = Array.from(categoryMap.values());
+  // Chuoi hien thi tong hop danh muc de user thay day du thong tin da chon.
+  const displayCategoryNames = detailCategories.map((item) => item.name).filter(Boolean);
+  const normalizedOtherCategory = String(product.otherCategory || '').trim();
+  if (normalizedOtherCategory) {
+    displayCategoryNames.push(`Khác: ${normalizedOtherCategory}`);
+  }
+
+  const categoryDisplayText = displayCategoryNames.length > 0
+    ? displayCategoryNames.join(', ')
+    : 'Chưa phân loại';
+
+  const primaryCategory = detailCategories[0] || null;
+
   return (
     <div className="product-detail-container">
       {/* Breadcrumb */}
@@ -364,9 +406,13 @@ const ProductDetail = () => {
         <span className="separator">›</span>
         <Link to="/products">Sản phẩm</Link>
         <span className="separator">›</span>
-        <Link to={`/products?category=${product.category?.slug}`}>
-          {product.category?.name}
-        </Link>
+        {primaryCategory?.slug ? (
+          <Link to={`/products?category=${primaryCategory.slug}`}>
+            {primaryCategory.name}
+          </Link>
+        ) : (
+          <span>{primaryCategory?.name || 'Chưa phân loại'}</span>
+        )}
         <span className="separator">›</span>
         <span className="current">{product.title}</span>
       </div>
@@ -420,7 +466,7 @@ const ProductDetail = () => {
             <div className="specs-list">
               <div className="spec-item">
                 <span className="spec-label">Danh mục</span>
-                <span className="spec-value">{product.category?.icon} {product.category?.name}</span>
+                <span className="spec-value">{categoryDisplayText}</span>
               </div>
               <div className="spec-item">
                 <span className="spec-label">Tình trạng</span>

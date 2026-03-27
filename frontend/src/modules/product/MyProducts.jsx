@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
 import { getProductImageUrl, handleImageError } from '../../utils/imageHelper';
+import { formatCategoryText } from '../../utils/categoryHelper';
 import './MyProducts.css';
 
 const MyProducts = () => {
@@ -289,7 +290,8 @@ const MyProducts = () => {
                     <div className="product-detail-block">
                       <span className="product-label">Danh mục</span>
                       <span className="product-category-chip">
-                        {product.category?.name || 'Chưa phân loại'}
+                        {/* Hien thi day du danh muc da gan (bao gom category + categories + otherCategory). */}
+                        {formatCategoryText(product)}
                       </span>
                     </div>
                   </div>

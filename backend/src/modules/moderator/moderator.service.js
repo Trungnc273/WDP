@@ -236,7 +236,10 @@ async function getDashboardStats() {
 
 async function getPendingProducts() {
   return Product.find({ moderationStatus: "pending", status: { $ne: "deleted" } })
-    .populate("seller", "fullName email");
+    .sort({ createdAt: -1 })
+    .populate("seller", "fullName email avatar")
+    .populate("category", "name slug")
+    .populate("categories", "name slug");
 }
 
 async function approvePendingProduct(productId) {
@@ -509,6 +512,7 @@ async function updateOrderStatusByModerator(orderId, nextStatus, moderatorId, no
 }
 
 async function getReviews(filters = {}, pagination = {}) {
+  // Luong mod review: loc theo status va trang thai tham dinh cua moderator.
   const query = {};
   if (filters.status) query.status = filters.status;
 
@@ -525,6 +529,7 @@ async function getReviews(filters = {}, pagination = {}) {
 
   const keywordRegex = buildRegexKeyword(filters.keyword);
   if (keywordRegex) {
+    // Tim keyword tren user, product va noi dung comment.
     const [matchedUsers, matchedProducts] = await Promise.all([
       User.find({ fullName: keywordRegex }).select('_id').lean(),
       Product.find({ title: keywordRegex }).select('_id').lean()
@@ -570,6 +575,7 @@ async function getReviews(filters = {}, pagination = {}) {
 }
 
 async function hideReview(reviewId) {
+  // An review vi pham va cap nhat lai diem seller.
   const review = await Review.findById(reviewId);
   if (!review) throw new Error("Đánh giá không tồn tại");
   if (review.status === "hidden") throw new Error("Đánh giá đã bị ẩn trước đó");
@@ -581,6 +587,7 @@ async function hideReview(reviewId) {
 }
 
 function getModerationSuspensionConfig(level) {
+  // Quy tac phat theo cap do: 24h -> 1 tuan -> 1 nam.
   if (level === 1) {
     return { durationHours: 24, label: '24 giờ' };
   }
@@ -591,10 +598,12 @@ function getModerationSuspensionConfig(level) {
 }
 
 async function markSellerBadByReview(reviewId, moderatorId, note = '') {
+  // Danh dau review xau: tang moc vi pham va co the khoa seller.
   const review = await Review.findById(reviewId);
   if (!review) throw new Error('Đánh giá không tồn tại');
 
   if (review?.moderatorAssessment?.isReviewed || review?.moderatorAssessment?.isBad) {
+    // Review da co verdict thi khong xu ly lai.
     throw new Error('Đánh giá này đã được moderator xử lý trước đó');
   }
 
@@ -611,6 +620,7 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
   seller.modBadReviewCount = nextCount;
 
   if (shouldSuspendNow && penaltyLevel > 0) {
+    // Tai moc 3/6/9 thi khoa tai khoan theo cap do.
     suspensionConfig = getModerationSuspensionConfig(penaltyLevel);
     suspendUntil = new Date(Date.now() + suspensionConfig.durationHours * 60 * 60 * 1000);
 
@@ -622,6 +632,7 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
   await seller.save();
 
   review.moderatorAssessment = {
+    // Luu dau vet moderation de audit.
     isReviewed: true,
     isBad: true,
     verdict: 'bad',
@@ -675,6 +686,7 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
 }
 
 async function markSellerGoodByReview(reviewId, moderatorId, note = '') {
+  // Danh dau review hop le, khong phat seller.
   const review = await Review.findById(reviewId);
   if (!review) throw new Error('Đánh giá không tồn tại');
 
@@ -763,6 +775,7 @@ async function updateWithdrawalStatus(withdrawalId, nextStatus, note = "") {
 }
 
 async function getDisputes(filters = {}, pagination = {}) {
+  // Luong mod dispute: mac dinh uu tien pending -> investigating -> resolved.
   const query = {};
   if (filters.status) query.status = filters.status;
 
@@ -801,7 +814,7 @@ async function getDisputes(filters = {}, pagination = {}) {
     if (skip < unresolvedTotal) {
       const unresolvedLimit = Math.min(limit, unresolvedTotal - skip);
 
-      // In unresolved bucket, show pending first then investigating (newest first in each bucket).
+      // Chia bucket unresolved: hien pending truoc, investigating sau.
       if (skip < pendingTotal) {
         const pendingItems = await populateDisputes(
           Dispute.find({ status: "pending" })
@@ -896,6 +909,7 @@ async function increaseViolationAndMaybeSuspend(userId) {
 }
 
 async function resolveDispute(disputeId, moderatorId, payload) {
+  // Quyet dinh cuoi cua mod: refund cho buyer hoac release cho seller.
   const { resolution, moderatorNotes } = payload;
   const dispute = await Dispute.findById(disputeId);
 
@@ -915,12 +929,14 @@ async function resolveDispute(disputeId, moderatorId, payload) {
   }
 
   if (resolution === "refund") {
+    // Hoan tien buyer neu tien dang held.
     if (escrowHold.status === "held") {
       await escrowService.refundFunds(orderId, "Tranh chấp đã xử lý: Hoàn tiền cho người mua");
     } else if (escrowHold.status === "released") {
       throw new Error("Tiền đã nhả cho người bán, không thể hoàn tiền cho người mua");
     }
   } else if (resolution === "release") {
+    // Nha tien seller neu tien dang held.
     if (escrowHold.status === "held") {
       await escrowService.releaseFunds(orderId, "Tranh chấp đã xử lý: Nhả tiền cho người bán", false);
     } else if (escrowHold.status === "refunded") {
@@ -951,6 +967,7 @@ async function resolveDispute(disputeId, moderatorId, payload) {
 }
 
 async function pushDisputeNotification(userId, title, msg, disputeId) {
+  // Ham dung chung de day thong bao cap nhat tranh chap.
   if (!userId) return;
   await notificationService.createNotification(userId, {
     type: 'dispute_update',
@@ -960,7 +977,7 @@ async function pushDisputeNotification(userId, title, msg, disputeId) {
   });
 }
 
-// Chuyển tranh chấp sang "investigating" để phản ánh giai đoạn điều tra trung gian.
+// Chuyen tranh chap sang "investigating" de mo pha dieu tra trung gian.
 async function markDisputeInvestigating(disputeId, moderatorId, note = "") {
   const dispute = await Dispute.findById(disputeId);
 
@@ -980,6 +997,7 @@ async function markDisputeInvestigating(disputeId, moderatorId, note = "") {
 
   await dispute.save();
 
+  // Gui thong bao cho hai ben de cap nhat hanh dong tiep theo.
   const isReturn = dispute.reason === 'return_request';
   const buyerMsg = isReturn
     ? 'Yêu cầu hoàn hàng của bạn đang được điều tra. Vui lòng gửi hàng lại cho người bán.'

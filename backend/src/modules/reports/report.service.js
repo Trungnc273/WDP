@@ -5,8 +5,10 @@ const Order = require('../orders/order.model');
 const User = require('../users/user.model');
 const notificationService = require('../notifications/notification.service');
 
+// Nguong canh bao de xu ly manh tay voi bai dang.
 const PRODUCT_WARN_THRESHOLD = 3;
 
+// Tinh muc phat theo moc 3/6/9 canh bao.
 function getReportWarningPenalty(nextWarningCount) {
   if (nextWarningCount <= 0 || nextWarningCount % 3 !== 0) {
     return {
@@ -44,6 +46,7 @@ function getReportWarningPenalty(nextWarningCount) {
   };
 }
 
+// Gui thong bao cap nhat trang thai bao cao.
 async function pushReportNotification(userId, title, message, reportId) {
   if (!userId) return;
   await notificationService.createNotification(userId, {
@@ -54,6 +57,7 @@ async function pushReportNotification(userId, title, message, reportId) {
   });
 }
 
+// Gui thong bao cap nhat tranh chap.
 async function pushDisputeNotification(userId, title, message, disputeId) {
   if (!userId) return;
   await notificationService.createNotification(userId, {
@@ -65,15 +69,14 @@ async function pushDisputeNotification(userId, title, message, disputeId) {
 }
 
 /**
- * Report & Dispute Service
- * Handles product reports and order disputes
+ * Service xu ly nghiep vu bao cao va tranh chap.
  */
 
 /**
- * Create a product report
+ * Tao bao cao san pham.
  */
 async function createProductReport(reporterId, productId, reason, description, evidenceImages = []) {
-  // Validate inputs
+  // Kiem tra du lieu dau vao.
   if (!reason || !description) {
     throw new Error('Lý do và mô tả không được để trống');
   }
@@ -82,19 +85,19 @@ async function createProductReport(reporterId, productId, reason, description, e
     throw new Error('Mô tả phải có ít nhất 10 ký tự');
   }
   
-  // Get product
+  // Lay san pham bi bao cao.
   const product = await Product.findById(productId);
   
   if (!product) {
     throw new Error('Sản phẩm không tồn tại');
   }
   
-  // Check if reporter is trying to report their own product
+  // Khong cho bao cao bai dang cua chinh minh.
   if (product.seller.toString() === reporterId.toString()) {
     throw new Error('Bạn không thể báo cáo sản phẩm của chính mình');
   }
   
-  // Check if user already reported this product
+  // Chan bao cao trung khi report truoc chua xu ly xong.
   const existingReport = await Report.findOne({
     reporterId: reporterId,
     productId: productId,
@@ -105,7 +108,7 @@ async function createProductReport(reporterId, productId, reason, description, e
     throw new Error('Bạn đã báo cáo sản phẩm này rồi');
   }
   
-  // Create report
+  // Tao ban ghi bao cao.
   const report = await Report.create({
     reporterId: reporterId,
     reportedUserId: product.seller,
@@ -117,7 +120,7 @@ async function createProductReport(reporterId, productId, reason, description, e
     status: 'pending'
   });
   
-  // Populate details
+  // Bo sung thong tin lien quan de tra ve frontend.
   await report.populate([
     { path: 'reporterId', select: 'fullName email' },
     { path: 'reportedUserId', select: 'fullName email' },
@@ -128,10 +131,10 @@ async function createProductReport(reporterId, productId, reason, description, e
 }
 
 /**
- * Create a user report
+ * Tao bao cao nguoi dung.
  */
 async function createUserReport(reporterId, reportedUserId, reason, description, evidenceImages = []) {
-  // Validate inputs
+  // Kiem tra du lieu dau vao.
   if (!reason || !description) {
     throw new Error('Lý do và mô tả không được để trống');
   }
@@ -140,18 +143,18 @@ async function createUserReport(reporterId, reportedUserId, reason, description,
     throw new Error('Mô tả phải có ít nhất 10 ký tự');
   }
   
-  // Check if reporter is trying to report themselves
+  // Khong cho tu bao cao chinh minh.
   if (reporterId.toString() === reportedUserId.toString()) {
     throw new Error('Bạn không thể báo cáo chính mình');
   }
   
-  // Check if reported user exists
+  // Xac nhan user bi bao cao ton tai.
   const reportedUser = await User.findById(reportedUserId);
   if (!reportedUser) {
     throw new Error('Người dùng không tồn tại');
   }
   
-  // Create report
+  // Tao ban ghi bao cao.
   const report = await Report.create({
     reporterId: reporterId,
     reportedUserId: reportedUserId,
@@ -162,7 +165,7 @@ async function createUserReport(reporterId, reportedUserId, reason, description,
     status: 'pending'
   });
   
-  // Populate details
+  // Bo sung thong tin lien quan de tra ve frontend.
   await report.populate([
     { path: 'reporterId', select: 'fullName email' },
     { path: 'reportedUserId', select: 'fullName email' }
@@ -172,7 +175,7 @@ async function createUserReport(reporterId, reportedUserId, reason, description,
 }
 
 /**
- * Get reports
+ * Lay danh sach bao cao theo bo loc + phan trang.
  */
 async function getReports(filters = {}, pagination = {}) {
   const page = parseInt(pagination.page) || 1;
@@ -219,7 +222,7 @@ async function getReports(filters = {}, pagination = {}) {
 }
 
 /**
- * Get report by ID
+ * Lay chi tiet 1 bao cao.
  */
 async function getReportById(reportId) {
   const report = await Report.findById(reportId)
@@ -236,10 +239,10 @@ async function getReportById(reportId) {
 }
 
 /**
- * Create a dispute (order issue)
+ * Tao tranh chap cho don hang.
  */
 async function createDispute(buyerId, orderId, reason, description, evidenceImages = []) {
-  // Validate inputs
+  // Kiem tra du lieu dau vao.
   if (!reason || !description) {
     throw new Error('Lý do và mô tả không được để trống');
   }
@@ -252,30 +255,30 @@ async function createDispute(buyerId, orderId, reason, description, evidenceImag
     throw new Error('Vui lòng cung cấp ít nhất 1 tệp bằng chứng (ảnh hoặc video)');
   }
   
-  // Get order
+  // Lay don hang bi tranh chap.
   const order = await Order.findById(orderId);
   
   if (!order) {
     throw new Error('Đơn hàng không tồn tại');
   }
   
-  // Verify buyer
+  // Chi buyer cua don moi duoc tao tranh chap.
   if (order.buyerId.toString() !== buyerId.toString()) {
     throw new Error('Bạn không phải người mua của đơn hàng này');
   }
   
-  // Check order status (can only dispute shipped orders)
+  // Chi cho tranh chap khi don dang o trang thai da giao.
   if (order.status !== 'shipped') {
     throw new Error('Chỉ có thể khiếu nại đơn hàng đã được giao');
   }
   
-  // Check if dispute already exists
+  // Moi don chi duoc tao 1 tranh chap.
   const existingDispute = await Dispute.findOne({ orderId: orderId });
   if (existingDispute) {
     throw new Error('Đơn hàng này đã có khiếu nại rồi');
   }
   
-  // Create dispute
+  // Tao ban ghi tranh chap.
   const dispute = await Dispute.create({
     orderId: orderId,
     buyerId: order.buyerId,
@@ -287,11 +290,11 @@ async function createDispute(buyerId, orderId, reason, description, evidenceImag
     status: 'pending'
   });
   
-  // Update order status to disputed
+  // Chuyen trang thai don sang disputed.
   order.status = 'disputed';
   await order.save();
   
-  // Populate details
+  // Bo sung thong tin lien quan de tra ve frontend.
   await dispute.populate([
     { path: 'orderId', select: 'agreedAmount totalToPay status' },
     { path: 'buyerId', select: 'fullName email avatar' },
@@ -303,7 +306,7 @@ async function createDispute(buyerId, orderId, reason, description, evidenceImag
 }
 
 /**
- * Get disputes
+ * Lay danh sach tranh chap theo bo loc + phan trang.
  */
 async function getDisputes(filters = {}, pagination = {}) {
   const page = parseInt(pagination.page) || 1;
@@ -347,7 +350,7 @@ async function getDisputes(filters = {}, pagination = {}) {
 }
 
 /**
- * Get dispute by ID
+ * Lay chi tiet 1 tranh chap, kem kiem tra quyen xem.
  */
 async function getDisputeById(disputeId, userId) {
   const dispute = await Dispute.findById(disputeId)
@@ -361,7 +364,7 @@ async function getDisputeById(disputeId, userId) {
     throw new Error('Khiếu nại không tồn tại');
   }
   
-  // Check authorization (buyer, seller, or moderator only)
+  // Chi buyer/seller/moderator/admin moi duoc xem.
   if (userId) {
     const user = await User.findById(userId);
     const isAuthorized = 
@@ -379,7 +382,7 @@ async function getDisputeById(disputeId, userId) {
 }
 
 /**
- * Add seller response to dispute
+ * Seller gui phan hoi va bang chung cho tranh chap.
  */
 async function addSellerResponse(disputeId, sellerId, response, evidenceImages = []) {
   const dispute = await Dispute.findById(disputeId);
@@ -388,23 +391,22 @@ async function addSellerResponse(disputeId, sellerId, response, evidenceImages =
     throw new Error('Khiếu nại không tồn tại');
   }
   
-  // Verify seller
+  // Xac nhan dung seller cua don.
   if (dispute.sellerId.toString() !== sellerId.toString()) {
     throw new Error('Bạn không phải người bán của đơn hàng này');
   }
   
-  // Seller can ONLY provide evidence when moderator has moved dispute to 'investigating'
-  // (Must wait for moderator to explicitly approve investigation)
+  // Chi cho gui khi moderator da chuyen sang investigating.
   if (dispute.status === 'pending') {
     throw new Error('Moderator chưa bắt đầu điều tra khiếu nại. Vui lòng đợi moderator chuyển sang giai đoạn điều tra.');
   }
   
-  // Cannot provide evidence if already resolved
+  // Khong cho sua khi da resolved.
   if (dispute.status === 'resolved') {
     throw new Error('Khiếu nại này đã được xử lý rồi');
   }
   
-  // Update dispute (status should already be 'investigating' from moderator action)
+  // Cap nhat noi dung phan hoi va gom them bang chung moi.
   dispute.sellerResponse = response.trim();
   if (evidenceImages?.length) {
     dispute.sellerEvidenceImages = [
@@ -413,15 +415,15 @@ async function addSellerResponse(disputeId, sellerId, response, evidenceImages =
     ].slice(0, 10);
   }
   
-  // Keep existing status (don't auto-transition)
+  // Giu nguyen status hien tai.
   await dispute.save();
   
   return dispute;
 }
 
 /**
- * Buyer adds follow-up evidence/notes to an existing dispute.
- * Can only be done AFTER moderator has moved dispute to 'investigating' status.
+ * Buyer bo sung ghi chu/bang chung sau khi da mo tranh chap.
+ * Chi cho bo sung khi moderator da chuyen investigating.
  */
 async function addBuyerFollowUp(disputeId, buyerId, note = '', evidenceImages = []) {
   const dispute = await Dispute.findById(disputeId);
@@ -434,7 +436,7 @@ async function addBuyerFollowUp(disputeId, buyerId, note = '', evidenceImages = 
     throw new Error('Bạn không phải người mua của đơn hàng này');
   }
 
-  // Buyer can ONLY provide follow-up evidence when moderator has moved to 'investigating'
+  // Chi cho bo sung khi moderator da tiep nhan dieu tra.
   if (dispute.status === 'pending') {
     throw new Error('Moderator chưa bắt đầu điều tra. Vui lòng đợi moderator xác nhận để gửi bằng chứng bổ sung.');
   }
@@ -475,28 +477,28 @@ async function addBuyerFollowUp(disputeId, buyerId, note = '', evidenceImages = 
 }
 
 /**
- * Get user's reports
+ * Lay bao cao do user hien tai tao.
  */
 async function getUserReports(userId, pagination = {}) {
   return getReports({ reporterId: userId }, pagination);
 }
 
 /**
- * Get user's disputes (as buyer)
+ * Lay tranh chap cua user voi vai tro buyer.
  */
 async function getUserDisputes(userId, pagination = {}) {
   return getDisputes({ buyerId: userId }, pagination);
 }
 
 /**
- * Lấy toàn bộ danh sách báo cáo (Dành cho Moderator/Admin)
+ * Lay toan bo bao cao (dung cho moderator/admin).
  */
 async function getAllReports(filters = {}, pagination = {}) {
   const page = parseInt(pagination.page) || 1;
   const limit = parseInt(pagination.limit) || 20;
   const skip = (page - 1) * limit;
 
-  // Lọc bỏ các filter không có giá trị (undefined)
+  // Loai bo filter rong de query gon hon.
   Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
 
   const reports = await Report.find(filters)
@@ -521,7 +523,7 @@ async function getAllReports(filters = {}, pagination = {}) {
 }
 
 /**
- * Xử lý báo cáo: Khóa user, xóa bài... (Dành cho Moderator/Admin)
+ * Xu ly bao cao theo quyet dinh moderator/admin.
  */
 async function resolveReport(
   reportId,
@@ -542,7 +544,7 @@ async function resolveReport(
     throw new Error('Báo cáo này đã được xử lý trước đó rồi');
   }
 
-  // Cập nhật thông tin xử lý vào database
+  // Luu thong tin ket qua xu ly.
   report.status = status; // 'resolved' hoặc 'dismissed'
   report.moderatorDecision = decision; // 'remove_content', 'warn_user', 'ban_user'
   report.moderatorNotes = notes;
@@ -551,16 +553,16 @@ async function resolveReport(
   report.moderatorId = moderatorId;
   report.resolvedAt = new Date();
 
-  // THỰC THI QUYẾT ĐỊNH CỦA MODERATOR (chỉ khi đánh dấu resolved)
+  // Ap dung hanh dong nghiep vu khi da resolved.
   if (status === 'resolved' && decision === 'remove_content' && report.productId) {
-    // Nếu quyết định là xóa nội dung vi phạm
+    // Goi bai dang vi pham.
     const product = await Product.findById(report.productId);
     if (product) {
-      product.status = 'rejected'; // Chuyển trạng thái sản phẩm thành bị từ chối/ẩn
+      product.status = 'rejected'; // Goi bai dang khoi hien thi.
       await product.save();
     }
   } else if (status === 'resolved' && decision === 'warn_user' && report.reportedUserId) {
-    // Cảnh báo người dùng: chỉ khóa ở các mốc 3/6/9, tăng dần 24h/1 tuần/1 năm.
+    // Tang canh bao user, khoa theo moc 3/6/9.
     const user = await User.findById(report.reportedUserId);
     if (user) {
       const nextWarningCount = Number(user.violationCount || 0) + 1;
@@ -577,7 +579,7 @@ async function resolveReport(
       await user.save();
     }
 
-    // Nếu là báo cáo sản phẩm và đã bị cảnh báo đủ ngưỡng thì tự động gỡ bài.
+    // Neu san pham bi warn du nguong thi tu dong go bai.
     if (report.productId) {
       const warnResolvedCount = await Report.countDocuments({
         productId: report.productId,
@@ -594,7 +596,7 @@ async function resolveReport(
       }
     }
   } else if (status === 'resolved' && decision === 'ban_user' && report.reportedUserId) {
-    // Nếu quyết định là khóa tài khoản người vi phạm
+    // Khoa tai khoan truc tiep.
     const user = await User.findById(report.reportedUserId);
     if (user) {
       user.isSuspended = true; // Khóa tài khoản
@@ -605,7 +607,7 @@ async function resolveReport(
 
   await report.save();
 
-  // Gửi thông báo cho người tố cáo.
+  // Gui thong bao cho nguoi report.
   if (report.reporterId) {
     const reporterMessage = reply || 'Báo cáo của bạn đã được moderator xử lý.';
     await pushReportNotification(
@@ -616,7 +618,7 @@ async function resolveReport(
     );
   }
 
-  // Gửi thông báo cho người bị báo cáo.
+  // Gui thong bao cho nguoi bi report.
   if (report.reportedUserId) {
     const reportedMessage = replyToReportedUser || 'Bạn có cập nhật mới liên quan đến một báo cáo vi phạm.';
     await pushReportNotification(
@@ -631,7 +633,7 @@ async function resolveReport(
 }
 
 /**
- * Get dispute by order ID (accessible to buyer, seller, mod, admin)
+ * Lay tranh chap theo orderId, kem kiem tra quyen truy cap.
  */
 async function getDisputeByOrderId(orderId, userId) {
   const dispute = await Dispute.findOne({ orderId })
@@ -660,7 +662,7 @@ async function getDisputeByOrderId(orderId, userId) {
 }
 
 /**
- * Seller confirms they have received the returned item (Th3 return flow)
+ * Seller xac nhan da nhan lai hang trong luong return_request.
  */
 async function confirmSellerReturn(disputeId, sellerId) {
   const dispute = await Dispute.findById(disputeId);

@@ -42,12 +42,12 @@ router.get(
 );
 
 router.get(
-  "/reports/:reportId",
+   "/reports/:reportId",
   moderatorController.getReportById
 );
 
 router.put(
-  "/reports/:reportId/resolve",
+  "/reports/:reportId/resolve", //api
   moderatorController.resolveReport
 );
 
