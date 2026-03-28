@@ -106,126 +106,121 @@ const UserForm = ({ title, user, onSubmit, onCancel }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="user-form">
-          <div className="form-group">
-            <label htmlFor="fullName">Họ tên *</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              className={errors.fullName ? 'error' : ''}
-            />
-            {errors.fullName && <span className="error-message">{errors.fullName}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email *</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={errors.email ? 'error' : ''}
-              disabled={!!user} // Disable email editing
-            />
-            {errors.email && <span className="error-message">{errors.email}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">
-              {user ? 'Mật khẩu mới (để trống nếu không đổi)' : 'Mật khẩu *'}
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className={errors.password ? 'error' : ''}
-            />
-            {errors.password && <span className="error-message">{errors.password}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="phone">Số điện thoại</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className={errors.phone ? 'error' : ''}
-            />
-            {errors.phone && <span className="error-message">{errors.phone}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="address">Địa chỉ</label>
-            <textarea
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              rows="3"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="role">Vai trò</label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-            >
-              <option value="user">Người dùng</option>
-              <option value="moderator">Moderator</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-
-          <div className="form-group checkbox-group">
-            <label>
+          <div className="user-form-grid">
+            <div className="form-group">
+              <label htmlFor="fullName">Họ tên *</label>
               <input
-                type="checkbox"
-                name="isVerified"
-                checked={formData.isVerified}
+                type="text"
+                id="fullName"
+                name="fullName"
+                value={formData.fullName}
                 onChange={handleChange}
+                className={`form-control ${errors.fullName ? 'error' : ''}`}
               />
-              Đã xác thực
-            </label>
-          </div>
+              {errors.fullName && <span className="error-message">{errors.fullName}</span>}
+            </div>
 
-          {user && (
+            <div className="form-group">
+              <label htmlFor="email">Email *</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`form-control ${errors.email ? 'error' : ''}`}
+                disabled={!!user}
+              />
+              {errors.email && <span className="error-message">{errors.email}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">
+                {user ? 'Mật khẩu mới (để trống nếu không đổi)' : 'Mật khẩu *'}
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className={`form-control ${errors.password ? 'error' : ''}`}
+              />
+              {errors.password && <span className="error-message">{errors.password}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="phone">Số điện thoại</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className={`form-control ${errors.phone ? 'error' : ''}`}
+              />
+              {errors.phone && <span className="error-message">{errors.phone}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="role">Vai trò</label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="form-control"
+              >
+                <option value="user">Người dùng</option>
+                <option value="moderator">Moderator</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
             <div className="form-group checkbox-group">
               <label>
                 <input
                   type="checkbox"
-                  name="isSuspended"
-                  checked={formData.isSuspended}
+                  name="isVerified"
+                  checked={formData.isVerified}
                   onChange={handleChange}
                 />
-                Bị khóa
+                Đã xác thực
               </label>
             </div>
-          )}
+
+            {user && (
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="isSuspended"
+                    checked={formData.isSuspended}
+                    onChange={handleChange}
+                  />
+                  Bị khóa
+                </label>
+              </div>
+            )}
+
+            <div className="form-group full-width">
+              <label htmlFor="address">Địa chỉ</label>
+              <textarea
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                rows="3"
+                className="form-control"
+              />
+            </div>
+          </div>
 
           <div className="form-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onCancel}
-              disabled={loading}
-            >
+            <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={loading}>
               Hủy
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-            >
+            <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Đang xử lý...' : (user ? 'Cập nhật' : 'Tạo mới')}
             </button>
           </div>

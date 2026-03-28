@@ -70,10 +70,14 @@
 }
 
 .mod-status-pill {
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   padding-inline: 9px;
   font-weight: 600;
   font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
 }
 
 .mod-danger-text {
