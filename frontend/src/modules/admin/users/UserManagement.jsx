@@ -150,7 +150,7 @@ const UserManagement = () => {
             <p>CRUD người dùng hệ thống. Tổng cộng: {(totalUsers || 0).toLocaleString('vi-VN')} tài khoản.</p>
           </div>
           <button
-            className="btn btn-primary btn-sm btn-create-small"
+            className="btn btn-primary btn-sm btn-create-small user-create-top-btn"
             onClick={() => setShowCreateModal(true)}
           >
             <i className="fas fa-plus"></i>

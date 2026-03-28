@@ -178,14 +178,14 @@ const UserForm = ({ title, user, onSubmit, onCancel }) => {
             </div>
 
             <div className="form-group checkbox-group">
-              <label>
+              <label className="verify-toggle">
                 <input
                   type="checkbox"
                   name="isVerified"
                   checked={formData.isVerified}
                   onChange={handleChange}
                 />
-                Đã xác thực
+                <span>Đã xác thực</span>
               </label>
             </div>
 
