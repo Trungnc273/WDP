@@ -23,6 +23,7 @@ const ProductDetail = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPurchaseRequest, setShowPurchaseRequest] = useState(false);
   const [isQuickBuy, setIsQuickBuy] = useState(false);
+  const [showPurchaseSuccessModal, setShowPurchaseSuccessModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showUserReportModal, setShowUserReportModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -190,9 +191,29 @@ const ProductDetail = () => {
     }
   };
 
-  const handlePurchaseSuccess = () => {
+  const handlePurchaseSuccess = (_response, meta = {}) => {
     setShowPurchaseRequest(false);
+    const shouldShowQuickBuySuccess = Boolean(meta?.isQuickBuy);
+
+    if (shouldShowQuickBuySuccess) {
+      setShowPurchaseSuccessModal(true);
+      return;
+    }
+
+    setIsQuickBuy(false);
     alert('Gửi yêu cầu mua hàng thành công! Người bán sẽ xem xét và phản hồi sớm.');
+  };
+
+  const handleContinueShopping = () => {
+    setShowPurchaseSuccessModal(false);
+    setIsQuickBuy(false);
+    navigate('/');
+  };
+
+  const handleViewOrders = () => {
+    setShowPurchaseSuccessModal(false);
+    setIsQuickBuy(false);
+    navigate('/orders');
   };
 
   const handleReportProduct = () => {
@@ -609,10 +630,30 @@ const ProductDetail = () => {
       {showPurchaseRequest && (
         <PurchaseRequest
           product={product}
-          onClose={() => setShowPurchaseRequest(false)}
+          onClose={() => {
+            setShowPurchaseRequest(false);
+            setIsQuickBuy(false);
+          }}
           onSuccess={handlePurchaseSuccess}
           isQuickBuy={isQuickBuy}
         />
+      )}
+
+      {showPurchaseSuccessModal && (
+        <div className="modal-overlay" onClick={() => setShowPurchaseSuccessModal(false)}>
+          <div className="modal-content purchase-success-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Mua hàng thành công</h3>
+            <p>Yêu cầu mua ngay đã được gửi thành công.</p>
+            <div className="modal-actions purchase-success-actions">
+              <button onClick={handleContinueShopping} className="btn btn-secondary">
+                Tiếp tục mua sắm
+              </button>
+              <button onClick={handleViewOrders} className="btn btn-primary">
+                Xem đơn hàng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Report Product Modal */}

@@ -292,6 +292,10 @@ const CreateProduct = () => {
       };
 
       await productService.createProduct(productData);
+
+      const createdAtMarker = String(Date.now());
+      localStorage.setItem('products:lastCreatedAt', createdAtMarker);
+      window.dispatchEvent(new CustomEvent('products:updated', { detail: { createdAt: createdAtMarker } }));
       
       alert('Đăng tin thành công. Bạn sẽ thấy thông báo mới trong mục thông báo.');
       navigate('/my-products');

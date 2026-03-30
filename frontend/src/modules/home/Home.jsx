@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import productService from '../../services/product.service';
 import locationService from '../../services/location.service';
 import ProductList from '../../components/ProductList';
@@ -11,6 +11,7 @@ import './Home.css';
  * Design: Chợ Tốt marketplace style
  */
 function Home() {
+  const PRODUCTS_UPDATED_KEY = 'products:lastCreatedAt';
   // State for products
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,31 +72,32 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
-  useEffect(() => {
-    const refreshProducts = () => {
-      if (!document.hidden) {
-        fetchProducts(1, true);
-      }
-    };
-
-    const intervalId = setInterval(refreshProducts, 8000);
-    const handleFocus = () => refreshProducts();
-    const handleVisibility = () => {
-      if (!document.hidden) {
-        refreshProducts();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
+  const refreshProductsFromEvent = useCallback(() => {
+    setProducts([]);
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchProducts(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  useEffect(() => {
+    const handleProductsUpdated = () => {
+      refreshProductsFromEvent();
+    };
+
+    const handleStorageChange = (event) => {
+      if (event.key === PRODUCTS_UPDATED_KEY) {
+        refreshProductsFromEvent();
+      }
+    };
+
+    window.addEventListener('products:updated', handleProductsUpdated);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('products:updated', handleProductsUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refreshProductsFromEvent]);
 
   /**
    * Tai danh sach san pham tu API

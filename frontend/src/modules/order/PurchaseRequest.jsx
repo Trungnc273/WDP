@@ -70,10 +70,10 @@ const PurchaseRequest = ({ product, onClose, onSuccess, isQuickBuy = false }) =>
         agreedPrice: formData.agreedPrice
       };
 
-      await createPurchaseRequest(requestData);
+      const response = await createPurchaseRequest(requestData);
       
       if (onSuccess) {
-        onSuccess();
+        onSuccess(response, { isQuickBuy });
       }
     } catch (error) {
       console.error('Error creating purchase request:', error);
@@ -171,7 +171,6 @@ const PurchaseRequest = ({ product, onClose, onSuccess, isQuickBuy = false }) =>
                     min="0"
                     step="1000"
                     className={errors.agreedPrice ? 'error' : ''}
-                  />
                   />
                   <span className="currency">VND</span>
                 </div>

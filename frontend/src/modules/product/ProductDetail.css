@@ -519,6 +519,23 @@
   justify-content: flex-end;
 }
 
+.purchase-success-actions {
+  justify-content: space-between;
+}
+
+.purchase-success-actions .btn {
+  flex: 1;
+}
+
+.purchase-success-actions .btn-primary {
+  background: #007bff;
+  color: #fff;
+}
+
+.purchase-success-actions .btn-primary:hover {
+  background: #0056b3;
+}
+
 .btn-secondary {
   background: #6c757d;
   color: white;
@@ -620,6 +637,10 @@
 
   .modal-content {
     padding: 24px;
+  }
+
+  .purchase-success-actions {
+    flex-direction: column;
   }
 }
 
