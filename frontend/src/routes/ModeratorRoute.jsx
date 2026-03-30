@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-const AdminRoute = ({ children }) => {
+const ModeratorRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -13,9 +13,9 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== 'admin') {
-    if (user.role === 'moderator') {
-      return <Navigate to="/moderator/dashboard" replace />;
+  if (user.role !== 'moderator') {
+    if (user.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
     }
     return <Navigate to="/login" replace />;
   }
@@ -23,4 +23,4 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-export default AdminRoute;
+export default ModeratorRoute;

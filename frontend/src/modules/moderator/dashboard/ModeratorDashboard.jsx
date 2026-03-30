@@ -6,8 +6,6 @@ import {
   StarOutlined,
   BankOutlined,
   SafetyCertificateOutlined,
-  AppstoreOutlined,
-  IdcardOutlined,
   ArrowRightOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -28,8 +26,6 @@ const ModeratorDashboard = () => {
     pendingReviews: 0,
     pendingWithdrawals: 0,
     pendingDisputes: 0,
-    pendingProducts: 0,
-    pendingKYC: 0,
     badReviews: 0
   });
 
@@ -48,9 +44,7 @@ const ModeratorDashboard = () => {
           pendingReviews: (data.pendingReviews ?? data.reportedReviews) || 0,
           badReviews: data.badReviews || 0,
           pendingWithdrawals: data.pendingWithdrawals || 0,
-          pendingDisputes: data.pendingDisputes || 0,
-          pendingProducts: data.pendingProducts || 0,
-          pendingKYC: data.pendingKYC || 0
+          pendingDisputes: data.pendingDisputes || 0
         });
       } catch (err) {
         setError(err.message || "Không tải được dữ liệu dashboard");
@@ -119,28 +113,6 @@ const ModeratorDashboard = () => {
       route: "/moderator/disputes",
       count: stats.pendingDisputes,
       countLabel: "chưa xử lý",
-      sub: []
-    },
-    {
-      key: "products",
-      label: "Duyệt Sản phẩm",
-      icon: <AppstoreOutlined />,
-      color: "#27ae60",
-      bg: "#f0fff6",
-      route: "/moderator/products",
-      count: stats.pendingProducts,
-      countLabel: "chờ duyệt",
-      sub: []
-    },
-    {
-      key: "kyc",
-      label: "Xác minh KYC",
-      icon: <IdcardOutlined />,
-      color: "#16a085",
-      bg: "#f0fdfb",
-      route: "/moderator/kyc",
-      count: stats.pendingKYC,
-      countLabel: "chờ xét duyệt",
       sub: []
     }
   ];

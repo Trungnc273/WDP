@@ -73,7 +73,7 @@ async function getFavorites(req, res, next) {
         path: 'product',
         populate: [
           { path: 'category', select: 'name slug icon' },
-          { path: 'seller', select: 'fullName isVerified' }
+          { path: 'seller', select: 'fullName' }
         ]
       })
       .sort({ createdAt: -1 })

@@ -14,7 +14,9 @@ const CONDITION_LABELS = {
   poor: 'Cũ'
 };
 
-const OTHER_CATEGORY_KEY = '__other__';
+const MAX_PRICE_VALUE = 100000000;
+const MAX_PRICE_DIGITS = 9;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
 
 const CreateProduct = () => {
   const navigate = useNavigate();
@@ -29,7 +31,6 @@ const CreateProduct = () => {
     description: '',
     price: '',
     categories: [],
-    otherCategory: '',
     condition: 'like-new',
     images: [],
     location: {
@@ -57,7 +58,12 @@ const CreateProduct = () => {
     try {
       const response = await api.get('/categories');
       const categoriesData = response.data.data || response.data || [];
-      setCategories(categoriesData);
+      const sanitizedCategories = categoriesData.filter((category) => {
+        const slug = String(category?.slug || '').toLowerCase();
+        const name = String(category?.name || '').toLowerCase();
+        return slug !== 'other' && name !== 'khác' && name !== 'khac';
+      });
+      setCategories(sanitizedCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
@@ -91,6 +97,23 @@ const CreateProduct = () => {
           [locationField]: value
         }
       }));
+    } else if (name === 'price') {
+      const rawNumericValue = String(value || '').replace(/\D/g, '');
+      const exceededMaxPrice = Number(rawNumericValue || 0) > MAX_PRICE_VALUE;
+
+      const numericValue = String(value || '')
+        .replace(/\D/g, '')
+        .slice(0, MAX_PRICE_DIGITS);
+
+      setFormData(prev => ({
+        ...prev,
+        [name]: numericValue
+      }));
+
+      setErrors(prev => ({
+        ...prev,
+        price: exceededMaxPrice ? 'Giá tối đa là 100.000.000 VND' : ''
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -99,7 +122,7 @@ const CreateProduct = () => {
     }
 
     // Clear error for this field
-    if (errors[name]) {
+    if (name !== 'price' && errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
@@ -107,49 +130,57 @@ const CreateProduct = () => {
   const handleCategoryToggle = (categoryId) => {
     setFormData(prev => {
       const isSelected = prev.categories.includes(categoryId);
-      const nextCategories = isSelected
-        ? prev.categories.filter(id => id !== categoryId)
-        : [...prev.categories, categoryId];
-
-      const nextData = {
+      return {
         ...prev,
-        categories: nextCategories
+        categories: isSelected
+          ? prev.categories.filter(id => id !== categoryId)
+          : [...prev.categories, categoryId]
       };
-
-      if (isSelected && categoryId === OTHER_CATEGORY_KEY) {
-        nextData.otherCategory = '';
-      }
-
-      return nextData;
     });
 
     if (errors.categories || errors.category) {
       setErrors(prev => ({ ...prev, categories: '', category: '' }));
     }
-    if (errors.otherCategory && categoryId === OTHER_CATEGORY_KEY) {
-      setErrors(prev => ({ ...prev, otherCategory: '' }));
-    }
   };
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    
-    if (files.length + imageFiles.length > 5) {
-      alert('Bạn chỉ có thể tải lên tối đa 5 ảnh');
+    if (files.length === 0) {
       return;
     }
 
+    setErrors(prev => ({ ...prev, images: '' }));
+    
+    if (files.length + imageFiles.length > 5) {
+      setErrors(prev => ({ ...prev, images: 'Bạn chỉ có thể tải lên tối đa 5 ảnh.' }));
+      return;
+    }
+
+    const invalidTypeFiles = files.filter(file => !ALLOWED_IMAGE_TYPES.includes(String(file.type || '').toLowerCase()));
+    if (invalidTypeFiles.length > 0) {
+      setErrors(prev => ({ ...prev, images: 'Chỉ cho phép tải lên ảnh JPG/JPEG hoặc PNG.' }));
+    }
+
     // Kiem tra kich thuoc file (toi da 5MB moi anh)
-    const invalidFiles = files.filter(file => file.size > 5 * 1024 * 1024);
-    if (invalidFiles.length > 0) {
-      alert('Mỗi ảnh không được vượt quá 5MB');
+    const invalidSizeFiles = files.filter(file => file.size > 5 * 1024 * 1024);
+    if (invalidSizeFiles.length > 0) {
+      setErrors(prev => ({ ...prev, images: 'Có ảnh vượt quá 5MB, vui lòng chọn lại.' }));
+    }
+
+    const validFiles = files.filter(file => {
+      const isImage = ALLOWED_IMAGE_TYPES.includes(String(file.type || '').toLowerCase());
+      const isWithinSize = file.size <= 5 * 1024 * 1024;
+      return isImage && isWithinSize;
+    });
+
+    if (validFiles.length === 0) {
       return;
     }
 
     // Tao anh xem truoc
-    const newPreviews = files.map(file => URL.createObjectURL(file));
+    const newPreviews = validFiles.map(file => URL.createObjectURL(file));
     
-    setImageFiles(prev => [...prev, ...files]);
+    setImageFiles(prev => [...prev, ...validFiles]);
     setImagePreviews(prev => [...prev, ...newPreviews]);
     
     if (errors.images) {
@@ -179,19 +210,12 @@ const CreateProduct = () => {
     if (!formData.price || formData.price <= 0) {
       newErrors.price = 'Vui lòng nhập giá hợp lệ';
     }
-
-    const selectedRealCategories = formData.categories.filter(
-      categoryId => categoryId !== OTHER_CATEGORY_KEY
-    );
-
-    const hasOtherCategory = formData.categories.includes(OTHER_CATEGORY_KEY);
-
-    if (selectedRealCategories.length === 0 && !hasOtherCategory) {
-      newErrors.categories = 'Vui lòng chọn ít nhất 1 danh mục';
+    if (Number(formData.price || 0) > MAX_PRICE_VALUE) {
+      newErrors.price = 'Giá tối đa là 100.000.000 VND';
     }
 
-    if (hasOtherCategory && !formData.otherCategory.trim()) {
-      newErrors.otherCategory = 'Vui lòng nhập tên danh mục khác';
+    if (formData.categories.length === 0) {
+      newErrors.categories = 'Vui lòng chọn ít nhất 1 danh mục';
     }
 
     if (imageFiles.length === 0) {
@@ -255,11 +279,9 @@ const CreateProduct = () => {
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
-        category: formData.categories.find(categoryId => categoryId !== OTHER_CATEGORY_KEY),
-        categories: formData.categories.filter(categoryId => categoryId !== OTHER_CATEGORY_KEY),
-        otherCategory: formData.categories.includes(OTHER_CATEGORY_KEY)
-          ? formData.otherCategory.trim()
-          : '',
+        category: formData.categories[0],
+        categories: formData.categories,
+        otherCategory: '',
         condition: formData.condition,
         images: imageUrls,
         location: {
@@ -271,7 +293,7 @@ const CreateProduct = () => {
 
       await productService.createProduct(productData);
       
-      alert('Đã gửi tin đăng thành công. Bài viết sẽ hiển thị sau khi moderator duyệt.');
+      alert('Đăng tin thành công. Bạn sẽ thấy thông báo mới trong mục thông báo.');
       navigate('/my-products');
     } catch (error) {
       console.error('Create product error:', error);
@@ -283,11 +305,7 @@ const CreateProduct = () => {
 
   const selectedCategories = categories.filter(cat => formData.categories.includes(cat._id));
   const selectedCategoryLabel = selectedCategories.map(category => category.name).join(', ');
-  const hasOtherCategorySelected = formData.categories.includes(OTHER_CATEGORY_KEY);
-  const categoryPreviewLabel = [
-    selectedCategoryLabel,
-    hasOtherCategorySelected && formData.otherCategory.trim() ? `Khác: ${formData.otherCategory.trim()}` : null
-  ].filter(Boolean).join(', ');
+  const categoryPreviewLabel = selectedCategoryLabel;
   const formattedPrice = formData.price
     ? Number(formData.price).toLocaleString('vi-VN')
     : 'Chưa nhập';
@@ -298,10 +316,7 @@ const CreateProduct = () => {
     formData.title.trim(),
     formData.description.trim(),
     formData.price,
-    (
-      formData.categories.filter(categoryId => categoryId !== OTHER_CATEGORY_KEY).length > 0 ||
-      (formData.categories.includes(OTHER_CATEGORY_KEY) && Boolean(formData.otherCategory.trim()))
-    ),
+    formData.categories.length > 0,
     formData.location.city,
     formData.location.district,
     imageFiles.length > 0
@@ -324,10 +339,6 @@ const CreateProduct = () => {
           <div className="header-stat-card">
             <span className="header-stat-label">Mức hoàn thiện</span>
             <strong>{completionPercent}%</strong>
-          </div>
-          <div className="header-stat-card">
-            <span className="header-stat-label">Trạng thái</span>
-            <strong>{loading ? 'Đang xử lý' : 'Sẵn sàng đăng'}</strong>
           </div>
         </div>
       </div>
@@ -352,9 +363,11 @@ const CreateProduct = () => {
                       <button
                         type="button"
                         className="remove-image"
+                        aria-label="Xóa ảnh"
+                        title="Xóa ảnh"
                         onClick={() => removeImage(index)}
                       >
-                        ×
+                        ✕
                       </button>
                     </div>
                   ))}
@@ -362,7 +375,7 @@ const CreateProduct = () => {
                     <label className="upload-pill-button">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                         multiple
                         onChange={handleImageChange}
                         style={{ display: 'none' }}
@@ -434,31 +447,7 @@ const CreateProduct = () => {
                     ) : (
                       <p className="help-text">Đang tải danh mục...</p>
                     )}
-
-                    <button
-                      type="button"
-                      className={`category-chip category-chip-other ${hasOtherCategorySelected ? 'is-selected' : ''}`}
-                      onClick={() => handleCategoryToggle(OTHER_CATEGORY_KEY)}
-                    >
-                      <span className="category-chip-check">{hasOtherCategorySelected ? '✓' : ''}</span>
-                      <span className="category-chip-label">+ Danh mục khác</span>
-                    </button>
                   </div>
-
-                  {hasOtherCategorySelected && (
-                    <div className="other-category-wrap">
-                      <input
-                        type="text"
-                        id="otherCategory"
-                        name="otherCategory"
-                        value={formData.otherCategory}
-                        onChange={handleChange}
-                        placeholder="Nhập danh mục khác bạn muốn thêm"
-                        maxLength={60}
-                      />
-                      {errors.otherCategory && <p className="error-text">{errors.otherCategory}</p>}
-                    </div>
-                  )}
 
                   {errors.categories && <p className="error-text">{errors.categories}</p>}
                   <p className="help-text">Bạn có thể chọn nhiều danh mục để tăng khả năng tiếp cận người mua.</p>
@@ -484,16 +473,18 @@ const CreateProduct = () => {
                   <label htmlFor="price">Giá bán (VNĐ) <span className="required">*</span></label>
                   <div className="price-input-wrap">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       id="price"
                       name="price"
                       value={formData.price}
                       onChange={handleChange}
                       placeholder="VD: 25000000"
-                      min="0"
+                      maxLength={MAX_PRICE_DIGITS}
                     />
                     <span className="price-input-suffix">VND</span>
                   </div>
+                  <p className="help-text">Giá tối đa cho phép: 100.000.000 VND.</p>
                   {errors.price && <p className="error-text">{errors.price}</p>}
                 </div>
 

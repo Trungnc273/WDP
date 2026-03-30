@@ -2,7 +2,7 @@ import api from './api';
 
 /**
  * Service người dùng
- * Xử lý các API liên quan đến hồ sơ người dùng và KYC
+ * Xử lý các API liên quan đến hồ sơ người dùng
  */
 
 /**
@@ -39,23 +39,6 @@ export const uploadAvatar = async (formData) => {
  */
 export const getPublicProfile = async (userId) => {
   const response = await api.get(`/users/${userId}/public`);
-  return response.data;
-};
-
-/**
- * Gửi hồ sơ xác minh KYC
- * @param {object} kycData - Dữ liệu giấy tờ KYC
- */
-export const submitKYC = async (kycData) => {
-  const response = await api.post('/users/kyc', kycData);
-  return response.data;
-};
-
-/**
- * Lấy trạng thái xác minh KYC
- */
-export const getKYCStatus = async () => {
-  const response = await api.get('/users/kyc/status');
   return response.data;
 };
 

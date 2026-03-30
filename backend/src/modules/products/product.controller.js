@@ -1,5 +1,6 @@
 const productService = require('./product.service');
 const Category = require('./category.model');
+const { createNotification } = require('../notifications/notification.service');
 const { sendSuccess, sendError } = require('../../common/utils/response.util');
 
 function parseCategoryInput(value) {
@@ -137,8 +138,7 @@ async function getProductById(req, res, next) {
     
     const product = await productService.getProductById(id);
 
-    const isPublicVisible =
-      product.status === 'active' && product.moderationStatus === 'approved';
+    const isPublicVisible = product.status === 'active';
     if (!isPublicVisible) {
       const requester = req.user;
       const isOwner = requester && String(product.seller?._id) === String(requester.userId);
@@ -239,16 +239,6 @@ async function createProduct(req, res, next) {
       }
     };
     
-    // Bat buoc KYC approved moi duoc dang tin.
-    const canPostProduct = req.user.kycStatus === 'approved';
-    if (!canPostProduct) {
-      return sendError(
-        res,
-        403,
-        'Tài khoản của bạn chưa được xác thực KYC. Vui lòng hoàn thành xác thực danh tính trước khi đăng sản phẩm.'
-      );
-    }
-    
     console.log('Create product request:', productData);
     
     // Validate required fields
@@ -292,6 +282,16 @@ async function createProduct(req, res, next) {
     productData.otherCategory = normalizedOtherCategory;
     
     const product = await productService.createProduct(userId, productData);
+
+    try {
+      await createNotification(userId, {
+        type: 'system',
+        title: 'Đăng tin thành công',
+        message: `Tin đăng "${product.title}" đã được đăng thành công.`
+      });
+    } catch (notificationError) {
+      console.error('Create product notification error:', notificationError);
+    }
     
     return sendSuccess(res, 201, product, 'Sản phẩm đã được tạo thành công');
   } catch (error) {

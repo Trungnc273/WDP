@@ -34,6 +34,29 @@ function Register() {
   const { requestRegisterOtp, verifyAndRegister, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  const navigateRoute = (currentUser) => {
+    let user = currentUser;
+    if (!user) {
+      try {
+        user = JSON.parse(localStorage.getItem("user"));
+      } catch (e) {
+        localStorage.removeItem("user");
+      }
+    }
+
+    if (user?.role === "admin") {
+      navigate("/admin/dashboard");
+      return;
+    }
+
+    if (user?.role === "moderator") {
+      navigate("/moderator/dashboard");
+      return;
+    }
+
+    navigate("/");
+  };
+
   // Hiệu ứng đếm ngược thời gian cho
   useEffect(() => {
     if (step === 2 && timeLeft > 0) {
@@ -147,8 +170,8 @@ function Register() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(firebaseAuth, provider);
       const idToken = await userCredential.user.getIdToken();
-      await loginWithGoogle(idToken);
-      navigate("/");
+      const currentUser = await loginWithGoogle(idToken);
+      navigateRoute(currentUser);
     } catch (error) {
       setErrors({ submit: error.message || "Đăng ký Google thất bại" });
     } finally {

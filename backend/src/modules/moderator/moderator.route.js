@@ -20,11 +20,6 @@ router.get("/dashboard", moderatorController.getDashboardStats);
 /**
  * Lấy danh sách sản phẩm chờ duyệt
  */
-router.get(
-  "/products/pending",
-  moderatorController.getPendingProducts
-);
-
 /**
  * Ban user
  */
@@ -125,18 +120,5 @@ router.put(
   "/disputes/:disputeId/resolve",
   moderatorController.resolveDispute
 );
-
-/**
- * Duyệt / từ chối sản phẩm
- */
-router.patch("/products/:id/approve", moderatorController.approvePendingProduct);
-router.patch("/products/:id/reject", moderatorController.rejectPendingProduct);
-
-/**
- * Quản lý KYC
- */
-router.get("/kyc/pending", moderatorController.getPendingKYCRequests);
-router.post("/kyc/:userId/approve", moderatorController.approveKYC);
-router.post("/kyc/:userId/reject", moderatorController.rejectKYC);
 
 module.exports = router;

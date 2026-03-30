@@ -38,6 +38,12 @@ const chatService = {
     return response.data.data;
   },
 
+  // Lay/tao cuoc tro chuyen theo don hang (ho tro ca don chua co tin nhan).
+  getOrCreateConversationByOrder: async (orderId) => {
+    const response = await api.post(`/chat/orders/${orderId}/conversation`);
+    return response.data.data;
+  },
+
   // Gửi tin nhắn qua REST (dùng khi socket không khả dụng).
   sendMessage: async (conversationId, messageData) => {
     // Ho tro ca text string don gian va object payload (text/image + metadata).

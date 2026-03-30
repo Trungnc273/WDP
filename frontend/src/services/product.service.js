@@ -20,7 +20,12 @@ import api from './api';
  */
 async function getProducts(params = {}) {
   try {
-    const response = await api.get('/products', { params });
+    const response = await api.get('/products', {
+      params: {
+        ...params,
+        _ts: Date.now()
+      }
+    });
     return response.data.data;
   } catch (error) {
     throw error;

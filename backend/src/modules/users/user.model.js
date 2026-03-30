@@ -35,10 +35,6 @@ const UserSchema = new Schema({
     enum: ['user', 'moderator', 'admin'],
     default: 'user'
   },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
   isSuspended: {
     type: Boolean,
     default: false
@@ -88,29 +84,6 @@ const UserSchema = new Schema({
       default: Date.now
     }
   }],
-  // KYC (Know Your Customer) verification
-  kycStatus: {
-    type: String,
-    enum: ['not_submitted', 'pending', 'approved', 'rejected'],
-    default: 'not_submitted'
-  },
-  kycDocuments: {
-    idCardFront: String,
-    idCardBack: String,
-    selfie: String
-  },
-  kycSubmittedAt: {
-    type: Date
-  },
-  kycApprovedAt: {
-    type: Date
-  },
-  kycRejectedAt: {
-    type: Date
-  },
-  kycRejectionReason: {
-    type: String
-  },
   // Seller rating
   rating: {
     type: Number,

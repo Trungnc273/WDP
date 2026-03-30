@@ -289,50 +289,6 @@ export async function sendModeratorDisputeMessage(disputeId, content) {
   return response.data?.data;
 }
 
-export async function getModeratorPendingProducts() {
-  const response = await api.get('/moderator/products/pending');
-  return response.data?.data || [];
-}
-
-export async function approveModeratorProduct(productId) {
-  ensureObjectId(productId, 'Mã sản phẩm');
-  const response = await api.patch(`/moderator/products/${productId}/approve`);
-  return response.data?.data;
-}
-
-export async function rejectModeratorProduct(productId, reason) {
-  ensureObjectId(productId, 'Mã sản phẩm');
-  if (!reason || reason.trim().length < 10) {
-    throw new Error('Lý do từ chối phải có ít nhất 10 ký tự');
-  }
-  const response = await api.patch(`/moderator/products/${productId}/reject`, {
-    reason: reason.trim()
-  });
-  return response.data?.data;
-}
-
-export async function getModeratorPendingKYC() {
-  const response = await api.get('/moderator/kyc/pending');
-  return response.data?.data || [];
-}
-
-export async function approveModeratorKYC(userId) {
-  ensureObjectId(userId, 'Mã người dùng');
-  const response = await api.post(`/moderator/kyc/${userId}/approve`);
-  return response.data?.data;
-}
-
-export async function rejectModeratorKYC(userId, reason) {
-  ensureObjectId(userId, 'Mã người dùng');
-  if (!reason || reason.trim().length < 10) {
-    throw new Error('Lý do từ chối phải có ít nhất 10 ký tự');
-  }
-  const response = await api.post(`/moderator/kyc/${userId}/reject`, {
-    reason: reason.trim()
-  });
-  return response.data?.data;
-}
-
 const moderatorService = {
   getModeratorDashboard,
   getModeratorReports,
@@ -352,13 +308,7 @@ const moderatorService = {
   getModeratorDisputeById,
   markModeratorDisputeInvestigating,
   sendModeratorDisputeMessage,
-  resolveModeratorDispute,
-  getModeratorPendingProducts,
-  approveModeratorProduct,
-  rejectModeratorProduct,
-  getModeratorPendingKYC,
-  approveModeratorKYC,
-  rejectModeratorKYC
+  resolveModeratorDispute
 };
 
 export default moderatorService;

@@ -12,7 +12,7 @@ describe('ProductList Component', () => {
       images: ['/uploads/test1.jpg'],
       location: { city: 'Hà Nội' },
       createdAt: new Date().toISOString(),
-      seller: { fullName: 'Seller 1', isVerified: true }
+      seller: { fullName: 'Seller 1' }
     },
     {
       _id: '2',
@@ -21,7 +21,7 @@ describe('ProductList Component', () => {
       images: ['/uploads/test2.jpg'],
       location: { city: 'Hồ Chí Minh' },
       createdAt: new Date().toISOString(),
-      seller: { fullName: 'Seller 2', isVerified: false }
+      seller: { fullName: 'Seller 2' }
     }
   ];
 

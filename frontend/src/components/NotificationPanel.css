@@ -163,6 +163,33 @@
   color: #666;
 }
 
+.notification-load-more-wrap {
+  padding: 12px;
+  border-top: 1px solid #f0f0f0;
+  background: #fff;
+}
+
+.notification-load-more-btn {
+  width: 100%;
+  border: 1px solid #d7dbe2;
+  background: #f8f9fa;
+  color: #374151;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notification-load-more-btn:hover:not(:disabled) {
+  background: #eef2f7;
+}
+
+.notification-load-more-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
 @media (max-width: 480px) {
   .notification-panel {
     width: calc(100vw - 30px);

@@ -21,8 +21,7 @@ describe('ProductCard Component', () => {
     },
     createdAt: new Date().toISOString(),
     seller: {
-      fullName: 'Test Seller',
-      isVerified: true
+      fullName: 'Test Seller'
     }
   };
 
@@ -40,31 +39,6 @@ describe('ProductCard Component', () => {
     expect(screen.getByText('Test Product')).toBeInTheDocument();
     expect(screen.getByText(/1.000.000/)).toBeInTheDocument();
     expect(screen.getByText(/Hà Nội/)).toBeInTheDocument();
-  });
-
-  test('displays verified badge for verified sellers', () => {
-    render(
-      <BrowserRouter>
-        <ProductCard product={mockProduct} />
-      </BrowserRouter>
-    );
-
-    expect(screen.getByText(/Đã xác thực/)).toBeInTheDocument();
-  });
-
-  test('does not display verified badge for unverified sellers', () => {
-    const unverifiedProduct = {
-      ...mockProduct,
-      seller: { ...mockProduct.seller, isVerified: false }
-    };
-
-    render(
-      <BrowserRouter>
-        <ProductCard product={unverifiedProduct} />
-      </BrowserRouter>
-    );
-
-    expect(screen.queryByText(/Đã xác thực/)).not.toBeInTheDocument();
   });
 
   test('navigates to product detail on click', () => {

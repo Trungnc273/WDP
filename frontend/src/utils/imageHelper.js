@@ -57,9 +57,18 @@ export const getProductImageUrl = (product, index = 0) => {
  * @returns {string} URL avatar hoặc ảnh placeholder
  */
 export const getUserAvatarUrl = (user) => {
-  if (user?.avatar) {
-    return getImageUrl(user.avatar);
+  const avatarSource =
+    user?.avatar ||
+    user?.profile?.avatar ||
+    user?.photoURL ||
+    user?.photoUrl ||
+    user?.picture ||
+    user?.user?.avatar;
+
+  if (avatarSource) {
+    return getImageUrl(avatarSource);
   }
+
   return '/images/placeholders/avatar-placeholder.svg';
 };
 

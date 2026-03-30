@@ -204,9 +204,6 @@ const OrderPayment = () => {
               <div className="seller-info-text">
                 <div className="seller-name">
                   {order.seller?.fullName}
-                  {order.seller?.isVerified && (
-                    <span className="verified-badge" title="Đã xác thực">✓</span>
-                  )}
                 </div>
                 <div className="seller-contact">
                   {order.seller?.email}

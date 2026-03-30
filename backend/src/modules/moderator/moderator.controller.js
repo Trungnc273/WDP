@@ -1,6 +1,5 @@
 const moderatorService = require("./moderator.service");
 const { sendSuccess, sendError } = require("../../common/utils/response.util");
-const { createNotification } = require('../notifications/notification.service');
 
 const REPORT_STATUS = ["pending", "reviewing", "resolved", "dismissed"];
 const REPORT_TYPE = ["product", "user"];
@@ -64,104 +63,6 @@ async function getDashboardStats(req, res) {
     return sendSuccess(res, 200, stats);
   } catch (error) {
     return sendError(res, 500, error.message);
-  }
-}
-
-async function getPendingProducts(req, res) {
-  try {
-    const products = await moderatorService.getPendingProducts();
-    return sendSuccess(res, 200, products);
-  } catch (error) {
-    return sendError(res, 500, error.message);
-  }
-}
-
-async function approvePendingProduct(req, res) {
-  try {
-    const { id } = req.params;
-    const validationError = ensureObjectId(id, "Mã sản phẩm");
-    if (validationError) return sendError(res, 400, validationError);
-
-    const product = await moderatorService.approvePendingProduct(id);
-    return sendSuccess(res, 200, product, "Đã duyệt tin đăng thành công");
-  } catch (error) {
-    return sendError(res, 400, error.message);
-  }
-}
-
-async function rejectPendingProduct(req, res) {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body || {};
-
-    const validationError = ensureObjectId(id, "Mã sản phẩm");
-    if (validationError) return sendError(res, 400, validationError);
-
-    if (!reason || String(reason).trim().length < 10) {
-      return sendError(res, 400, "Lý do từ chối phải có ít nhất 10 ký tự");
-    }
-
-    const product = await moderatorService.rejectPendingProduct(id, String(reason).trim());
-    return sendSuccess(res, 200, product, "Đã từ chối tin đăng");
-  } catch (error) {
-    return sendError(res, 400, error.message);
-  }
-}
-
-async function getPendingKYCRequests(req, res) {
-  try {
-    const users = await moderatorService.getPendingKYCRequests();
-    return sendSuccess(res, 200, users);
-  } catch (error) {
-    return sendError(res, 500, error.message);
-  }
-}
-
-async function approveKYC(req, res) {
-  try {
-    const { userId } = req.params;
-    const validationError = ensureObjectId(userId, "Mã người dùng");
-    if (validationError) return sendError(res, 400, validationError);
-
-    const user = await moderatorService.approveKYC(userId);
-
-    // Send notification for KYC approval
-    await createNotification(userId, {
-      type: 'system',
-      title: 'Xác thực danh tính thành công',
-      message: 'Yêu cầu xác thực danh tính của bạn đã được phê duyệt. Tài khoản của bạn giờ đây đã được xác thực.'
-    });
-
-    return sendSuccess(res, 200, user, "Đã cấp tích xanh cho người dùng");
-  } catch (error) {
-    return sendError(res, 400, error.message);
-  }
-}
-
-async function rejectKYC(req, res) {
-  try {
-    const { userId } = req.params;
-    const { reason } = req.body || {};
-
-    const validationError = ensureObjectId(userId, "Mã người dùng");
-    if (validationError) return sendError(res, 400, validationError);
-
-    if (!reason || String(reason).trim().length < 10) {
-      return sendError(res, 400, "Lý do từ chối KYC phải có ít nhất 10 ký tự");
-    }
-
-    const user = await moderatorService.rejectKYC(userId, String(reason).trim());
-
-    // Send notification for KYC rejection
-    await createNotification(userId, {
-      type: 'system',
-      title: 'Xác thực danh tính bị từ chối',
-      message: `Yêu cầu xác thực danh tính của bạn đã bị từ chối. Lý do: ${String(reason).trim()}`
-    });
-
-    return sendSuccess(res, 200, user, "Đã từ chối hồ sơ KYC");
-  } catch (error) {
-    return sendError(res, 400, error.message);
   }
 }
 
@@ -588,12 +489,6 @@ async function sendDisputeMessage(req, res) {
 
 module.exports = {
   getDashboardStats,
-  getPendingProducts,
-  approvePendingProduct,
-  rejectPendingProduct,
-  getPendingKYCRequests,
-  approveKYC,
-  rejectKYC,
   banUser,
   getReports,
   getReportById,

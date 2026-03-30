@@ -47,7 +47,6 @@ async function loginWithGoogle(idToken) {
       fullName: name || "Người dùng Google",
       avatar: picture || "/images/placeholders/avatar-placeholder.svg",
       role: "user",
-      isVerified: true, // Google email thường đã verify
     });
   } else {
     // 4. NẾU USER ĐÃ TỒN TẠI: Kiểm tra khóa tài khoản (copy logic khóa từ hàm loginUser cũ)
@@ -113,8 +112,6 @@ async function loginWithGoogle(idToken) {
     fullName: user.fullName,
     avatar: user.avatar,
     role: user.role,
-    isVerified: user.isVerified,
-    kycStatus: user.kycStatus,
   };
 
   return { user: userResponse, token };
@@ -203,8 +200,6 @@ async function registerUser(email, password, fullName, phone, address) {
     phone: user.phone,
     address: user.address,
     role: user.role,
-    isVerified: user.isVerified,
-    kycStatus: user.kycStatus,
   };
 
   return { user: userResponse, token };
@@ -296,8 +291,6 @@ async function loginUser(email, password) {
     phone: user.phone,
     address: user.address,
     role: user.role,
-    isVerified: user.isVerified,
-    kycStatus: user.kycStatus,
   };
 
   return { user: userResponse, token };
@@ -369,8 +362,6 @@ async function getUserById(userId) {
     phone: user.phone,
     address: user.address,
     role: user.role,
-    isVerified: user.isVerified,
-    kycStatus: user.kycStatus,
   };
 }
 
@@ -490,7 +481,7 @@ async function complete2FALogin(userId) {
   
   const userResponse = {
     id: user._id, email: user.email, fullName: user.fullName, phone: user.phone,
-    address: user.address, role: user.role, isVerified: user.isVerified, kycStatus: user.kycStatus,
+    address: user.address, role: user.role,
   };
 
   return { user: userResponse, token };

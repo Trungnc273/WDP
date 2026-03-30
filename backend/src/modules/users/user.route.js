@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
-const { requireAdmin, requireAdminOrModerator } = require('../../common/middlewares/admin.middleware');
+const { requireAdmin } = require('../../common/middlewares/admin.middleware');
 const userController = require('./user.controller');
 
 const router = express.Router();
@@ -39,7 +39,7 @@ router.post('/admin/users/:id/unsuspend', authenticate, requireAdmin, userContro
 
 /**
  * User Routes
- * Profile and KYC management
+ * Profile management
  */
 
 // Get current user profile
@@ -53,12 +53,6 @@ router.post('/avatar', authenticate, userController.uploadAvatar);
 
 // Change password
 router.post('/change-password', authenticate, userController.changePassword);
-
-// Submit KYC verification
-router.post('/kyc', authenticate, userController.submitKYC);
-
-// Get KYC status
-router.get('/kyc/status', authenticate, userController.getKYCStatus);
 
 // Get public profile (no auth required)
 router.get('/:id/public', userController.getPublicProfile);

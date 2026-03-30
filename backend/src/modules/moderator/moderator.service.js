@@ -190,8 +190,6 @@ async function getDashboardStats() {
     openOrders,
     suspendedUsers,
     pendingDisputes,
-    pendingProducts,
-    pendingKYC,
     recentReports
   ] = await Promise.all([
     Report.countDocuments({ status: "pending" }),
@@ -207,8 +205,6 @@ async function getDashboardStats() {
     Order.countDocuments({ status: { $in: ["awaiting_seller_confirmation", "awaiting_payment", "paid", "shipped"] } }),
     User.countDocuments({ isSuspended: true }),
     Dispute.countDocuments({ status: { $in: ["pending", "investigating"] } }),
-    Product.countDocuments({ moderationStatus: "pending", status: { $ne: "deleted" } }),
-    User.countDocuments({ kycStatus: "pending" }),
     Report.find({ status: { $in: ["pending", "reviewing"] } })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -228,91 +224,9 @@ async function getDashboardStats() {
     openOrders,
     suspendedUsers,
     pendingDisputes,
-    pendingProducts,
-    pendingKYC,
+    pendingProducts: 0,
     recentReports
   };
-}
-
-async function getPendingProducts() {
-  return Product.find({ moderationStatus: "pending", status: { $ne: "deleted" } })
-    .sort({ createdAt: -1 })
-    .populate("seller", "fullName email avatar")
-    .populate("category", "name slug")
-    .populate("categories", "name slug");
-}
-
-async function approvePendingProduct(productId) {
-  const product = await Product.findById(productId);
-  if (!product) throw new Error("Sản phẩm không tồn tại");
-
-  if (!["pending", "rejected"].includes(product.moderationStatus)) {
-    throw new Error("Chỉ có thể duyệt sản phẩm đang chờ hoặc đã bị từ chối trước đó");
-  }
-
-  product.status = "active";
-  product.moderationStatus = "approved";
-  product.rejectionReason = undefined;
-  await product.save();
-
-  return product;
-}
-
-async function rejectPendingProduct(productId, reason = "") {
-  const product = await Product.findById(productId);
-  if (!product) throw new Error("Sản phẩm không tồn tại");
-
-  if (!["pending", "approved"].includes(product.moderationStatus)) {
-    throw new Error("Không thể từ chối sản phẩm ở trạng thái hiện tại");
-  }
-
-  product.status = "rejected";
-  product.moderationStatus = "rejected";
-  product.rejectionReason = String(reason || "").trim() || "Vi phạm chính sách nền tảng";
-  await product.save();
-
-  return product;
-}
-
-async function getPendingKYCRequests() {
-  return User.find({ kycStatus: "pending" })
-    .select("fullName email avatar kycStatus kycDocuments kycSubmittedAt")
-    .sort({ kycSubmittedAt: 1 });
-}
-
-async function approveKYC(userId) {
-  const user = await User.findById(userId);
-  if (!user) throw new Error("Người dùng không tồn tại");
-
-  if (user.kycStatus !== "pending") {
-    throw new Error("Yêu cầu KYC không ở trạng thái chờ duyệt");
-  }
-
-  user.kycStatus = "approved";
-  user.isVerified = true;
-  user.kycApprovedAt = new Date();
-  user.kycRejectedAt = undefined;
-  user.kycRejectionReason = undefined;
-  await user.save();
-
-  return user;
-}
-
-async function rejectKYC(userId, reason = "") {
-  const user = await User.findById(userId);
-  if (!user) throw new Error("Người dùng không tồn tại");
-
-  if (user.kycStatus !== "pending") {
-    throw new Error("Yêu cầu KYC không ở trạng thái chờ duyệt");
-  }
-
-  user.kycStatus = "rejected";
-  user.isVerified = false;
-  user.kycRejectedAt = new Date();
-  user.kycRejectionReason = String(reason || "").trim() || "Thông tin KYC không hợp lệ";
-  await user.save();
-
-  return user;
 }
 
 async function banUser(userId, suspendedReason = "") {
@@ -1073,12 +987,6 @@ function isValidObjectId(value) {
 module.exports = {
   isValidObjectId,
   getDashboardStats,
-  getPendingProducts,
-  approvePendingProduct,
-  rejectPendingProduct,
-  getPendingKYCRequests,
-  approveKYC,
-  rejectKYC,
   banUser,
   getReports,
   getReportById,

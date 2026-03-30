@@ -27,8 +27,17 @@ const ProductDetail = () => {
   const [showUserReportModal, setShowUserReportModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
-  const getCurrentUserId = () => user?._id || user?.userId || null;
-  const getSellerId = (productData) => productData?.seller?._id || productData?.sellerId?._id || productData?.sellerId || null;
+  const getCurrentUserId = () => user?._id || user?.userId || user?.id || null;
+  const getSellerId = (productData) => {
+    return (
+      productData?.seller?._id ||
+      productData?.seller?.id ||
+      productData?.sellerId?._id ||
+      productData?.sellerId?.id ||
+      productData?.sellerId ||
+      null
+    );
+  };
   // Luon lay thong tin moi nhat tu localStorage de tranh bi stale tu context
   // Lay thong tin profile moi nhat tu server khi mo modal mua ngay
   const [profileData, setProfileData] = useState(null);
@@ -159,7 +168,6 @@ const ProductDetail = () => {
       return;
     }
     if (isOwner) {
-      alert('Bạn không thể mua sản phẩm của chính mình');
       return;
     }
     // Luon fetch profile truoc khi mo modal
@@ -195,7 +203,6 @@ const ProductDetail = () => {
     }
     
     if (isOwner) {
-      alert('Bạn không thể báo cáo sản phẩm của chính mình');
       return;
     }
     
@@ -215,7 +222,6 @@ const ProductDetail = () => {
     }
 
     if (isOwner) {
-      alert('Bạn không thể báo cáo chính mình');
       return;
     }
 
@@ -235,7 +241,6 @@ const ProductDetail = () => {
     }
     
     if (isOwner) {
-      alert('Bạn không thể chat với chính mình');
       return;
     }
     
@@ -353,9 +358,6 @@ const ProductDetail = () => {
 
   const sellerId = getSellerId(product);
   const isOwner = !!(sellerId && getCurrentUserId() && sellerId.toString() === getCurrentUserId().toString());
-  const sellerCreatedAt = product?.seller?.createdAt;
-  const sellerJoinYear = sellerCreatedAt ? new Date(sellerCreatedAt).getFullYear() : null;
-
   // Gom category chinh + categories phu thanh danh sach khong trung lap cho man chi tiet.
   const categoryMap = new Map();
   const registerCategory = (category) => {
@@ -427,13 +429,15 @@ const ProductDetail = () => {
                 src={getImageUrl(product.images?.[selectedImage]) || '/images/placeholder.png'} 
                 alt={product.title}
               />
-              <button 
-                className="favorite-btn"
-                onClick={handleToggleFavorite}
-                title={isFavorite ? 'Bỏ lưu' : 'Lưu tin'}
-              >
-                {isFavorite ? '❤️' : '🤍'}
-              </button>
+              {!isOwner && (
+                <button 
+                  className="favorite-btn"
+                  onClick={handleToggleFavorite}
+                  title={isFavorite ? 'Bỏ lưu' : 'Lưu tin'}
+                >
+                  {isFavorite ? '❤️' : '🤍'}
+                </button>
+              )}
             </div>
             {product.images.length > 1 && (
               <div className="image-thumbnails">
@@ -523,19 +527,6 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {isOwner && (
-              <div className="owner-actions">
-                <Link to={`/product/${id}/edit`} className="btn btn-edit">
-                  ✏️ Chỉnh sửa tin
-                </Link>
-                <button 
-                  onClick={() => setShowDeleteModal(true)} 
-                  className="btn btn-delete"
-                >
-                  🗑️ Xóa tin
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Seller Card */}
@@ -558,25 +549,14 @@ const ProductDetail = () => {
               <div className="seller-details">
                 <div className="seller-name">
                   {product.seller?.fullName}
-                  {product.seller?.isVerified && (
-                    <span className="verified-badge" title="Đã xác thực">✓</span>
-                  )}
-                </div>
-                <div className="seller-stats">
-                  <div className="stat-item">
-                    <span className="stat-icon">👤</span>
-                    <span>
-                      {sellerJoinYear && !Number.isNaN(sellerJoinYear)
-                        ? `Thành viên từ ${sellerJoinYear}`
-                        : 'Thành viên ReFlow'}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
-            <Link to={`/user/${sellerId || ''}`} className="btn btn-view-profile">
-              Xem trang cá nhân
-            </Link>
+            {!isOwner && (
+              <Link to={`/user/${sellerId || ''}`} className="btn btn-view-profile">
+                Xem trang cá nhân
+              </Link>
+            )}
             {!isOwner && (
               <button type="button" className="btn btn-report-user" onClick={handleReportUser}>
                 Báo cáo người dùng

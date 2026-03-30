@@ -162,95 +162,6 @@
   text-transform: uppercase;
 }
 
-.verified {
-  color: #4caf50;
-  font-weight: 500;
-}
-
-.not-verified {
-  color: #ff9800;
-  font-weight: 500;
-}
-
-/* KYC Status */
-.kyc-info {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.kyc-status-row {
-  display: flex;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 2px solid #f5f5f5;
-}
-
-.kyc-status-row label {
-  font-weight: 600;
-  color: #333;
-  min-width: 150px;
-  margin-right: 16px;
-}
-
-.kyc-status {
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.kyc-not-submitted {
-  background: #f5f5f5;
-  color: #666;
-}
-
-.kyc-pending {
-  background: #fff3e0;
-  color: #f57c00;
-}
-
-.kyc-approved {
-  background: #e8f5e8;
-  color: #4caf50;
-}
-
-.kyc-rejected {
-  background: #ffebee;
-  color: #f44336;
-}
-
-.rejection-reason {
-  color: #f44336;
-  font-style: italic;
-}
-
-.kyc-actions {
-  display: flex;
-  justify-content: center;
-}
-
-.kyc-pending-message,
-.kyc-approved-message {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 8px;
-  font-weight: 500;
-}
-
-.kyc-pending-message {
-  background: #fff3e0;
-  color: #f57c00;
-}
-
-.kyc-approved-message {
-  background: #e8f5e8;
-  color: #4caf50;
-}
-
 /* Quick Actions */
 .quick-actions {
   display: grid;
@@ -403,17 +314,6 @@
     min-width: auto;
     margin-right: 0;
     font-size: 14px;
-  }
-  
-  .kyc-status-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .kyc-status-row label {
-    min-width: auto;
-    margin-right: 0;
   }
   
   .quick-actions {

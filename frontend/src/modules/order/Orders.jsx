@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrdersAsBuyer, getOrdersAsSeller, confirmOrderBySeller } from '../../services/order.service';
+import chatService from '../../services/chat.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import Dispute from '../report/Dispute';
 import ShipOrder from './ShipOrder';
@@ -99,6 +100,47 @@ const Orders = () => {
 
   const handleOrderClick = (orderId) => {
     navigate(`/orders/${orderId}`);
+  };
+
+  const getEntityId = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string' || typeof value === 'number') {
+      return value.toString();
+    }
+    if (value._id?.toString) return value._id.toString();
+    if (value.id?.toString) return value.id.toString();
+    if (value.userId?.toString) return value.userId.toString();
+
+    // Ho tro truong hop value la ObjectId thuan (khong co _id/id).
+    if (typeof value?.toString === 'function') {
+      const asString = value.toString();
+      if (asString && asString !== '[object Object]') {
+        return asString;
+      }
+    }
+
+    return null;
+  };
+
+  const openOrderChat = async (order) => {
+    try {
+      const orderId = getEntityId(order?._id);
+      if (!orderId) {
+        navigate('/chat');
+        return;
+      }
+
+      const conversation = await chatService.getOrCreateConversationByOrder(orderId);
+      if (conversation?._id) {
+        navigate(`/chat/${conversation._id}`);
+        return;
+      }
+
+      navigate('/chat');
+    } catch (error) {
+      console.error('Error opening order chat:', error);
+      navigate('/chat');
+    }
   };
 
   const handleConfirmOrderBySeller = async (order) => {
@@ -422,9 +464,9 @@ const Orders = () => {
                 <div className="order-actions">
                   <button
                     className="btn btn-outline btn-sm"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      navigate('/chat');
+                      await openOrderChat(order);
                     }}
                   >
                     <i className="fas fa-comment"></i>

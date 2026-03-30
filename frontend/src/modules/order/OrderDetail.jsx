@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrderById } from '../../services/order.service';
+import chatService from '../../services/chat.service';
 import { canReviewOrder, getReviewByOrderId } from '../../services/review.service';
 import { getDisputeByOrderId, addSellerResponse, addBuyerFollowUp, confirmSellerReturn, uploadEvidenceMedia } from '../../services/report.service';
 import { getImageUrl } from '../../utils/imageHelper';
@@ -458,8 +459,45 @@ const OrderDetail = () => {
 
   const getNormalizedUserId = (value) => {
     if (!value) return null;
-    if (typeof value === 'string') return value;
-    return value._id || value.id || value.userId || null;
+    if (typeof value === 'string' || typeof value === 'number') return value.toString();
+    if (value._id?.toString) return value._id.toString();
+    if (value.id?.toString) return value.id.toString();
+    if (value.userId?.toString) return value.userId.toString();
+
+    if (typeof value?.toString === 'function') {
+      const asString = value.toString();
+      if (asString && asString !== '[object Object]') {
+        return asString;
+      }
+    }
+
+    return null;
+  };
+
+  const openOrderChat = async () => {
+    if (!order) {
+      navigate('/chat');
+      return;
+    }
+
+    try {
+      const orderId = getNormalizedUserId(order._id);
+      if (!orderId) {
+        navigate('/chat');
+        return;
+      }
+
+      const conversation = await chatService.getOrCreateConversationByOrder(orderId);
+      if (conversation?._id) {
+        navigate(`/chat/${conversation._id}`);
+        return;
+      }
+
+      navigate('/chat');
+    } catch (error) {
+      console.error('Error opening order chat:', error);
+      navigate('/chat');
+    }
   };
 
   const getStatusTimeline = () => {
@@ -596,7 +634,7 @@ const OrderDetail = () => {
       <button
         key="chat"
         className="btn btn-outline"
-        onClick={() => navigate('/chat')}
+        onClick={openOrderChat}
       >
         <i className="fas fa-comment"></i>
         Chat

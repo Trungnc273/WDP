@@ -3,31 +3,94 @@ import { useNavigate } from "react-router-dom";
 import notificationService from "../services/notification.service";
 import "./NotificationPanel.css";
 
-const NotificationPanel = ({ isOpen, onClose }) => {
+const PAGE_SIZE = 20;
+
+const normalizeLegacyVietnamese = (text = '') => {
+  if (!text || typeof text !== 'string') return text;
+
+  return text
+    .replace(/^Dang tin thanh cong$/i, 'Đăng tin thành công')
+    .replace(/^Tin dang\s+/i, 'Tin đăng ')
+    .replace(/\sda duoc dang thanh cong\.?$/i, ' đã được đăng thành công.');
+};
+
+const NotificationPanel = ({
+  isOpen,
+  onClose,
+  refreshTrigger = 0,
+  onUnreadCountChange,
+}) => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchNotifications();
+      fetchNotifications({ targetPage: 1, append: false });
     }
   }, [isOpen]);
 
-  const fetchNotifications = async () => {
+  useEffect(() => {
+    if (isOpen && refreshTrigger > 0) {
+      fetchNotifications({ targetPage: 1, append: false });
+    }
+  }, [isOpen, refreshTrigger]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const intervalId = setInterval(() => {
+      fetchNotifications({ targetPage: 1, append: false });
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [isOpen]);
+
+  const fetchNotifications = async ({ targetPage = 1, append = false } = {}) => {
     try {
-      setLoading(true);
-      const data = await notificationService.getNotifications(1, 20);
-      setNotifications(data?.notifications || []);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      const data = await notificationService.getNotifications(targetPage, PAGE_SIZE);
+      const pageNotifications = data?.notifications || [];
+      const pagination = data?.pagination || {};
+
+      setNotifications((prev) => {
+        if (!append) return pageNotifications;
+
+        const existingIds = new Set(prev.map((item) => item._id));
+        const nextItems = pageNotifications.filter(
+          (item) => !existingIds.has(item._id),
+        );
+        return [...prev, ...nextItems];
+      });
+
+      const currentPage = Number(pagination.page || targetPage);
+      const totalPages = Number(pagination.totalPages || currentPage);
+      setPage(currentPage);
+      setHasMore(currentPage < totalPages);
 
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
+      onUnreadCountChange?.(count);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    await fetchNotifications({ targetPage: page + 1, append: true });
   };
 
   const extractEntityId = (value) => {
@@ -64,7 +127,11 @@ const NotificationPanel = ({ isOpen, onClose }) => {
             item._id === notification._id ? { ...item, isRead: true } : item,
           ),
         );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        setUnreadCount((prev) => {
+          const nextCount = Math.max(0, prev - 1);
+          onUnreadCountChange?.(nextCount);
+          return nextCount;
+        });
       }
 
       // Dieu huong theo loai thong bao
@@ -110,6 +177,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
         prev.map((notification) => ({ ...notification, isRead: true })),
       );
       setUnreadCount(0);
+      onUnreadCountChange?.(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
@@ -149,7 +217,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
   return (
     <div className="notification-panel" onClick={(e) => e.stopPropagation()}>
       <div className="notification-header">
-        <h3>Thông báo ({unreadCount})</h3>
+        <h3>Thông báo</h3>
         <button className="close-btn" onClick={onClose}>
           ×
         </button>
@@ -179,10 +247,10 @@ const NotificationPanel = ({ isOpen, onClose }) => {
                 {getNotificationIcon(notification.type)}
               </span>
               <div className="notification-content">
-                <div className="notification-title">{notification.title}</div>
+                <div className="notification-title">{normalizeLegacyVietnamese(notification.title)}</div>
                 {notification.message && (
                   <div className="notification-message">
-                    {notification.message}
+                    {normalizeLegacyVietnamese(notification.message)}
                   </div>
                 )}
                 <div className="notification-time">
@@ -191,6 +259,18 @@ const NotificationPanel = ({ isOpen, onClose }) => {
               </div>
             </div>
           ))
+        )}
+
+        {!loading && hasMore && (
+          <div className="notification-load-more-wrap">
+            <button
+              className="notification-load-more-btn"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "Đang tải thêm..." : "Tải thêm"}
+            </button>
+          </div>
         )}
       </div>
     </div>

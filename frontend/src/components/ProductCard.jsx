@@ -85,12 +85,6 @@ function ProductCard({ product }) {
             {formatDate(createdAt)}
           </div>
         </div>
-
-        {seller?.isVerified && (
-          <div className="product-card__badge">
-            <span className="badge-verified">✓ Đã xác thực</span>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -52,16 +52,6 @@ const UserList = ({
     return <span className="status active">Hoạt động</span>;
   };
 
-  const getKYCStatusLabel = (status) => {
-    const statusLabels = {
-      not_submitted: 'Chưa gửi',
-      pending: 'Chờ duyệt',
-      approved: 'Đã duyệt',
-      rejected: 'Bị từ chối'
-    };
-    return statusLabels[status] || status;
-  };
-
   if (loading) {
     return <div className="loading">Đang tải...</div>;
   }
@@ -86,7 +76,6 @@ const UserList = ({
               <th>Email</th>
               <th>Vai trò</th>
               <th>Trạng thái</th>
-              <th>KYC</th>
               <th>Ngày tạo</th>
               <th>Thao tác</th>
             </tr>
@@ -94,7 +83,7 @@ const UserList = ({
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan="7" className="no-data">
+                <td colSpan="6" className="no-data">
                   Không có dữ liệu
                 </td>
               </tr>
@@ -119,11 +108,8 @@ const UserList = ({
                   </td>
                   <td>{getStatusLabel(user)}</td>
                   <td>
-                    <span className={`kyc-status ${user.kycStatus}`}>
-                      {getKYCStatusLabel(user.kycStatus)}
-                    </span>
+                    {formatDate(user.createdAt)}
                   </td>
-                  <td>{formatDate(user.createdAt)}</td>
                   <td>
                     <div className="action-buttons">
                       <button

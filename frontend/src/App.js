@@ -10,10 +10,12 @@ import notificationService from './services/notification.service';
 import chatService from './services/chat.service';
 
 function AppShell() {
-  const { isAuthenticated, user, logout, token, refreshUser } = useAuth();
+  const { isAuthenticated, user, logout, token } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [newNotificationCount, setNewNotificationCount] = useState(0);
+  const [notificationRefreshTick, setNotificationRefreshTick] = useState(0);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const socketRef = useRef(null);
@@ -131,6 +133,9 @@ function AppShell() {
       // Lang nghe thong bao moi
       socketRef.current.on('new_notification', ({ notification }) => {
         setUnreadCount(prev => prev + 1);
+        setNewNotificationCount(prev => prev + 1);
+        setNotificationRefreshTick(prev => prev + 1);
+        setShowNotification(true);
       });
 
       // Su kien chinh de tang badge tin nhan khi co tin moi.
@@ -171,41 +176,19 @@ function AppShell() {
     setChatUnreadCount(0);
   };
 
+  const handleNotificationBellClick = () => {
+    const nextOpen = !showNotification;
+    setShowNotification(nextOpen);
+
+    if (nextOpen) {
+      // Chi tat chi bao "moi" khi nguoi dung chu dong bam chuong de xem.
+      setNewNotificationCount(0);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
-  };
-
-  const handlePostClick = async (event) => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    const hasKYCApproval = Boolean(user?.isVerified) || user?.kycStatus === 'approved';
-    if (hasKYCApproval) {
-      return;
-    }
-
-    event.preventDefault();
-
-    try {
-      const latestUser = await refreshUser();
-      const latestHasKYCApproval =
-        Boolean(latestUser?.isVerified) || latestUser?.kycStatus === 'approved';
-
-      if (latestHasKYCApproval) {
-        navigate('/product/create');
-        return;
-      }
-    } catch (error) {
-      console.error('Failed to refresh user before posting:', error);
-    }
-
-    if (!hasKYCApproval) {
-      event.preventDefault();
-      alert('Tài khoản của bạn chưa được xác thực KYC. Vui lòng hoàn thành xác thực danh tính trước khi đăng tin.');
-      navigate('/profile/kyc');
-    }
   };
 
   return (
@@ -250,7 +233,7 @@ function AppShell() {
                     </Link>
                   </div>
                   
-                  <Link to="/product/create" className="navbar__btn-post" onClick={handlePostClick}>
+                  <Link to="/product/create" className="navbar__btn-post">
                     Đăng tin
                   </Link>
 
@@ -262,17 +245,19 @@ function AppShell() {
                       <button 
                         className="navbar__icon-btn" 
                         title="Thông báo"
-                        onClick={() => setShowNotification(!showNotification)}
+                        onClick={handleNotificationBellClick}
                       >
                         <span className="icon">🔔</span>
-                        {unreadCount > 0 && (
-                          <span className="notification-badge">{unreadCount}</span>
+                        {newNotificationCount > 0 && (
+                          <span className="notification-badge">{newNotificationCount > 99 ? '99+' : newNotificationCount}</span>
                         )}
                       </button>
                       {showNotification && (
                         <NotificationPanel 
                           isOpen={showNotification} 
                           onClose={() => setShowNotification(false)}
+                          refreshTrigger={notificationRefreshTick}
+                          onUnreadCountChange={setUnreadCount}
                         />
                       )}
                     </div>

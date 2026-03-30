@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
-import { getProfile, getKYCStatus } from '../../services/user.service';
+import { getProfile } from '../../services/user.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import './Profile.css';
 
@@ -10,7 +10,6 @@ function Profile() {
   const navigate = useNavigate();
   
   const [profile, setProfile] = useState(null);
-  const [kycStatus, setKycStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -23,15 +22,10 @@ function Profile() {
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      
-      // Tai profile va trang thai KYC song song
-      const [profileResponse, kycResponse] = await Promise.all([
-        getProfile(),
-        getKYCStatus()
-      ]);
-      
+
+      const profileResponse = await getProfile();
+
       setProfile(profileResponse.data);
-      setKycStatus(kycResponse.data);
       setError('');
     } catch (error) {
       setError('Không thể tải thông tin profile');
@@ -44,26 +38,6 @@ function Profile() {
   const handleLogout = () => {
     logout();
     navigate('/login');
-  };
-
-  const getKYCStatusText = (status) => {
-    const statusMap = {
-      'not_submitted': 'Chưa gửi',
-      'pending': 'Đang xử lý',
-      'approved': 'Đã duyệt',
-      'rejected': 'Bị từ chối'
-    };
-    return statusMap[status] || status;
-  };
-
-  const getKYCStatusClass = (status) => {
-    const classMap = {
-      'not_submitted': 'kyc-not-submitted',
-      'pending': 'kyc-pending',
-      'approved': 'kyc-approved',
-      'rejected': 'kyc-rejected'
-    };
-    return classMap[status] || '';
   };
 
   const formatDate = (dateString) => {
@@ -178,82 +152,6 @@ function Profile() {
               <span className="role-badge">{profile?.role}</span>
             </div>
 
-            <div className="info-row">
-              <label>Trạng thái tài khoản:</label>
-              <span className={profile?.isVerified ? 'verified' : 'not-verified'}>
-                {profile?.isVerified ? 'Đã xác thực' : 'Chưa xác thực'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* KYC Information */}
-        <div className="profile-card">
-          <h2>Xác thực danh tính (KYC)</h2>
-          
-          <div className="kyc-info">
-            <div className="kyc-status-row">
-              <label>Trạng thái KYC:</label>
-              <span className={`kyc-status ${getKYCStatusClass(kycStatus?.status)}`}>
-                {getKYCStatusText(kycStatus?.status)}
-              </span>
-            </div>
-
-            {kycStatus?.submittedAt && (
-              <div className="info-row">
-                <label>Ngày gửi:</label>
-                <span>{formatDate(kycStatus.submittedAt)}</span>
-              </div>
-            )}
-
-            {kycStatus?.approvedAt && (
-              <div className="info-row">
-                <label>Ngày duyệt:</label>
-                <span>{formatDate(kycStatus.approvedAt)}</span>
-              </div>
-            )}
-
-            {kycStatus?.rejectedAt && (
-              <div className="info-row">
-                <label>Ngày từ chối:</label>
-                <span>{formatDate(kycStatus.rejectedAt)}</span>
-              </div>
-            )}
-
-            {kycStatus?.rejectionReason && (
-              <div className="info-row">
-                <label>Lý do từ chối:</label>
-                <span className="rejection-reason">{kycStatus.rejectionReason}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="kyc-actions">
-            {kycStatus?.status === 'not_submitted' && (
-              <Link to="/profile/kyc" className="btn btn-primary">
-                Gửi yêu cầu xác thực
-              </Link>
-            )}
-            
-            {kycStatus?.status === 'pending' && (
-              <div className="kyc-pending-message">
-                <i className="fas fa-clock"></i>
-                Yêu cầu xác thực đang được xử lý. Vui lòng chờ 1-3 ngày làm việc.
-              </div>
-            )}
-            
-            {kycStatus?.status === 'rejected' && (
-              <Link to="/profile/kyc" className="btn btn-warning">
-                Gửi lại yêu cầu xác thực
-              </Link>
-            )}
-            
-            {kycStatus?.status === 'approved' && (
-              <div className="kyc-approved-message">
-                <i className="fas fa-check-circle"></i>
-                Tài khoản đã được xác thực thành công
-              </div>
-            )}
           </div>
         </div>
 

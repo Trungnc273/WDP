@@ -3,6 +3,18 @@ import { authService } from "../services/auth.service";
 
 export const AuthContext = createContext();
 
+function normalizeUser(userData) {
+  if (!userData) return null;
+
+  const normalizedId = userData._id || userData.id || null;
+
+  return {
+    ...userData,
+    _id: normalizedId,
+    id: normalizedId,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -21,9 +33,10 @@ export function AuthProvider({ children }) {
   const loadUser = async (token) => {
     try {
       const userData = await authService.getProfile(token);
-      setUser(userData);
+      const normalizedUser = normalizeUser(userData);
+      setUser(normalizedUser);
       setToken(token);
-      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
     } catch (error) {
       // Token khong hop le hoac da het han
       localStorage.removeItem("token");
@@ -42,10 +55,29 @@ export function AuthProvider({ children }) {
     }
 
     const userData = await authService.getProfile(currentToken);
-    setUser(userData);
+    const normalizedUser = normalizeUser(userData);
+    setUser(normalizedUser);
     setToken(currentToken);
-    localStorage.setItem("user", JSON.stringify(userData));
-    return userData;
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
+    return normalizedUser;
+  };
+
+  const persistAuthState = async (result) => {
+    localStorage.setItem("token", result.token);
+    setToken(result.token);
+
+    try {
+      const userData = await authService.getProfile(result.token);
+      const normalizedUser = normalizeUser(userData);
+      setUser(normalizedUser);
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
+      return normalizedUser;
+    } catch (_) {
+      const fallbackUser = normalizeUser(result.user);
+      setUser(fallbackUser);
+      localStorage.setItem("user", JSON.stringify(fallbackUser));
+      return fallbackUser;
+    }
   };
 
   const login = async (email, password) => {
@@ -53,29 +85,17 @@ export function AuthProvider({ children }) {
     if (result.requires2FA) {
       return result; 
     }
-    setUser(result.user);
-    setToken(result.token);
-    localStorage.setItem("token", result.token);
-    localStorage.setItem("user", JSON.stringify(result.user));
-    return result.user;
+    return await persistAuthState(result);
   };
 
   const verifyLogin2FA = async (email, otpCode) => {
     const result = await authService.verifyLogin2FA(email, otpCode);
-    setUser(result.user);
-    setToken(result.token);
-    localStorage.setItem("token", result.token);
-    localStorage.setItem("user", JSON.stringify(result.user));
-    return result.user;
+    return await persistAuthState(result);
   };
 
   const loginWithGoogle = async (idToken) => {
     const result = await authService.loginWithGoogle(idToken);
-    setUser(result.user);
-    setToken(result.token);
-    localStorage.setItem("token", result.token);
-    localStorage.setItem("user", JSON.stringify(result.user));
-    return result.user;
+    return await persistAuthState(result);
   };
 
   const requestRegisterOtp = async (
@@ -96,11 +116,7 @@ export function AuthProvider({ children }) {
 
   const verifyAndRegister = async (email, otpCode) => {
     const result = await authService.verifyAndRegister(email, otpCode);
-    setUser(result.user);
-    setToken(result.token);
-    localStorage.setItem("token", result.token);
-    localStorage.setItem("user", JSON.stringify(result.user));
-    return result.user;
+    return await persistAuthState(result);
   };
 
   const logout = () => {

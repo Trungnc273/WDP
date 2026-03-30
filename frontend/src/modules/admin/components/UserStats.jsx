@@ -5,8 +5,6 @@ const UserStats = ({ stats }) => {
     totalUsers = 0,
     activeUsers = 0,
     suspendedUsers = 0,
-    verifiedUsers = 0,
-    pendingKYC = 0,
     usersByRole = {}
   } = stats;
 
@@ -28,15 +26,6 @@ const UserStats = ({ stats }) => {
           <div className="stat-label">Bị khóa</div>
         </div>
         
-        <div className="stat-card">
-          <div className="stat-number">{verifiedUsers}</div>
-          <div className="stat-label">Đã xác thực</div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-number">{pendingKYC}</div>
-          <div className="stat-label">Chờ duyệt KYC</div>
-        </div>
       </div>
 
       <div className="role-stats">

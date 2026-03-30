@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 function PublicRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
   // Hien thi trang thai tai trong luc kiem tra dang nhap
   if (loading) {
@@ -16,6 +16,14 @@ function PublicRoute({ children }) {
 
   // Chuyen ve trang chu neu da dang nhap
   if (isAuthenticated) {
+    if (user?.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+
+    if (user?.role === 'moderator') {
+      return <Navigate to="/moderator/dashboard" replace />;
+    }
+
     return <Navigate to="/" replace />;
   }
 

@@ -8,7 +8,6 @@ const UserForm = ({ title, user, onSubmit, onCancel }) => {
     phone: '',
     address: '',
     role: 'user',
-    isVerified: false,
     isSuspended: false
   });
 
@@ -24,7 +23,6 @@ const UserForm = ({ title, user, onSubmit, onCancel }) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || 'user',
-        isVerified: user.isVerified || false,
         isSuspended: user.isSuspended || false
       });
     }
@@ -184,18 +182,6 @@ const UserForm = ({ title, user, onSubmit, onCancel }) => {
               <option value="moderator">Moderator</option>
               <option value="admin">Admin</option>
             </select>
-          </div>
-
-          <div className="form-group checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                name="isVerified"
-                checked={formData.isVerified}
-                onChange={handleChange}
-              />
-              Đã xác thực
-            </label>
           </div>
 
           {user && (

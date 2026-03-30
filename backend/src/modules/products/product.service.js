@@ -23,8 +23,7 @@ async function hasActiveOrderForProduct(productId) {
  */
 function buildProductQuery(filters) {
   const query = {
-    status: 'active',
-    moderationStatus: 'approved'
+    status: 'active'
   };
 
   if (filters.sellerId) {
@@ -92,7 +91,7 @@ async function getProducts(filters = {}, pagination = {}) {
     }
 
     const products = await Product.find(query)
-      .populate('seller', 'fullName isVerified') // Req 5.4
+      .populate('seller', 'fullName') // Req 5.4
       .populate('category', 'name slug') // Req 5.4
       .populate('categories', 'name slug')
       .sort(sortObj)
@@ -123,7 +122,7 @@ async function getProducts(filters = {}, pagination = {}) {
 async function getProductById(productId) {
   try {
     const product = await Product.findById(productId)
-      .populate('seller', 'fullName isVerified email')
+      .populate('seller', 'fullName email avatar')
       .populate('category', 'name slug description')
       .populate('categories', 'name slug description');
     
@@ -217,13 +216,13 @@ async function createProduct(userId, productData) {
       ...productData,
       seller: userId,
       status: 'active',
-      moderationStatus: 'pending'
+      moderationStatus: 'approved'
     });
     
     await product.save();
     
     // Populate seller and category info
-    await product.populate('seller', 'fullName isVerified');
+    await product.populate('seller', 'fullName');
     await product.populate('category', 'name slug');
     await product.populate('categories', 'name slug');
     
@@ -277,7 +276,7 @@ async function updateProduct(productId, userId, updateData) {
     await product.save();
     
     // Populate seller and category info
-    await product.populate('seller', 'fullName isVerified');
+    await product.populate('seller', 'fullName');
     await product.populate('category', 'name slug');
     await product.populate('categories', 'name slug');
     
@@ -372,7 +371,7 @@ async function setProductVisibility(productId, userId, nextStatus) {
     product.status = nextStatus;
     await product.save();
 
-    await product.populate('seller', 'fullName isVerified');
+    await product.populate('seller', 'fullName');
     await product.populate('category', 'name slug');
 
     return product;

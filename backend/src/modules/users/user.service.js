@@ -6,14 +6,14 @@ const PHONE_REGEX = /^0\d{9,10}$/;
 
 /**
  * User Service
- * Handles user profile and KYC operations
+ * Handles user profile operations
  */
 
 /**
  * Get user by ID (public profile)
  */
 async function getUserById(userId) {
-  const user = await User.findById(userId).select('-password -kycDocuments');
+  const user = await User.findById(userId).select('-password');
   
   if (!user) {
     throw new Error('Người dùng không tồn tại');
@@ -27,7 +27,7 @@ async function getUserById(userId) {
  */
 async function getPublicProfile(userId) {
   const user = await User.findById(userId).select(
-    'fullName avatar rating totalReviews createdAt isVerified kycStatus'
+    'fullName avatar rating totalReviews createdAt'
   );
   
   if (!user) {
@@ -89,7 +89,7 @@ async function updateProfile(userId, updateData) {
     userId,
     filteredData,
     { new: true, runValidators: true }
-  ).select('-password -kycDocuments');
+  ).select('-password');
   
   if (!user) {
     throw new Error('Người dùng không tồn tại');
@@ -110,81 +110,13 @@ async function uploadAvatar(userId, avatarUrl) {
     userId,
     { avatar: avatarUrl },
     { new: true }
-  ).select('-password -kycDocuments');
-  
-  if (!user) {
-    throw new Error('Người dùng không tồn tại');
-  }
-  
-  return user;
-}
-
-/**
- * Submit KYC verification
- */
-async function submitKYC(userId, kycData) {
-  const { idCardFront, idCardBack, selfie } = kycData;
-  
-  // Validate required documents
-  if (!idCardFront || !idCardBack || !selfie) {
-    throw new Error('Vui lòng cung cấp đầy đủ 3 ảnh: CMND/CCCD mặt trước, mặt sau và ảnh selfie');
-  }
-  
-  // Check if user exists
-  const existingUser = await User.findById(userId);
-  if (!existingUser) {
-    throw new Error('Người dùng không tồn tại');
-  }
-  
-  // Check if KYC already approved
-  if (existingUser.kycStatus === 'approved') {
-    throw new Error('Tài khoản đã được xác thực rồi');
-  }
-  
-  // Check if KYC is pending
-  if (existingUser.kycStatus === 'pending') {
-    throw new Error('Yêu cầu xác thực đang được xử lý. Vui lòng chờ kết quả.');
-  }
-  
-  const user = await User.findByIdAndUpdate(
-    userId,
-    {
-      kycStatus: 'pending',
-      kycDocuments: {
-        idCardFront,
-        idCardBack,
-        selfie
-      },
-      kycSubmittedAt: new Date(),
-      // Clear previous rejection data
-      kycRejectedAt: undefined,
-      kycRejectionReason: undefined
-    },
-    { new: true }
   ).select('-password');
   
-  return user;
-}
-
-/**
- * Get KYC status
- */
-async function getKYCStatus(userId) {
-  const user = await User.findById(userId).select(
-    'kycStatus kycSubmittedAt kycApprovedAt kycRejectedAt kycRejectionReason'
-  );
-  
   if (!user) {
     throw new Error('Người dùng không tồn tại');
   }
   
-  return {
-    status: user.kycStatus,
-    submittedAt: user.kycSubmittedAt,
-    approvedAt: user.kycApprovedAt,
-    rejectedAt: user.kycRejectedAt,
-    rejectionReason: user.kycRejectionReason
-  };
+  return user;
 }
 
 /**
@@ -248,8 +180,6 @@ module.exports = {
   getPublicProfile,
   updateProfile,
   uploadAvatar,
-  submitKYC,
-  getKYCStatus,
   changePassword,
   getUserStats
 };
@@ -286,7 +216,7 @@ async function getAllUsers(page = 1, limit = 10, search = '', role = '', status 
   }
   
   const users = await User.find(query)
-    .select('-password -kycDocuments')
+    .select('-password')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
@@ -349,8 +279,7 @@ async function createUser(userData) {
     fullName,
     phone,
     address,
-    role,
-    isVerified: true // Admin created users are auto-verified
+    role
   });
   
   await user.save();
@@ -363,7 +292,7 @@ async function createUser(userData) {
  * Update user (Admin only)
  */
 async function updateUserAdmin(userId, updateData) {
-  const allowedFields = ['fullName', 'phone', 'address', 'role', 'isVerified', 'isSuspended', 'kycStatus'];
+  const allowedFields = ['fullName', 'phone', 'address', 'role', 'isSuspended'];
   const filteredData = {};
   
   // Only allow specific fields to be updated
@@ -469,8 +398,6 @@ async function getSystemStats() {
   const totalUsers = await User.countDocuments();
   const activeUsers = await User.countDocuments({ isSuspended: false });
   const suspendedUsers = await User.countDocuments({ isSuspended: true });
-  const verifiedUsers = await User.countDocuments({ isVerified: true });
-  const pendingKYC = await User.countDocuments({ kycStatus: 'pending' });
   
   const usersByRole = await User.aggregate([
     {
@@ -485,8 +412,6 @@ async function getSystemStats() {
     totalUsers,
     activeUsers,
     suspendedUsers,
-    verifiedUsers,
-    pendingKYC,
     usersByRole: usersByRole.reduce((acc, item) => {
       acc[item._id] = item.count;
       return acc;
@@ -499,8 +424,6 @@ module.exports = {
   getPublicProfile,
   updateProfile,
   uploadAvatar,
-  submitKYC,
-  getKYCStatus,
   changePassword,
   getUserStats,
   // Admin functions
@@ -524,15 +447,11 @@ async function getAdminDashboardStats() {
       totalUsers,
       activeUsers,
       suspendedUsers,
-      verifiedUsers,
-      pendingKYC,
       usersByRole
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ isSuspended: false }),
       User.countDocuments({ isSuspended: true }),
-      User.countDocuments({ isVerified: true }),
-      User.countDocuments({ kycStatus: 'pending' }),
       User.aggregate([
         {
           $group: {
@@ -549,8 +468,6 @@ async function getAdminDashboardStats() {
         totalUsers,
         activeUsers,
         suspendedUsers,
-        verifiedUsers,
-        pendingKYC,
         usersByRole: usersByRole.reduce((acc, item) => {
           acc[item._id] = item.count;
           return acc;

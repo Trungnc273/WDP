@@ -18,8 +18,8 @@ app.use(
   })
 );
 
-// Increase body size limit to handle KYC image payloads (base64 strings)
-// Default (~100kb) is too small for 3 ID images; 50mb is safe for dev.
+// Increase body size limit to handle larger payloads.
+// Default (~100kb) is too small for large base64 uploads; 50mb is safe for dev.
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));

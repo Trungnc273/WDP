@@ -51,11 +51,7 @@ const MyProducts = () => {
       };
       
       if (statusFilter) {
-        if (statusFilter === 'waiting_moderation') {
-          params.moderationStatus = 'pending';
-        } else {
-          params.status = statusFilter;
-        }
+        params.status = statusFilter;
       }
       const data = await productService.getMyProducts(params);
       
@@ -159,10 +155,6 @@ const MyProducts = () => {
   };
 
   const getProductStatusBadge = (product) => {
-    if (product?.moderationStatus === 'pending') {
-      return <span className="status-badge status-hidden">Chờ duyệt</span>;
-    }
-
     return getStatusBadge(product.status);
   };
 
@@ -216,12 +208,6 @@ const MyProducts = () => {
           onClick={() => applyFilter('')}
         >
           Tất cả ({pagination.total})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 'waiting_moderation' ? 'active' : ''}`}
-          onClick={() => applyFilter('waiting_moderation')}
-        >
-          Chờ duyệt
         </button>
         <button
           className={`filter-btn ${statusFilter === 'active' ? 'active' : ''}`}

@@ -86,8 +86,8 @@ function Login() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(firebaseAuth, provider);
       const idToken = await userCredential.user.getIdToken();
-      await loginWithGoogle(idToken);
-      navigate("/");
+      const currentUser = await loginWithGoogle(idToken);
+      navigateRoute(currentUser);
     } catch (error) {
       setErrors({ submit: error.message || "Đăng nhập Google thất bại" });
     } finally {
@@ -112,7 +112,7 @@ function Login() {
         return;
       }
 
-      navigateRoute(result.user);
+      navigateRoute(result);
     } catch (error) {
       setErrors({
         submit: error.message || "Đăng nhập thất bại. Vui lòng thử lại.",

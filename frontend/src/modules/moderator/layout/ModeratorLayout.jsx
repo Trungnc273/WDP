@@ -17,8 +17,16 @@ const ModeratorLayout = () => {
   const { user } = useAuth();
 
   // Kiểm tra lại quyền ngay tại layout để chặn truy cập sai vai trò.
-  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === "admin") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (user.role !== "moderator") {
+    return <Navigate to="/login" replace />;
   }
 
   const isMobile = !screens.lg;

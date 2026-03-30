@@ -1,6 +1,5 @@
 const Conversation = require('./conversation.model');
 const Message = require('./message.model');
-const Product = require('../products/product.model');
 const User = require('../users/user.model');
 const { encryptChatContent, decryptChatContent } = require('../../common/utils/chat-crypto.util');
 
@@ -38,12 +37,6 @@ async function createConversation(buyerId, sellerId, productId) {
   // Validate that buyer and seller are different
   if (buyerId.toString() === sellerId.toString()) {
     throw new Error('Không thể tạo cuộc trò chuyện với chính mình');
-  }
-  
-  // Check if product exists
-  const product = await Product.findById(productId);
-  if (!product) {
-    throw new Error('Sản phẩm không tồn tại');
   }
   
   // Check if conversation already exists

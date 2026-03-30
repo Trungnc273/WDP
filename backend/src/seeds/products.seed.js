@@ -838,8 +838,7 @@ async function seedProducts() {
         email: 'seller@example.com',
         password: hashedPassword,
         fullName: 'Test Seller',
-        role: 'user',
-        isVerified: true
+        role: 'user'
       });
       console.log('✓ Created test seller user');
     }

@@ -37,8 +37,6 @@ const AdminDashboard = () => {
     totalUsers = 0,
     activeUsers = 0,
     suspendedUsers = 0,
-    verifiedUsers = 0,
-    pendingKYC = 0,
     usersByRole = {}
   } = userStats;
 
@@ -50,7 +48,6 @@ const AdminDashboard = () => {
     reportedReviews = 0,
     openOrders = 0,
     pendingDisputes = 0,
-    pendingProducts = 0,
     recentReports = []
   } = moderationStats;
 
@@ -76,22 +73,6 @@ const AdminDashboard = () => {
           <div className="stat-content">
             <div className="stat-number">{unresolvedReports}</div>
             <div className="stat-label">Báo cáo chưa xử lý</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">⏳</div>
-          <div className="stat-content">
-            <div className="stat-number">{pendingKYC}</div>
-            <div className="stat-label">KYC chờ duyệt</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">📦</div>
-          <div className="stat-content">
-            <div className="stat-number">{pendingProducts}</div>
-            <div className="stat-label">Sản phẩm chờ duyệt</div>
           </div>
         </div>
 
@@ -129,8 +110,8 @@ const AdminDashboard = () => {
             <div className="mini-stat-card">
               <div className="mini-stat-icon">🛡️</div>
               <div className="mini-stat-content">
-                <div className="mini-stat-number">{verifiedUsers}</div>
-                <div className="mini-stat-label">Đã xác thực</div>
+                <div className="mini-stat-number">{usersByRole.user || 0}</div>
+                <div className="mini-stat-label">Người dùng thường</div>
               </div>
             </div>
           </div>
@@ -231,7 +212,7 @@ const AdminDashboard = () => {
           <div className="activity-item">
             <div className="activity-icon">👤</div>
             <div className="activity-content">
-              <p>Có {pendingKYC} yêu cầu KYC đang chờ duyệt</p>
+              <p>Người dùng đang hoạt động: {activeUsers}</p>
               <span className="activity-time">Cập nhật liên tục</span>
             </div>
           </div>

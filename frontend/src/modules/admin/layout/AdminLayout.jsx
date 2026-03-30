@@ -10,8 +10,15 @@ const AdminLayout = () => {
   const { user } = useAuth();
 
   // Check admin permission
-  if (!user || user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== 'admin') {
+    if (user.role === 'moderator') {
+      return <Navigate to="/moderator/dashboard" replace />;
+    }
+    return <Navigate to="/login" replace />;
   }
 
   return (

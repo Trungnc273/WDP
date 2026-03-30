@@ -38,12 +38,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       description: 'Quản lý đánh giá người dùng'
     },
     {
-      path: '/admin/products',
-      icon: 'fas fa-box',
-      label: 'Duyệt sản phẩm',
-      description: 'Phê duyệt sản phẩm mới'
-    },
-    {
       path: '/admin/withdrawals',
       icon: 'fas fa-money-bill-wave',
       label: 'Duyệt rút tiền',
@@ -54,12 +48,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       icon: 'fas fa-gavel',
       label: 'Giải quyết tranh chấp',
       description: 'Xử lý tranh chấp đơn hàng'
-    },
-    {
-      path: '/admin/kyc',
-      icon: 'fas fa-id-card',
-      label: 'Thẩm định KYC',
-      description: 'Xác minh danh tính người dùng'
     }
   ];
 
@@ -70,10 +58,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     if (location.pathname.startsWith("/admin/reports")) return path === "/admin/reports";
     if (location.pathname.startsWith("/admin/orders")) return path === "/admin/orders";
     if (location.pathname.startsWith("/admin/reviews")) return path === "/admin/reviews";
-    if (location.pathname.startsWith("/admin/products")) return path === "/admin/products";
     if (location.pathname.startsWith("/admin/withdrawals")) return path === "/admin/withdrawals";
     if (location.pathname.startsWith("/admin/disputes")) return path === "/admin/disputes";
-    if (location.pathname.startsWith("/admin/kyc")) return path === "/admin/kyc";
     return location.pathname === path;
   };
 

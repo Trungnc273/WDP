@@ -15,6 +15,13 @@ router.use(authenticate);
 router.get('/conversations', chatController.getConversations);
 
 /**
+ * @route   POST /api/chat/orders/:orderId/conversation
+ * @desc    Get or create conversation based on order
+ * @access  Private
+ */
+router.post('/orders/:orderId/conversation', chatController.getOrCreateConversationByOrder);
+
+/**
  * @route   GET /api/chat/conversations/:id
  * @desc    Get conversation by ID
  * @access  Private

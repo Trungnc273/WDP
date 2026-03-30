@@ -1,4 +1,6 @@
 const chatService = require('./chat.service');
+const Product = require('../products/product.model');
+const Order = require('../orders/order.model');
 const { sendSuccess, sendError } = require('../../common/utils/response.util');
 
 /**
@@ -23,6 +25,52 @@ const getConversations = async (req, res) => {
     sendError(res, 500, error.message || 'Không thể lấy danh sách cuộc trò chuyện');
   }
 };
+  /**
+   * Get or create a conversation from order context
+   * POST /api/chat/orders/:orderId/conversation
+   */
+  const getOrCreateConversationByOrder = async (req, res) => {
+    try {
+      const actorId = req.user.userId;
+      const { orderId } = req.params;
+
+      const order = await Order.findById(orderId)
+        .select('buyerId sellerId productId')
+        .lean();
+
+      if (!order) {
+        return sendError(res, 404, 'Đơn hàng không tồn tại');
+      }
+
+      const normalizedActorId = String(actorId);
+      const normalizedBuyerId = String(order.buyerId || '');
+      const normalizedSellerId = String(order.sellerId || '');
+      const normalizedProductId = String(order.productId || '');
+
+      const isParticipant =
+        normalizedActorId === normalizedBuyerId ||
+        normalizedActorId === normalizedSellerId;
+
+      if (!isParticipant) {
+        return sendError(res, 403, 'Bạn không có quyền truy cập cuộc trò chuyện của đơn hàng này');
+      }
+
+      if (!normalizedBuyerId || !normalizedSellerId || !normalizedProductId) {
+        return sendError(res, 400, 'Thông tin đơn hàng không đầy đủ để mở cuộc trò chuyện');
+      }
+
+      const conversation = await chatService.createConversation(
+        normalizedBuyerId,
+        normalizedSellerId,
+        normalizedProductId
+      );
+
+      return sendSuccess(res, 200, conversation, 'Mở cuộc trò chuyện theo đơn hàng thành công');
+    } catch (error) {
+      console.error('Error get/create conversation by order:', error);
+      return sendError(res, 500, error.message || 'Không thể mở cuộc trò chuyện theo đơn hàng');
+    }
+  };
 
 /**
  * Get messages in a conversation
@@ -54,20 +102,39 @@ const getMessages = async (req, res) => {
  */
 const createConversation = async (req, res) => {
   try {
-    const buyerId = req.user.userId;
-    const { sellerId, productId } = req.body;
+    const actorId = req.user.userId;
+    const { sellerId: counterpartId, productId } = req.body;
 
     // Validate required fields
-    if (!sellerId || !productId) {
+    if (!counterpartId || !productId) {
       return sendError(res, 400, 'sellerId và productId là bắt buộc');
     }
 
-    // Check if user is trying to chat with themselves
-    if (buyerId === sellerId) {
+    const product = await Product.findById(productId).select('seller').lean();
+    if (!product?.seller) {
+      return sendError(res, 404, 'Sản phẩm không tồn tại');
+    }
+
+    const normalizedActorId = actorId.toString();
+    const normalizedCounterpartId = counterpartId.toString();
+    const normalizedSellerId = product.seller.toString();
+
+    if (normalizedActorId === normalizedCounterpartId) {
       return sendError(res, 400, 'Không thể tạo cuộc trò chuyện với chính mình');
     }
 
-    const conversation = await chatService.createConversation(buyerId, sellerId, productId);
+    // Canonical role assignment:
+    // - seller luôn la chu san pham
+    // - buyer la doi tac con lai
+    const buyerId = normalizedActorId === normalizedSellerId
+      ? normalizedCounterpartId
+      : normalizedActorId;
+
+    if (buyerId === normalizedSellerId) {
+      return sendError(res, 400, 'Không thể tạo cuộc trò chuyện với chính mình');
+    }
+
+    const conversation = await chatService.createConversation(buyerId, normalizedSellerId, productId);
     
     sendSuccess(res, 200, conversation, 'Tạo cuộc trò chuyện thành công');
   } catch (error) {
@@ -163,6 +230,7 @@ const getConversationById = async (req, res) => {
 
 module.exports = {
   getConversations,
+  getOrCreateConversationByOrder,
   getMessages,
   createConversation,
   sendMessage,

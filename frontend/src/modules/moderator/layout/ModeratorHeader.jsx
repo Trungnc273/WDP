@@ -4,8 +4,7 @@ import {
   UserOutlined,
   MenuOutlined,
   SafetyCertificateOutlined,
-  DownOutlined,
-  HomeOutlined
+  DownOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
@@ -32,12 +31,6 @@ const ModeratorHeader = ({ onOpenMenu, isMobile }) => {
 
   // Các hành động trong menu user ở góc phải header.
   const items = [
-    {
-      key: "home",
-      label: "Quay về trang chủ",
-      icon: <HomeOutlined />,
-      onClick: () => navigate("/"),
-    },
     {
       key: "profile",
       label: "Profile",

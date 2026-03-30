@@ -28,7 +28,7 @@ const uploadAvatarMiddleware = multer({
 
 /**
  * User Controller
- * Handles user profile and KYC endpoints
+ * Handles user profile endpoints
  */
 
 /**
@@ -117,48 +117,6 @@ async function getPublicProfile(req, res) {
 }
 
 /**
- * Submit KYC verification
- * POST /api/users/kyc
- */
-async function submitKYC(req, res) {
-  try {
-    const userId = req.user.userId;
-    const { idCardFront, idCardBack, selfie } = req.body;
-    
-    if (!idCardFront || !idCardBack || !selfie) {
-      return sendError(res, 400, 'Vui lòng cung cấp đầy đủ 3 ảnh: CMND/CCCD mặt trước, mặt sau và ảnh selfie');
-    }
-    
-    const user = await userService.submitKYC(userId, {
-      idCardFront,
-      idCardBack,
-      selfie
-    });
-    
-    sendSuccess(res, 200, user, 'Gửi yêu cầu xác thực thành công. Chúng tôi sẽ xem xét trong 1-3 ngày làm việc.');
-  } catch (error) {
-    console.error('Submit KYC error:', error);
-    sendError(res, 400, error.message);
-  }
-}
-
-/**
- * Get KYC status
- * GET /api/users/kyc/status
- */
-async function getKYCStatus(req, res) {
-  try {
-    const userId = req.user.userId;
-    const kycStatus = await userService.getKYCStatus(userId);
-    
-    sendSuccess(res, 200, kycStatus);
-  } catch (error) {
-    console.error('Get KYC status error:', error);
-    sendError(res, 400, error.message);
-  }
-}
-
-/**
  * Change password
  * POST /api/users/change-password
  */
@@ -206,8 +164,6 @@ module.exports = {
   updateProfile,
   uploadAvatar,
   getPublicProfile,
-  submitKYC,
-  getKYCStatus,
   changePassword,
   getUserStats,
   // Admin functions
@@ -373,8 +329,6 @@ module.exports = {
   updateProfile,
   uploadAvatar,
   getPublicProfile,
-  submitKYC,
-  getKYCStatus,
   changePassword,
   getUserStats,
   // Admin functions

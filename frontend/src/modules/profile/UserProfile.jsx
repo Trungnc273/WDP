@@ -120,9 +120,6 @@ const UserProfile = () => {
           <div className="user-details">
             <h1 className="user-name">
               {user.fullName}
-              {user.isVerified && (
-                <span className="verified-badge" title="Đã xác thực">✓</span>
-              )}
             </h1>
             <div className="user-meta">
               <span className="meta-item">
@@ -133,9 +130,6 @@ const UserProfile = () => {
               </span>
               <span className="meta-item">
                 ⭐ {Number(stats?.rating || user.rating || 0).toFixed(1)}/5 · {Number(stats?.totalReviews || user.totalReviews || 0)} đánh giá
-              </span>
-              <span className="meta-item">
-                {user.kycStatus === 'approved' ? '🛡️ Đã xác minh KYC' : '⏳ Chưa xác minh KYC'}
               </span>
             </div>
           </div>
@@ -155,9 +149,7 @@ const UserProfile = () => {
         <div className="user-bio">
           <h3>Tổng quan</h3>
           <p>
-            {user.isVerified
-              ? 'Người bán đã được xác thực và đang hoạt động trên ReFlow.'
-              : 'Người bán đang hoạt động trên ReFlow. Hãy xem thêm đánh giá và tin đăng trước khi giao dịch.'}
+            Người bán đang hoạt động trên ReFlow. Hãy xem thêm đánh giá và tin đăng trước khi giao dịch.
           </p>
         </div>
       </div>

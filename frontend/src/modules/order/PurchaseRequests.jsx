@@ -172,9 +172,6 @@ const PurchaseRequests = () => {
                 <div className="buyer-details">
                   <div className="buyer-name">
                     {request.buyer?.fullName}
-                    {request.buyer?.isVerified && (
-                      <span className="verified-badge" title="Đã xác thực">✓</span>
-                    )}
                   </div>
                   <div className="request-date">
                     Gửi yêu cầu: {formatDate(request.createdAt)}
