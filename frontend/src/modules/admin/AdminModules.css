@@ -215,6 +215,18 @@
   color: #595959;
 }
 
+.users-table th:nth-child(3),
+.users-table td:nth-child(3) {
+  white-space: nowrap;
+  width: 140px;
+}
+
+.users-table th:nth-child(5),
+.users-table td:nth-child(5) {
+  white-space: nowrap;
+  width: 120px;
+}
+
 .users-table tbody tr:hover {
   background: #f5f5f5;
 }
@@ -234,11 +246,14 @@
 }
 
 .role {
+  display: inline-flex;
+  align-items: center;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .role.admin {
@@ -257,11 +272,14 @@
 }
 
 .status {
+  display: inline-flex;
+  align-items: center;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .status.active {
@@ -274,6 +292,35 @@
   color: #cf1322;
 }
 
+.kyc-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.kyc-status.not_submitted {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.kyc-status.pending {
+  background: #fff7e6;
+  color: #d46b08;
+}
+
+.kyc-status.approved {
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.kyc-status.rejected {
+  background: #fff2f0;
+  color: #cf1322;
+}
 /* Alert Messages */
 .alert {
   padding: 12px 16px;
@@ -422,16 +469,26 @@
 }
 
 .btn-create-small {
-  padding: 6px 12px !important;
-  font-size: 12px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
   min-width: auto !important;
   white-space: nowrap;
   border-radius: 4px;
+  gap: 4px;
+  line-height: 1.2;
 }
 
 .btn-create-small i {
-  font-size: 12px;
-  margin-right: 4px;
+  font-size: 11px;
+  margin-right: 0;
+}
+
+.user-create-top-btn {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 132px;
+  justify-content: center;
 }
 
 /* Content Area */
@@ -489,6 +546,13 @@
   color: #595959;
 }
 
+.admin-table th.status-col,
+.admin-table td.status-col {
+  white-space: nowrap;
+  width: 130px;
+  min-width: 130px;
+}
+
 .admin-table tbody tr:hover {
   background: #f5f5f5;
 }
@@ -502,11 +566,14 @@
 
 /* Status Tags */
 .status {
+  display: inline-flex;
+  align-items: center;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .status-awaiting_seller_confirmation,
@@ -569,6 +636,21 @@
 .status-pending {
   background: #e6f7ff;
   color: #1890ff;
+}
+
+.status-reviewing {
+  background: #fff7e6;
+  color: #d46b08;
+}
+
+.status-resolved {
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.status-dismissed {
+  background: #f5f5f5;
+  color: #8c8c8c;
 }
 
 /* Orders Table Specific Styles */
@@ -794,6 +876,7 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
+.modal-header h2,
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
@@ -930,6 +1013,85 @@
   margin-top: 4px;
 }
 
+.user-form-modal {
+  max-width: 760px;
+}
+
+.user-form {
+  padding: 20px 24px;
+}
+
+.user-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.user-form .form-group {
+  margin-bottom: 0;
+}
+
+.user-form .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.user-form .checkbox-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.user-form .verify-toggle {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-form .verify-toggle:hover {
+  border-color: #91caff;
+  background: #f0f7ff;
+}
+
+.user-form .verify-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1890ff;
+}
+
+.user-form .verify-toggle span {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.form-control.error {
+  border-color: #ff4d4f;
+}
+
+.form-control.error:focus {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.16);
+}
+
+.error-message {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #cf1322;
+}
+
+.user-form .form-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .admin-module {
@@ -945,6 +1107,10 @@
   .btn-create-small {
     align-self: flex-end;
     width: auto;
+  }
+
+  .user-create-top-btn {
+    min-width: auto;
   }
 
   .filter-group {
@@ -971,6 +1137,14 @@
   }
 
   .review-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-form {
+    padding: 16px;
+  }
+
+  .user-form-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1044,4 +1218,45 @@
   .status-highlight-box {
     flex-direction: row; /* Vẫn giữ hàng ngang như ảnh mẫu */
   }
+}
+
+/* User Management - align with report list layout */
+.user-admin-table {
+  min-width: 1100px;
+}
+
+.user-admin-table th.role-col,
+.user-admin-table td.role-col,
+.user-admin-table th.status-col,
+.user-admin-table td.status-col,
+.user-admin-table th.kyc-col,
+.user-admin-table td.kyc-col {
+  white-space: nowrap;
+}
+
+.user-admin-table th.role-col,
+.user-admin-table td.role-col {
+  width: 130px;
+}
+
+.user-admin-table th.kyc-col,
+.user-admin-table td.kyc-col {
+  width: 120px;
+}
+
+.user-admin-table th.action-col,
+.user-admin-table td.action-col {
+  width: 150px;
+  min-width: 150px;
+}
+
+.user-admin-table .user-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-admin-table .user-action-buttons .btn {
+  width: 100%;
+  justify-content: center;
 }

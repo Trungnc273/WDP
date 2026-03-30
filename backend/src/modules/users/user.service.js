@@ -1,6 +1,8 @@
 const User = require('./user.model');
 const bcrypt = require('bcryptjs');
 const { validateStrongPassword } = require('../../common/validators/password.validator');
+const Order = require('../orders/order.model');
+const PurchaseRequest = require('../orders/purchase-request.model');
 
 const PHONE_REGEX = /^0\d{9,10}$/;
 
@@ -337,6 +339,26 @@ async function deleteUser(userId) {
   // Don't allow deleting admin users
   if (user.role === 'admin') {
     throw new Error('Không thể xóa tài khoản admin');
+  }
+
+  const hasOrderHistory = await Order.exists({
+    $or: [
+      { buyerId: userId },
+      { sellerId: userId }
+    ]
+  });
+
+  if (hasOrderHistory) {
+    throw new Error('Không thể xóa người dùng vì đã có đơn hàng');
+  }
+
+  const hasPendingPurchase = await PurchaseRequest.exists({
+    buyerId: userId,
+    status: 'pending'
+  });
+
+  if (hasPendingPurchase) {
+    throw new Error('Không thể xóa người dùng vì đang có giao dịch mua');
   }
   
   await User.findByIdAndDelete(userId);

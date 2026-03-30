@@ -170,6 +170,7 @@ const ModReportList = () => {
       title: "Trạng thái", 
       dataIndex: "status", 
       key: "status",
+      width: 150,
       render: (status) => {
         if (status === "pending") return <Tag className="mod-status-pill" color="warning">Chờ xử lý</Tag>;
         if (status === "reviewing") return <Tag className="mod-status-pill" color="processing">Đang xử lý</Tag>;

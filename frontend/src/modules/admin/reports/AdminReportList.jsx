@@ -195,7 +195,7 @@ const AdminReportList = () => {
                     <th>Đối tượng bị tố cáo</th>
                     <th>Mức vi phạm</th>
                     <th>Lý do</th>
-                    <th>Trạng thái</th>
+                    <th className="status-col">Trạng thái</th>
                     <th>Thao tác</th>
                   </tr>
                 </thead>
@@ -256,7 +256,7 @@ const AdminReportList = () => {
                           </div>
                         </td>
                         <td className="reason-text">{report.reason}</td>
-                        <td>
+                        <td className="status-col">
                           <span className={`status status-${report.status}`}>
                             {getStatusLabel(report.status)}
                           </span>

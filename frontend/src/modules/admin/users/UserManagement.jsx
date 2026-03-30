@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { adminUserApi } from '../../../services/adminApi';
 import UserList from '../components/UserList';
 import UserForm from '../components/UserForm';
-import UserStats from '../components/UserStats';
 import '../AdminModules.css';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
-  const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -25,10 +23,9 @@ const UserManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  // Load users and stats on component mount
+  // Load users on component mount
   useEffect(() => {
     loadUsers();
-    loadStats();
   }, [currentPage, search, roleFilter, statusFilter]);
 
   const loadUsers = async () => {
@@ -63,28 +60,12 @@ const UserManagement = () => {
     }
   };
 
-  const loadStats = async () => {
-    try {
-      const response = await adminUserApi.getSystemStats();
-      
-      if (response.data && response.data.data) {
-        setStats(response.data.data);
-      } else {
-        setStats({});
-      }
-    } catch (err) {
-      console.error('Error loading stats:', err);
-      setStats({});
-    }
-  };
-
   const handleCreateUser = async (userData) => {
     try {
       await adminUserApi.createUser(userData);
       setSuccess('Tạo người dùng thành công');
       setShowCreateModal(false);
       loadUsers();
-      loadStats();
     } catch (err) {
       setError(err.message || 'Không thể tạo người dùng');
     }
@@ -97,7 +78,6 @@ const UserManagement = () => {
       setShowEditModal(false);
       setSelectedUser(null);
       loadUsers();
-      loadStats();
     } catch (err) {
       setError(err.message || 'Không thể cập nhật người dùng');
     }
@@ -112,7 +92,6 @@ const UserManagement = () => {
       await adminUserApi.deleteUser(userId);
       setSuccess('Xóa người dùng thành công');
       loadUsers();
-      loadStats();
     } catch (err) {
       setError(err.message || 'Không thể xóa người dùng');
     }
@@ -123,7 +102,6 @@ const UserManagement = () => {
       await adminUserApi.suspendUser(userId, suspendData);
       setSuccess('Khóa người dùng thành công');
       loadUsers();
-      loadStats();
     } catch (err) {
       setError(err.message || 'Không thể khóa người dùng');
     }
@@ -134,7 +112,6 @@ const UserManagement = () => {
       await adminUserApi.unsuspendUser(userId);
       setSuccess('Mở khóa người dùng thành công');
       loadUsers();
-      loadStats();
     } catch (err) {
       setError(err.message || 'Không thể mở khóa người dùng');
     }
@@ -170,22 +147,17 @@ const UserManagement = () => {
         <div className="header-content">
           <div className="header-info">
             <h1>Quản lý người dùng</h1>
-            <p className="total-users">
-              Tổng cộng: <strong>{(totalUsers || 0).toLocaleString('vi-VN')}</strong> người dùng
-            </p>
+            <p>CRUD người dùng hệ thống. Tổng cộng: {(totalUsers || 0).toLocaleString('vi-VN')} tài khoản.</p>
           </div>
-          <button 
-            className="btn btn-primary btn-sm btn-create-small"
+          <button
+            className="btn btn-primary btn-sm btn-create-small user-create-top-btn"
             onClick={() => setShowCreateModal(true)}
           >
             <i className="fas fa-plus"></i>
-            Tạo
+            Tạo người dùng
           </button>
         </div>
       </div>
-
-      {/* System Statistics */}
-      <UserStats stats={stats} />
 
       {/* Messages */}
       {error && (
