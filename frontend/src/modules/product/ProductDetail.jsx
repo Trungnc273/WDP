@@ -145,7 +145,7 @@ const ProductDetail = () => {
       setProduct(data);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Không thể tải thông tin sản phẩm');
+      setError(err.response?.data?.message || 'Sản phẩm đã được giao dịch.');
     } finally {
       setLoading(false);
     }
