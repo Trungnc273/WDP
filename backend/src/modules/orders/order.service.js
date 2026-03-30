@@ -132,6 +132,18 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
         { path: 'sellerId', select: 'fullName email' },
         { path: 'productId', select: 'title price images' }
       ]);
+
+      try {
+        await notificationService.createNotification(product.seller, {
+          type: 'order_created',
+          orderId: order._id,
+          senderId: buyerId,
+          title: 'Bạn có đơn mua mới',
+          message: `Người mua ${buyer.fullName || 'khách hàng'} vừa tạo đơn cho "${product.title}". Vui lòng xác nhận đơn.`
+        });
+      } catch (notificationError) {
+        console.error('Error sending quick-buy order notification:', notificationError);
+      }
       
       return order;
     }
@@ -166,6 +178,17 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
       { path: 'buyerId', select: 'fullName email avatar' },
       { path: 'sellerId', select: 'fullName email' }
     ]);
+
+    try {
+      await notificationService.createNotification(product.seller, {
+        type: 'order_created',
+        senderId: buyerId,
+        title: 'Bạn nhận được yêu cầu mua mới',
+        message: `${buyer.fullName || 'Một người dùng'} vừa gửi yêu cầu mua cho sản phẩm "${product.title}".`
+      });
+    } catch (notificationError) {
+      console.error('Error sending purchase-request notification:', notificationError);
+    }
     
     return purchaseRequest;
   } catch (error) {
@@ -492,6 +515,21 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
     }
   } catch (emitError) {
     console.error('Error emitting rejected offer update:', emitError);
+  }
+
+  try {
+    const receiverId = isBuyerInitiated ? request.buyerId : request.sellerId;
+    const product = await Product.findById(request.listingId, 'title');
+    const responder = await User.findById(sellerId, 'fullName');
+
+    await notificationService.createNotification(receiverId, {
+      type: 'system',
+      senderId: sellerId,
+      title: 'Đề nghị đã bị từ chối',
+      message: `${responder?.fullName || 'Người dùng'} đã từ chối đề nghị cho sản phẩm "${product?.title || 'Sản phẩm'}".${reason ? ` Lý do: ${reason}` : ''}`
+    });
+  } catch (notificationError) {
+    console.error('Error sending rejected-offer notification:', notificationError);
   }
   
   return request;
@@ -990,6 +1028,31 @@ async function forceCancelOrder(orderId, moderatorId, reason) {
     
     // Lưu thành công toàn bộ thay đổi
     await session.commitTransaction();
+
+    try {
+      const product = order.productId
+        ? await Product.findById(order.productId, 'title')
+        : null;
+
+      await Promise.all([
+        notificationService.createNotification(order.buyerId, {
+          type: 'system',
+          orderId: order._id,
+          senderId: moderatorId,
+          title: 'Đơn hàng đã bị hủy',
+          message: `Đơn hàng ${product?.title ? `"${product.title}" ` : ''}đã bị hủy bởi quản trị viên. Lý do: ${reason}`
+        }),
+        notificationService.createNotification(order.sellerId, {
+          type: 'system',
+          orderId: order._id,
+          senderId: moderatorId,
+          title: 'Đơn hàng đã bị hủy',
+          message: `Đơn hàng ${product?.title ? `"${product.title}" ` : ''}đã bị hủy bởi quản trị viên. Lý do: ${reason}`
+        })
+      ]);
+    } catch (notificationError) {
+      console.error('Error sending force-cancel notifications:', notificationError);
+    }
 
     return order;
   } catch (error) {

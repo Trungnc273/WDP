@@ -19,6 +19,7 @@ function AppShell() {
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const socketRef = useRef(null);
+  const lastUnreadCountRef = useRef(0);
   const notificationRef = useRef(null);
   const userMenuRef = useRef(null);
   const location = useLocation();
@@ -72,10 +73,21 @@ function AppShell() {
     try {
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
+
+       // Khong dung realtime: chi bao "moi" khi polling thay so chua doc tang.
+      if (!showNotification && count > lastUnreadCountRef.current) {
+        setNewNotificationCount((prev) => prev + (count - lastUnreadCountRef.current));
+      }
+
+      if (count < lastUnreadCountRef.current && showNotification) {
+        setNewNotificationCount(0);
+      }
+
+      lastUnreadCountRef.current = count;
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  }, []);
+  }, [showNotification]);
 
   const fetchChatUnreadCount = useCallback(async () => {
     try {
@@ -119,24 +131,15 @@ function AppShell() {
     }
   }, [user?._id]);
 
-  // Khoi tao socket va lang nghe thong bao
+  // Khoi tao socket cho chat badge (khong dung realtime cho thong bao he thong)
   useEffect(() => {
     if (!isAuthenticated || !token) return;
 
     try {
       socketRef.current = chatService.connectSocket(token);
 
-      // Lay so thong bao chua doc ban dau
-      fetchUnreadCount();
+      // Chi lay unread chat khi vao app
       fetchChatUnreadCount();
-
-      // Lang nghe thong bao moi
-      socketRef.current.on('new_notification', ({ notification }) => {
-        setUnreadCount(prev => prev + 1);
-        setNewNotificationCount(prev => prev + 1);
-        setNotificationRefreshTick(prev => prev + 1);
-        setShowNotification(true);
-      });
 
       // Su kien chinh de tang badge tin nhan khi co tin moi.
       socketRef.current.on('new_message_notification', () => {
@@ -170,7 +173,19 @@ function AppShell() {
         socketRef.current.disconnect();
       }
     };
-  }, [isAuthenticated, token, user?._id, fetchUnreadCount, fetchChatUnreadCount]);
+  }, [isAuthenticated, token, user?._id, fetchChatUnreadCount]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    fetchUnreadCount();
+
+    const intervalId = setInterval(() => {
+      fetchUnreadCount();
+    }, 12000);
+
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated, fetchUnreadCount]);
 
   const handleChatIconClick = () => {
     setChatUnreadCount(0);
@@ -183,12 +198,14 @@ function AppShell() {
     if (nextOpen) {
       // Chi tat chi bao "moi" khi nguoi dung chu dong bam chuong de xem.
       setNewNotificationCount(0);
+      setNotificationRefreshTick(prev => prev + 1);
     }
   };
 
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
+    navigate('/login');
   };
 
   return (

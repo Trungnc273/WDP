@@ -4,6 +4,8 @@ import { useAuth } from '../../hooks/useAuth';
 import chatService from '../../services/chat.service';
 import {
   getImageUrl,
+  getUserAvatarUrl,
+  handleImageError,
   validateImageFile,
   createImagePreview,
   revokeImagePreview
@@ -974,7 +976,11 @@ const Chat = () => {
                     style={{ cursor: 'pointer' }}
                   >
                     {otherUser?.avatar ? (
-                      <img src={otherUser.avatar} alt={otherUser.fullName} />
+                      <img
+                        src={getUserAvatarUrl(otherUser)}
+                        alt={otherUser.fullName}
+                        onError={(event) => handleImageError(event, 'avatar')}
+                      />
                     ) : (
                       <div className="avatar-placeholder">
                         {otherUser?.fullName?.charAt(0).toUpperCase()}
@@ -1046,8 +1052,9 @@ const Chat = () => {
                 >
                   {getOtherUser(currentConversation)?.avatar ? (
                     <img 
-                      src={getOtherUser(currentConversation).avatar} 
+                      src={getUserAvatarUrl(getOtherUser(currentConversation))}
                       alt={getOtherUser(currentConversation).fullName} 
+                      onError={(event) => handleImageError(event, 'avatar')}
                     />
                   ) : (
                     <div className="avatar-placeholder">
@@ -1119,8 +1126,9 @@ const Chat = () => {
                         >
                           {getOtherUser(currentConversation)?.avatar ? (
                             <img
-                              src={getOtherUser(currentConversation)?.avatar}
+                              src={getUserAvatarUrl(getOtherUser(currentConversation))}
                               alt={getOtherUserName(currentConversation)}
+                              onError={(event) => handleImageError(event, 'avatar')}
                             />
                           ) : (
                             <div className="avatar-placeholder small">

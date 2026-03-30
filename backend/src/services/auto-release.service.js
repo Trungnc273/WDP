@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const Order = require('../modules/orders/order.model');
 const Product = require('../modules/products/product.model');
 const escrowService = require('../modules/payments/escrow.service');
+const notificationService = require('../modules/notifications/notification.service');
 const logger = require('../common/utils/logger.util');
 const mongoose = require('mongoose');
 
@@ -97,6 +98,27 @@ async function autoReleaseOrders() {
 
         if (order.productId?._id) {
           await Product.findByIdAndUpdate(order.productId._id, { status: 'sold' });
+        }
+
+        try {
+          await Promise.all([
+            notificationService.createNotification(order.buyerId._id, {
+              type: 'order_completed',
+              orderId: order._id,
+              senderId: order.sellerId._id,
+              title: 'Đơn hàng tự động hoàn tất',
+              message: `Đơn "${order.productId?.title || 'Sản phẩm'}" đã tự động hoàn tất sau 10 ngày giao hàng.`
+            }),
+            notificationService.createNotification(order.sellerId._id, {
+              type: 'order_completed',
+              orderId: order._id,
+              senderId: order.buyerId._id,
+              title: 'Đơn hàng đã hoàn tất tự động',
+              message: `Đơn "${order.productId?.title || 'Sản phẩm'}" đã tự động hoàn tất và tiền đã được giải ngân.`
+            })
+          ]);
+        } catch (notificationError) {
+          logger.error(`Failed to send auto-release notifications for order ${order._id}:`, notificationError);
         }
         
         successful++;
