@@ -666,6 +666,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid #edf2f7;
   border-radius: 14px;
@@ -674,7 +675,7 @@
 
 .my-products-container .product-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(120px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   align-items: start;
 }
@@ -706,26 +707,32 @@
 
 .my-products-container .product-price {
   margin: 0;
-  font-size: 28px;
+  font-size: clamp(22px, 2.8vw, 28px);
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.15;
   color: #0b7a3f;
   letter-spacing: -0.03em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .my-products-container .product-category-chip {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   align-self: flex-start;
   min-height: 30px;
-  padding: 0 12px;
+  max-width: 100%;
+  padding: 6px 12px;
   border-radius: 999px;
   background: #eff6ff;
   color: #1d4ed8;
   font-size: 12px;
   font-weight: 800;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .my-products-container .product-meta {

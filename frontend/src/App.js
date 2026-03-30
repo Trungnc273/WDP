@@ -15,6 +15,7 @@ function AppShell() {
   const [showNotification, setShowNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [newNotificationCount, setNewNotificationCount] = useState(0);
+  const [hasNewNotification, setHasNewNotification] = useState(false);
   const [notificationRefreshTick, setNotificationRefreshTick] = useState(0);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -74,12 +75,18 @@ function AppShell() {
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
 
-       // Khong dung realtime: chi bao "moi" khi polling thay so chua doc tang.
+      // Khong dung realtime: chi bao "moi" khi polling thay so chua doc tang.
       if (!showNotification && count > lastUnreadCountRef.current) {
+        setHasNewNotification(true);
         setNewNotificationCount((prev) => prev + (count - lastUnreadCountRef.current));
       }
 
       if (count < lastUnreadCountRef.current && showNotification) {
+        setNewNotificationCount(0);
+      }
+
+      if (count === 0) {
+        setHasNewNotification(false);
         setNewNotificationCount(0);
       }
 
@@ -197,6 +204,7 @@ function AppShell() {
 
     if (nextOpen) {
       // Chi tat chi bao "moi" khi nguoi dung chu dong bam chuong de xem.
+      setHasNewNotification(false);
       setNewNotificationCount(0);
       setNotificationRefreshTick(prev => prev + 1);
     }
@@ -265,8 +273,8 @@ function AppShell() {
                         onClick={handleNotificationBellClick}
                       >
                         <span className="icon">🔔</span>
-                        {newNotificationCount > 0 && (
-                          <span className="notification-badge">{newNotificationCount > 99 ? '99+' : newNotificationCount}</span>
+                        {(hasNewNotification || newNotificationCount > 0) && (
+                          <span className="notification-badge">{newNotificationCount > 99 ? '99+' : Math.max(newNotificationCount, 1)}</span>
                         )}
                       </button>
                       {showNotification && (

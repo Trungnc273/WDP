@@ -71,6 +71,32 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
+  useEffect(() => {
+    const refreshProducts = () => {
+      if (!document.hidden) {
+        fetchProducts(1, true);
+      }
+    };
+
+    const intervalId = setInterval(refreshProducts, 8000);
+    const handleFocus = () => refreshProducts();
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        refreshProducts();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
+
   /**
    * Tai danh sach san pham tu API
    * Trien khai Yeu cau 5: Duyet san pham co phan trang
