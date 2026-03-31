@@ -86,6 +86,17 @@ async function updateProfile(userId, updateData) {
   if (filteredData.address && filteredData.address.length > 255) {
     throw new Error('Địa chỉ không được vượt quá 255 ký tự');
   }
+
+  if (filteredData.phone) {
+    const existingPhoneUser = await User.findOne({
+      phone: filteredData.phone,
+      _id: { $ne: userId } // Loại trừ chính user hiện tại đang update
+    });
+
+    if (existingPhoneUser) {
+      throw new Error('Số điện thoại này đã được sử dụng bởi một tài khoản khác');
+    }
+  }
   
   const user = await User.findByIdAndUpdate(
     userId,

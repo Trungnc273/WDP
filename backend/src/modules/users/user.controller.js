@@ -64,7 +64,7 @@ async function updateProfile(req, res) {
     
     sendSuccess(res, 200, user, 'Cập nhật thông tin thành công');
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('Update profile error:', error.message);
     sendError(res, 400, error.message);
   }
 }

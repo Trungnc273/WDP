@@ -127,7 +127,12 @@ const EditProfile = () => {
       }, 2000);
       
     } catch (error) {
-      setError(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin');
+      const errorMsg = 
+        error.response?.data?.message || 
+        error.message || 
+        error.response?.data || 
+        'Có lỗi xảy ra khi cập nhật thông tin';
+        setError(typeof errorMsg === 'string' ? errorMsg : 'Có lỗi xảy ra');
     } finally {
       setSaving(false);
     }
