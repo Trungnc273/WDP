@@ -5,6 +5,23 @@ const Order = require('../orders/order.model');
 const PurchaseRequest = require('../orders/purchase-request.model');
 
 const PHONE_REGEX = /^0\d{9,10}$/;
+const ACTIVE_ORDER_STATUSES = [
+  'awaiting_seller_confirmation',
+  'awaiting_payment',
+  'paid',
+  'shipped',
+  'disputed'
+];
+
+async function hasActiveOrdersForUser(userId) {
+  return Order.exists({
+    status: { $in: ACTIVE_ORDER_STATUSES },
+    $or: [
+      { buyerId: userId },
+      { sellerId: userId }
+    ]
+  });
+}
 
 /**
  * User Service
@@ -318,6 +335,21 @@ async function updateUserAdmin(userId, updateData) {
   if (Object.keys(filteredData).length === 0) {
     throw new Error('Không có dữ liệu để cập nhật');
   }
+
+  if (filteredData.isSuspended === true) {
+    const existingUser = await User.findById(userId).select('role');
+    if (!existingUser) {
+      throw new Error('Người dùng không tồn tại');
+    }
+    if (existingUser.role === 'admin') {
+      throw new Error('Không thể khóa tài khoản admin');
+    }
+
+    const hasActiveOrders = await hasActiveOrdersForUser(userId);
+    if (hasActiveOrders) {
+      throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+    }
+  }
   
   // Handle suspension
   if (filteredData.isSuspended === false) {
@@ -352,6 +384,11 @@ async function deleteUser(userId) {
     throw new Error('Không thể xóa tài khoản admin');
   }
 
+  const hasActiveOrders = await hasActiveOrdersForUser(userId);
+  if (hasActiveOrders) {
+    throw new Error('Không thể xóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+  }
+
   const hasOrderHistory = await Order.exists({
     $or: [
       { buyerId: userId },
@@ -364,7 +401,10 @@ async function deleteUser(userId) {
   }
 
   const hasPendingPurchase = await PurchaseRequest.exists({
-    buyerId: userId,
+    $or: [
+      { buyerId: userId },
+      { sellerId: userId }
+    ],
     status: 'pending'
   });
 
@@ -390,12 +430,18 @@ async function suspendUser(userId, suspendedUntil, reason) {
   if (user.role === 'admin') {
     throw new Error('Không thể khóa tài khoản admin');
   }
+
+  const hasActiveOrders = await hasActiveOrdersForUser(userId);
+  if (hasActiveOrders) {
+    throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+  }
   
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     {
       isSuspended: true,
       suspendedUntil: suspendedUntil ? new Date(suspendedUntil) : undefined,
+      suspendedReason: reason || user.suspendedReason || 'Tài khoản bị khóa bởi admin.',
       violationCount: user.violationCount + 1
     },
     { new: true }

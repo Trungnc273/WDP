@@ -41,14 +41,8 @@ const AdminDashboard = () => {
   } = userStats;
 
   const {
-    pendingReports = 0,
-    reviewingReports = 0,
     unresolvedReports = 0,
     pendingWithdrawals = 0,
-    reportedReviews = 0,
-    openOrders = 0,
-    pendingDisputes = 0,
-    recentReports = []
   } = moderationStats;
 
   return (
@@ -106,44 +100,6 @@ const AdminDashboard = () => {
                 <div className="mini-stat-label">Bị khóa</div>
               </div>
             </div>
-            
-            <div className="mini-stat-card">
-              <div className="mini-stat-icon">🛡️</div>
-              <div className="mini-stat-content">
-                <div className="mini-stat-number">{usersByRole.user || 0}</div>
-                <div className="mini-stat-label">Người dùng thường</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Moderation Stats */}
-        <div className="stats-section">
-          <h3>Kiểm duyệt nội dung</h3>
-          <div className="stats-cards">
-            <div className="mini-stat-card">
-              <div className="mini-stat-icon">🚩</div>
-              <div className="mini-stat-content">
-                <div className="mini-stat-number">{pendingReports}</div>
-                <div className="mini-stat-label">Báo cáo mới</div>
-              </div>
-            </div>
-            
-            <div className="mini-stat-card">
-              <div className="mini-stat-icon">👁️</div>
-              <div className="mini-stat-content">
-                <div className="mini-stat-number">{reviewingReports}</div>
-                <div className="mini-stat-label">Đang xem xét</div>
-              </div>
-            </div>
-            
-            <div className="mini-stat-card">
-              <div className="mini-stat-icon">⭐</div>
-              <div className="mini-stat-content">
-                <div className="mini-stat-number">{reportedReviews}</div>
-                <div className="mini-stat-label">Đánh giá bị báo cáo</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -179,29 +135,13 @@ const AdminDashboard = () => {
             </div>
           </Link>
 
-          <div className="action-card disabled">
+          <Link to="/admin/revenue" className="action-card">
             <div className="action-icon">📊</div>
             <div className="action-content">
-              <h4>Báo cáo thống kê</h4>
-              <p>Xem báo cáo chi tiết hệ thống</p>
+              <h4>Báo cáo doanh thu</h4>
+              <p>Xem thống kê phí hệ thống 5% theo đơn hoàn tất</p>
             </div>
-          </div>
-
-          <div className="action-card disabled">
-            <div className="action-icon">⚙️</div>
-            <div className="action-content">
-              <h4>Cài đặt hệ thống</h4>
-              <p>Cấu hình các tham số hệ thống</p>
-            </div>
-          </div>
-
-          <div className="action-card disabled">
-            <div className="action-icon">🔍</div>
-            <div className="action-content">
-              <h4>Kiểm duyệt nội dung</h4>
-              <p>Duyệt sản phẩm, đánh giá</p>
-            </div>
-          </div>
+          </Link>
         </div>
       </div>
 

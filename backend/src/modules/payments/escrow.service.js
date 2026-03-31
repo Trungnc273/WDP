@@ -57,11 +57,12 @@ async function holdFunds(orderId, buyerId, amount) {
 
     // Chưa thu phí nền tảng ở bước thanh toán.
     // Phí 5% chỉ ghi nhận khi đơn hoàn thành (khi releaseFunds thành công).
+    const sellerPayout = Math.max(totalToPay - Number(order.platformFee || 0), 0);
     
     // Create escrow hold
     const escrowHold = await EscrowHold.create([{
       orderId: orderId,
-      amount: order.agreedAmount, // Hold only product price, not platform fee
+      amount: sellerPayout, // Hold net payout for seller (95%)
       buyerId: order.buyerId,
       sellerId: order.sellerId,
       status: 'held'

@@ -16,6 +16,7 @@ router.use(authenticate);
 router.use(requireRole("moderator", "admin"));
 
 router.get("/dashboard", moderatorController.getDashboardStats);
+router.get("/revenue-report", moderatorController.getRevenueReport);
 
 /**
  * Lấy danh sách sản phẩm chờ duyệt

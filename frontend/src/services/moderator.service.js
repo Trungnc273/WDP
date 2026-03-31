@@ -59,6 +59,19 @@ export async function getModeratorDashboard() {
   return response.data?.data || {};
 }
 
+export async function getModeratorRevenueReport(params = {}) {
+  const normalizedParams = {};
+  if (params.from) {
+    normalizedParams.from = params.from;
+  }
+  if (params.to) {
+    normalizedParams.to = params.to;
+  }
+
+  const response = await api.get('/moderator/revenue-report', { params: normalizedParams });
+  return response.data?.data || {};
+}
+
 export async function getModeratorReports(params = {}) {
   // Luong bao cao: lay danh sach report cho man hinh moderator.
   const response = await api.get('/moderator/reports', { params: normalizePaginationParams(params) });

@@ -89,7 +89,7 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
     if (isQuickBuy) {
       // Calculate fees
       const platformFee = calculatePlatformFee(agreedPrice);
-      const totalToPay = agreedPrice + platformFee;
+      const totalToPay = agreedPrice;
       
       // Create order directly
       const order = new Order({
@@ -340,7 +340,7 @@ async function acceptPurchaseRequest(requestId, sellerId) {
 
     const agreedAmount = request.agreedPrice;
     const platformFee = calculatePlatformFee(agreedAmount);
-    const totalToPay = agreedAmount + platformFee;
+    const totalToPay = agreedAmount;
     const skipSellerConfirmation = isBuyerInitiated;
     
     // Create order

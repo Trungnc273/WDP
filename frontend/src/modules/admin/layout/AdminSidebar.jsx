@@ -48,6 +48,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       icon: 'fas fa-gavel',
       label: 'Giải quyết tranh chấp',
       description: 'Xử lý tranh chấp đơn hàng'
+    },
+    {
+      path: '/admin/revenue',
+      icon: 'fas fa-chart-line',
+      label: 'Báo cáo doanh thu',
+      description: 'Thống kê phí 5% và chi trả'
     }
   ];
 
@@ -60,6 +66,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     if (location.pathname.startsWith("/admin/reviews")) return path === "/admin/reviews";
     if (location.pathname.startsWith("/admin/withdrawals")) return path === "/admin/withdrawals";
     if (location.pathname.startsWith("/admin/disputes")) return path === "/admin/disputes";
+    if (location.pathname.startsWith("/admin/revenue")) return path === "/admin/revenue";
     return location.pathname === path;
   };
 

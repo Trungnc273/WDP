@@ -7,6 +7,55 @@ const notificationService = require('../notifications/notification.service');
 
 // Nguong canh bao de xu ly manh tay voi bai dang.
 const PRODUCT_WARN_THRESHOLD = 3;
+const USER_AUTO_SUSPEND_REPORT_THRESHOLD = 3;
+const ACTIVE_ORDER_STATUSES = [
+  'awaiting_seller_confirmation',
+  'awaiting_payment',
+  'paid',
+  'shipped',
+  'disputed'
+];
+
+async function hasActiveOrdersForUser(userId) {
+  return Order.exists({
+    status: { $in: ACTIVE_ORDER_STATUSES },
+    $or: [
+      { buyerId: userId },
+      { sellerId: userId }
+    ]
+  });
+}
+
+async function tryAutoSuspendByReportThreshold(reportedUserId) {
+  if (!reportedUserId) {
+    return false;
+  }
+
+  const user = await User.findById(reportedUserId);
+  if (!user || user.role === 'admin' || user.isSuspended) {
+    return false;
+  }
+
+  const reportCount = await Report.countDocuments({
+    reportedUserId,
+    status: { $ne: 'dismissed' }
+  });
+  if (reportCount < USER_AUTO_SUSPEND_REPORT_THRESHOLD) {
+    return false;
+  }
+
+  const hasActiveOrders = await hasActiveOrdersForUser(reportedUserId);
+  if (hasActiveOrders) {
+    return false;
+  }
+
+  user.isSuspended = true;
+  user.suspendedUntil = undefined;
+  user.suspendedReason = `Tài khoản bị khóa tự động do đã nhận từ ${USER_AUTO_SUSPEND_REPORT_THRESHOLD} báo cáo trở lên.`;
+  user.violationCount = Math.max(Number(user.violationCount || 0), USER_AUTO_SUSPEND_REPORT_THRESHOLD);
+  await user.save();
+  return true;
+}
 
 // Tinh muc phat theo moc 3/6/9 canh bao.
 function getReportWarningPenalty(nextWarningCount) {
@@ -126,6 +175,8 @@ async function createProductReport(reporterId, productId, reason, description, e
     { path: 'reportedUserId', select: 'fullName email' },
     { path: 'productId', select: 'title price images' }
   ]);
+
+  await tryAutoSuspendByReportThreshold(report.reportedUserId?._id || report.reportedUserId);
   
   return report;
 }
@@ -170,6 +221,8 @@ async function createUserReport(reporterId, reportedUserId, reason, description,
     { path: 'reporterId', select: 'fullName email' },
     { path: 'reportedUserId', select: 'fullName email' }
   ]);
+
+  await tryAutoSuspendByReportThreshold(report.reportedUserId?._id || report.reportedUserId);
   
   return report;
 }
@@ -601,11 +654,14 @@ async function resolveReport(
 
       user.violationCount = nextWarningCount;
       if (penalty.shouldSuspendNow) {
-        user.isSuspended = true;
-        const suspendUntil = new Date();
-        suspendUntil.setTime(suspendUntil.getTime() + penalty.durationMs);
-        user.suspendedUntil = suspendUntil;
-        user.suspendedReason = `Tài khoản bị khóa do vi phạm từ báo cáo ở mốc ${nextWarningCount} cảnh báo (mức ${penalty.level}) trong ${penalty.label}.`;
+        const hasActiveOrders = await hasActiveOrdersForUser(user._id);
+        if (!hasActiveOrders) {
+          user.isSuspended = true;
+          const suspendUntil = new Date();
+          suspendUntil.setTime(suspendUntil.getTime() + penalty.durationMs);
+          user.suspendedUntil = suspendUntil;
+          user.suspendedReason = `Tài khoản bị khóa do vi phạm từ báo cáo ở mốc ${nextWarningCount} cảnh báo (mức ${penalty.level}) trong ${penalty.label}.`;
+        }
       }
       await user.save();
     }
@@ -630,6 +686,10 @@ async function resolveReport(
     // Khoa tai khoan truc tiep.
     const user = await User.findById(report.reportedUserId);
     if (user) {
+      const hasActiveOrders = await hasActiveOrdersForUser(user._id);
+      if (hasActiveOrders) {
+        throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+      }
       user.isSuspended = true; // Khóa tài khoản
       user.suspendedReason = notes || 'Tài khoản bị khóa trực tiếp theo quyết định ban_user của moderator.';
       await user.save();

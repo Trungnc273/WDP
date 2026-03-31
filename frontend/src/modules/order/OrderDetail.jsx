@@ -948,7 +948,7 @@ const OrderDetail = () => {
               <span className="value">{formatPrice(order.agreedPrice)}</span>
             </div>
             <div className="price-item">
-              <span className="label">Phí dịch vụ (5%):</span>
+              <span className="label">Phí nền tảng (5%, trừ từ người bán):</span>
               <span className="value">{formatPrice(order.platformFee)}</span>
             </div>
             <div className="price-item total">

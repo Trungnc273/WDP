@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import SuspendModal from './SuspendModal';
 
 const UserList = ({
   users,
@@ -12,29 +11,14 @@ const UserList = ({
   onPageChange,
   onSearch,
   onFilterChange,
-  onEditUser,
-  onDeleteUser,
-  onSuspendUser,
-  onUnsuspendUser
+  onViewUser,
+  onPromoteUser
 }) => {
-  const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null);
   const [searchInput, setSearchInput] = useState(search || '');
 
   useEffect(() => {
     setSearchInput(search || '');
   }, [search]);
-
-  const handleSuspendClick = (userId) => {
-    setSelectedUserId(userId);
-    setShowSuspendModal(true);
-  };
-
-  const handleSuspendSubmit = (suspendData) => {
-    onSuspendUser(selectedUserId, suspendData);
-    setShowSuspendModal(false);
-    setSelectedUserId(null);
-  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
@@ -182,31 +166,23 @@ const UserList = ({
                         <td>{formatDate(user.createdAt)}</td>
                         <td className="action-col">
                           <div className="action-buttons user-action-buttons">
-                            <button className="btn btn-sm btn-secondary" onClick={() => onEditUser(user)}>
-                              Sửa
+                            <button className="btn btn-sm btn-secondary" onClick={() => onViewUser(user)}>
+                              Chi tiết
                             </button>
 
-                            {user.isSuspended ? (
-                              <button className="btn btn-sm btn-success" onClick={() => onUnsuspendUser(user._id)}>
-                                Mở khóa
+                            {user.role === 'user' ? (
+                              <button className="btn btn-sm btn-primary" onClick={() => onPromoteUser(user)}>
+                                Nâng lên Mod
+                              </button>
+                            ) : user.role === 'moderator' ? (
+                              <button className="btn btn-sm btn-secondary" disabled>
+                                Đã là Mod
                               </button>
                             ) : (
-                              <button
-                                className="btn btn-sm btn-warning"
-                                onClick={() => handleSuspendClick(user._id)}
-                                disabled={user.role === 'admin'}
-                              >
-                                Khóa
+                              <button className="btn btn-sm btn-secondary" disabled>
+                                Admin
                               </button>
                             )}
-
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => onDeleteUser(user._id)}
-                              disabled={user.role === 'admin'}
-                            >
-                              Xóa
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -242,16 +218,6 @@ const UserList = ({
           </>
         )}
       </div>
-
-      {showSuspendModal && (
-        <SuspendModal
-          onSubmit={handleSuspendSubmit}
-          onCancel={() => {
-            setShowSuspendModal(false);
-            setSelectedUserId(null);
-          }}
-        />
-      )}
     </>
   );
 };

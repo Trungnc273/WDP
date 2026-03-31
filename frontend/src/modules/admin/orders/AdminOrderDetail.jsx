@@ -101,7 +101,7 @@ const AdminOrderDetail = () => {
 
   if (error) {
     return (
-      <div className="admin-module">
+      <div className="admin-module admin-order-detail">
         <div className="alert alert-error">
           <i className="fas fa-exclamation-triangle"></i>
           {error}
@@ -111,7 +111,7 @@ const AdminOrderDetail = () => {
   }
 
   return (
-    <div className="admin-module">
+    <div className="admin-module admin-order-detail">
       <div className="admin-module__header">
         <button
           className="btn btn-secondary"

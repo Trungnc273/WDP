@@ -15,6 +15,21 @@ const EscrowHold = require("../payments/escrow-hold.model");
 const walletService = require("../payments/wallet.service");
 const notificationService = require("../notifications/notification.service");
 
+const ACTIVE_ORDER_STATUSES = [
+  "awaiting_seller_confirmation",
+  "awaiting_payment",
+  "paid",
+  "shipped",
+  "disputed"
+];
+
+async function hasActiveOrdersForUser(userId) {
+  return Order.exists({
+    status: { $in: ACTIVE_ORDER_STATUSES },
+    $or: [{ buyerId: userId }, { sellerId: userId }]
+  });
+}
+
 // Luồng trạng thái đơn hàng cho moderator: chỉ đi tới trước, không cho quay ngược.
 const MODERATOR_ORDER_TRANSITIONS = {
   awaiting_seller_confirmation: ["cancelled"],
@@ -229,9 +244,152 @@ async function getDashboardStats() {
   };
 }
 
+async function getRevenueReport(filters = {}) {
+  const now = new Date();
+  const from = filters.from ? new Date(filters.from) : new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const to = filters.to
+    ? new Date(filters.to)
+    : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    throw new Error("Khoảng thời gian không hợp lệ");
+  }
+
+  const query = {
+    status: "completed",
+    completedAt: { $gte: from, $lte: to }
+  };
+
+  const [summaryAgg, breakdownAgg, topProducts, recentOrders] = await Promise.all([
+    Order.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          completedOrders: { $sum: 1 },
+          grossRevenue: { $sum: { $ifNull: ["$totalToPay", 0] } },
+          platformRevenue: { $sum: { $ifNull: ["$platformFee", 0] } }
+        }
+      }
+    ]),
+    Order.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$completedAt" },
+            month: { $month: "$completedAt" }
+          },
+          completedOrders: { $sum: 1 },
+          grossRevenue: { $sum: { $ifNull: ["$totalToPay", 0] } },
+          platformRevenue: { $sum: { $ifNull: ["$platformFee", 0] } }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]),
+    Order.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: "$productId",
+          completedOrders: { $sum: 1 },
+          grossRevenue: { $sum: { $ifNull: ["$totalToPay", 0] } },
+          platformRevenue: { $sum: { $ifNull: ["$platformFee", 0] } }
+        }
+      },
+      { $sort: { grossRevenue: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "product"
+        }
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          title: "$product.title",
+          completedOrders: 1,
+          grossRevenue: 1,
+          platformRevenue: 1
+        }
+      }
+    ]),
+    Order.find(query)
+      .sort({ completedAt: -1 })
+      .limit(10)
+      .select("orderCode totalToPay platformFee completedAt buyerId sellerId productId")
+      .populate("buyerId", "fullName")
+      .populate("sellerId", "fullName")
+      .populate("productId", "title")
+      .lean()
+  ]);
+
+  const summaryItem = summaryAgg[0] || {
+    completedOrders: 0,
+    grossRevenue: 0,
+    platformRevenue: 0
+  };
+
+  const summary = {
+    completedOrders: Number(summaryItem.completedOrders || 0),
+    grossRevenue: Number(summaryItem.grossRevenue || 0),
+    platformRevenue: Number(summaryItem.platformRevenue || 0),
+    sellerPayout:
+      Number(summaryItem.grossRevenue || 0) - Number(summaryItem.platformRevenue || 0)
+  };
+
+  return {
+    rule: {
+      platformFeeRate: 0.05,
+      formula: "Người mua thanh toán 100%, hệ thống giữ 5%, người bán nhận 95%."
+    },
+    range: {
+      from,
+      to
+    },
+    summary,
+    breakdown: breakdownAgg.map((item) => ({
+      period: `${item._id.year}-${String(item._id.month).padStart(2, "0")}`,
+      completedOrders: Number(item.completedOrders || 0),
+      grossRevenue: Number(item.grossRevenue || 0),
+      platformRevenue: Number(item.platformRevenue || 0),
+      sellerPayout: Number(item.grossRevenue || 0) - Number(item.platformRevenue || 0)
+    })),
+    topProducts: topProducts.map((item) => ({
+      productId: item._id,
+      title: item.title || "Sản phẩm đã xóa",
+      completedOrders: Number(item.completedOrders || 0),
+      grossRevenue: Number(item.grossRevenue || 0),
+      platformRevenue: Number(item.platformRevenue || 0),
+      sellerPayout: Number(item.grossRevenue || 0) - Number(item.platformRevenue || 0)
+    })),
+    recentOrders: recentOrders.map((order) => ({
+      orderId: order._id,
+      orderCode: order.orderCode,
+      completedAt: order.completedAt,
+      productTitle: order.productId?.title || "N/A",
+      buyerName: order.buyerId?.fullName || "N/A",
+      sellerName: order.sellerId?.fullName || "N/A",
+      grossRevenue: Number(order.totalToPay || 0),
+      platformRevenue: Number(order.platformFee || 0),
+      sellerPayout: Number(order.totalToPay || 0) - Number(order.platformFee || 0)
+    }))
+  };
+}
+
 async function banUser(userId, suspendedReason = "") {
   const user = await User.findById(userId);
   if (!user) throw new Error("Người dùng không tồn tại");
+
+  const hasActiveOrders = await hasActiveOrdersForUser(userId);
+  if (hasActiveOrders) {
+    throw new Error("Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý");
+  }
+
   user.isSuspended = true;
   user.suspendedReason = String(suspendedReason || '').trim() || 'Tài khoản bị khóa bởi moderator.';
   user.violationCount = (user.violationCount || 0) + 1;
@@ -864,10 +1022,13 @@ async function increaseViolationAndMaybeSuspend(userId) {
 
   user.violationCount = (user.violationCount || 0) + 1;
   if (user.violationCount >= 3) {
-    user.isSuspended = true;
-    const suspendUntil = new Date();
-    suspendUntil.setDate(suspendUntil.getDate() + 30);
-    user.suspendedUntil = suspendUntil;
+    const hasActiveOrders = await hasActiveOrdersForUser(userId);
+    if (!hasActiveOrders) {
+      user.isSuspended = true;
+      const suspendUntil = new Date();
+      suspendUntil.setDate(suspendUntil.getDate() + 30);
+      user.suspendedUntil = suspendUntil;
+    }
   }
 
   await user.save();
@@ -987,6 +1148,7 @@ function isValidObjectId(value) {
 module.exports = {
   isValidObjectId,
   getDashboardStats,
+  getRevenueReport,
   banUser,
   getReports,
   getReportById,

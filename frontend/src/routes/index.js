@@ -53,6 +53,7 @@ import AdminReviewList from "../modules/admin/reviews/AdminReviewList";
 import AdminWithdrawalList from "../modules/admin/withdrawals/AdminWithdrawalList";
 import AdminDisputeList from "../modules/admin/disputes/AdminDisputeList";
 import AdminDisputeDetail from "../modules/admin/disputes/AdminDisputeDetail";
+import AdminRevenueReport from "../modules/admin/revenue/AdminRevenueReport";
 
 // ================================================
 
@@ -203,6 +204,7 @@ function AppRoutes() {
         <Route path="withdrawals" element={<AdminWithdrawalList />} />
         <Route path="disputes" element={<AdminDisputeList />} />
         <Route path="disputes/:id" element={<AdminDisputeDetail />} />
+        <Route path="revenue" element={<AdminRevenueReport />} />
       </Route>
 
 

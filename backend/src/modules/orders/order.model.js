@@ -75,7 +75,7 @@ const orderSchema = new mongoose.Schema({
     required: true,
     min: 0,
     default: function() {
-      return this.agreedAmount + this.platformFee;
+      return this.agreedAmount;
     }
   },
   

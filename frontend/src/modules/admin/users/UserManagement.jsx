@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminUserApi } from '../../../services/adminApi';
 import UserList from '../components/UserList';
-import UserForm from '../components/UserForm';
+import UserDetailModal from '../components/UserDetailModal';
 import '../AdminModules.css';
 
 const UserManagement = () => {
@@ -9,7 +9,7 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Pagination and filters
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -17,13 +17,11 @@ const UserManagement = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  
+
   // Modal states
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  // Load users on component mount
   useEffect(() => {
     loadUsers();
   }, [currentPage, search, roleFilter, statusFilter]);
@@ -38,7 +36,7 @@ const UserManagement = () => {
         role: roleFilter,
         status: statusFilter
       });
-      
+
       if (response.data && response.data.data) {
         setUsers(response.data.data.users || []);
         setTotalPages(response.data.data.pagination?.totalPages || 1);
@@ -60,66 +58,41 @@ const UserManagement = () => {
     }
   };
 
-  const handleCreateUser = async (userData) => {
-    try {
-      await adminUserApi.createUser(userData);
-      setSuccess('Tạo người dùng thành công');
-      setShowCreateModal(false);
-      loadUsers();
-    } catch (err) {
-      setError(err.message || 'Không thể tạo người dùng');
+  const handlePromoteToModerator = async (user) => {
+    if (!user?._id || user.role !== 'user') {
+      return;
     }
-  };
 
-  const handleUpdateUser = async (userData) => {
-    try {
-      await adminUserApi.updateUser(selectedUser._id, userData);
-      setSuccess('Cập nhật người dùng thành công');
-      setShowEditModal(false);
-      setSelectedUser(null);
-      loadUsers();
-    } catch (err) {
-      setError(err.message || 'Không thể cập nhật người dùng');
-    }
-  };
-
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
+    if (!window.confirm(`Nâng quyền "${user.fullName}" lên Moderator?`)) {
       return;
     }
 
     try {
-      await adminUserApi.deleteUser(userId);
-      setSuccess('Xóa người dùng thành công');
+      await adminUserApi.updateUser(user._id, { role: 'moderator' });
+      setSuccess(`Đã nâng quyền "${user.fullName}" lên Moderator`);
+
+      if (selectedUser?._id === user._id) {
+        setSelectedUser((prev) => (prev ? { ...prev, role: 'moderator' } : prev));
+      }
+
       loadUsers();
     } catch (err) {
-      setError(err.message || 'Không thể xóa người dùng');
+      setError(err.response?.data?.message || err.message || 'Không thể nâng quyền người dùng');
     }
   };
 
-  const handleSuspendUser = async (userId, suspendData) => {
-    try {
-      await adminUserApi.suspendUser(userId, suspendData);
-      setSuccess('Khóa người dùng thành công');
-      loadUsers();
-    } catch (err) {
-      setError(err.message || 'Không thể khóa người dùng');
-    }
-  };
-
-  const handleUnsuspendUser = async (userId) => {
-    try {
-      await adminUserApi.unsuspendUser(userId);
-      setSuccess('Mở khóa người dùng thành công');
-      loadUsers();
-    } catch (err) {
-      setError(err.message || 'Không thể mở khóa người dùng');
-    }
-  };
-
-  const handleEditUser = (user) => {
+  const handleViewUser = async (user) => {
     setSelectedUser(user);
-    setShowEditModal(true);
+    setShowDetailModal(true);
+
+    try {
+      const response = await adminUserApi.getUserById(user._id);
+      if (response?.data?.data) {
+        setSelectedUser(response.data.data);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Không thể tải chi tiết người dùng');
+    }
   };
 
   const handleSearch = (searchTerm) => {
@@ -147,26 +120,20 @@ const UserManagement = () => {
         <div className="header-content">
           <div className="header-info">
             <h1>Quản lý người dùng</h1>
-            <p>CRUD người dùng hệ thống. Tổng cộng: {(totalUsers || 0).toLocaleString('vi-VN')} tài khoản.</p>
+            <p>
+              Xem chi tiết tài khoản và nâng quyền User lên Moderator. Tổng cộng: {(totalUsers || 0).toLocaleString('vi-VN')} tài khoản.
+            </p>
           </div>
-          <button
-            className="btn btn-primary btn-sm btn-create-small user-create-top-btn"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <i className="fas fa-plus"></i>
-            Tạo người dùng
-          </button>
         </div>
       </div>
 
-      {/* Messages */}
       {error && (
         <div className="alert alert-error">
           {error}
           <button onClick={clearMessages} className="alert-close">×</button>
         </div>
       )}
-      
+
       {success && (
         <div className="alert alert-success">
           {success}
@@ -174,7 +141,6 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* User List */}
       <UserList
         users={users}
         loading={loading}
@@ -186,29 +152,17 @@ const UserManagement = () => {
         onPageChange={setCurrentPage}
         onSearch={handleSearch}
         onFilterChange={handleFilterChange}
-        onEditUser={handleEditUser}
-        onDeleteUser={handleDeleteUser}
-        onSuspendUser={handleSuspendUser}
-        onUnsuspendUser={handleUnsuspendUser}
+        onViewUser={handleViewUser}
+        onPromoteUser={handlePromoteToModerator}
       />
 
-      {/* Create User Modal */}
-      {showCreateModal && (
-        <UserForm
-          title="Tạo người dùng mới"
-          onSubmit={handleCreateUser}
-          onCancel={() => setShowCreateModal(false)}
-        />
-      )}
-
-      {/* Edit User Modal */}
-      {showEditModal && selectedUser && (
-        <UserForm
-          title="Chỉnh sửa người dùng"
+      {showDetailModal && selectedUser && (
+        <UserDetailModal
           user={selectedUser}
-          onSubmit={handleUpdateUser}
+          canPromote={selectedUser.role === 'user'}
+          onPromote={() => handlePromoteToModerator(selectedUser)}
           onCancel={() => {
-            setShowEditModal(false);
+            setShowDetailModal(false);
             setSelectedUser(null);
           }}
         />

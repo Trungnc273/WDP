@@ -83,7 +83,7 @@ const AdminReportDetail = () => {
 
   if (error) {
     return (
-      <div className="admin-module">
+      <div className="admin-module admin-report-detail">
         <div className="alert alert-error">
           <i className="fas fa-exclamation-triangle"></i>
           {error}
@@ -102,7 +102,7 @@ const AdminReportDetail = () => {
   const productIsRemoved = Boolean(report?.productStats?.isRemoved);
 
   return (
-    <div className="admin-module">
+    <div className="admin-module admin-report-detail">
       <div className="admin-module__header">
         <button 
           className="btn btn-secondary"
