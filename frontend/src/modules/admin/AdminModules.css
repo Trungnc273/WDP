@@ -1611,6 +1611,16 @@
   flex-wrap: wrap;
 }
 
+.admin-dispute-detail .currency {
+  position: static;
+  right: auto;
+  top: auto;
+  transform: none;
+  font-weight: 700;
+  color: #087443;
+  white-space: nowrap;
+}
+
 @media (max-width: 992px) {
   .admin-dispute-detail .dispute-detail-layout {
     grid-template-columns: 1fr;

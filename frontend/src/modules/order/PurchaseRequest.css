@@ -255,7 +255,7 @@
   border-color: #dc2626;
 }
 
-.currency {
+.price-input-wrapper .currency {
   position: absolute;
   right: 12px;
   color: #6b7280;

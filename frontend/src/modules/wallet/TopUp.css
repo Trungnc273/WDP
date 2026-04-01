@@ -128,7 +128,7 @@
   border-color: #e74c3c;
 }
 
-.currency {
+.amount-input-wrapper .currency {
   position: absolute;
   right: 12px;
   top: 50%;

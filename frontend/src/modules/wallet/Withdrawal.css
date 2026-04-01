@@ -129,7 +129,7 @@
   transition: border-color 0.3s;
 }
 
-.currency {
+.amount-input-wrapper .currency {
   position: absolute;
   right: 12px;
   top: 50%;
