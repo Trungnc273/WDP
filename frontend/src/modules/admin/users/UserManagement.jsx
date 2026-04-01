@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminUserApi } from '../../../services/adminApi';
 import UserList from '../components/UserList';
 import UserDetailModal from '../components/UserDetailModal';
+import SuspendModal from '../components/SuspendModal';
 import '../AdminModules.css';
 
 const UserManagement = () => {
@@ -21,6 +22,8 @@ const UserManagement = () => {
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [suspendTarget, setSuspendTarget] = useState(null);
 
   useEffect(() => {
     loadUsers();
@@ -95,6 +98,65 @@ const UserManagement = () => {
     }
   };
 
+  const openSuspendModal = (user) => {
+    if (!user?._id || user?.role === 'admin') {
+      setError('Không thể khóa tài khoản admin');
+      return;
+    }
+    setSuspendTarget(user);
+    setShowSuspendModal(true);
+  };
+
+  const closeSuspendModal = () => {
+    setShowSuspendModal(false);
+    setSuspendTarget(null);
+  };
+
+  const handleSuspendUser = async (suspendData) => {
+    if (!suspendTarget?._id) {
+      return;
+    }
+
+    try {
+      const response = await adminUserApi.suspendUser(suspendTarget._id, suspendData);
+      const updatedUser = response?.data?.data;
+      setSuccess(`Đã khóa "${suspendTarget.fullName}" thành công`);
+
+      if (selectedUser?._id === suspendTarget._id && updatedUser) {
+        setSelectedUser(updatedUser);
+      }
+
+      closeSuspendModal();
+      loadUsers();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Không thể khóa người dùng');
+    }
+  };
+
+  const handleUnsuspendUser = async (user) => {
+    if (!user?._id || user?.role === 'admin') {
+      return;
+    }
+
+    if (!window.confirm(`Mở khóa tài khoản "${user.fullName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await adminUserApi.unsuspendUser(user._id);
+      const updatedUser = response?.data?.data;
+      setSuccess(`Đã mở khóa "${user.fullName}" thành công`);
+
+      if (selectedUser?._id === user._id && updatedUser) {
+        setSelectedUser(updatedUser);
+      }
+
+      loadUsers();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Không thể mở khóa người dùng');
+    }
+  };
+
   const handleSearch = (searchTerm) => {
     setSearch(searchTerm);
     setCurrentPage(1);
@@ -154,17 +216,29 @@ const UserManagement = () => {
         onFilterChange={handleFilterChange}
         onViewUser={handleViewUser}
         onPromoteUser={handlePromoteToModerator}
+        onSuspendUser={openSuspendModal}
+        onUnsuspendUser={handleUnsuspendUser}
       />
 
       {showDetailModal && selectedUser && (
         <UserDetailModal
           user={selectedUser}
           canPromote={selectedUser.role === 'user'}
+          canManageLock={selectedUser.role !== 'admin'}
           onPromote={() => handlePromoteToModerator(selectedUser)}
+          onSuspend={() => openSuspendModal(selectedUser)}
+          onUnsuspend={() => handleUnsuspendUser(selectedUser)}
           onCancel={() => {
             setShowDetailModal(false);
             setSelectedUser(null);
           }}
+        />
+      )}
+
+      {showSuspendModal && suspendTarget && (
+        <SuspendModal
+          onSubmit={handleSuspendUser}
+          onCancel={closeSuspendModal}
         />
       )}
     </div>

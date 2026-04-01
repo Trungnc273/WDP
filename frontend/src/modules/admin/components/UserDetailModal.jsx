@@ -1,6 +1,14 @@
 import React from 'react';
 
-const UserDetailModal = ({ user, canPromote, onPromote, onCancel }) => {
+const UserDetailModal = ({
+  user,
+  canPromote,
+  canManageLock,
+  onPromote,
+  onSuspend,
+  onUnsuspend,
+  onCancel
+}) => {
   const formatDateTime = (dateString) => {
     if (!dateString) {
       return 'Không có dữ liệu';
@@ -87,6 +95,18 @@ const UserDetailModal = ({ user, canPromote, onPromote, onCancel }) => {
           <button className="btn btn-secondary" onClick={onCancel}>
             Đóng
           </button>
+
+          {canManageLock && (
+            user.isSuspended ? (
+              <button className="btn btn-secondary" onClick={onUnsuspend}>
+                Mở khóa tài khoản
+              </button>
+            ) : (
+              <button className="btn btn-danger" onClick={onSuspend}>
+                Khóa tài khoản
+              </button>
+            )
+          )}
 
           {canPromote ? (
             <button className="btn btn-primary" onClick={onPromote}>

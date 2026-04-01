@@ -12,7 +12,9 @@ const UserList = ({
   onSearch,
   onFilterChange,
   onViewUser,
-  onPromoteUser
+  onPromoteUser,
+  onSuspendUser,
+  onUnsuspendUser
 }) => {
   const [searchInput, setSearchInput] = useState(search || '');
 
@@ -182,6 +184,18 @@ const UserList = ({
                               <button className="btn btn-sm btn-secondary" disabled>
                                 Admin
                               </button>
+                            )}
+
+                            {user.role !== 'admin' && (
+                              user.isSuspended ? (
+                                <button className="btn btn-sm btn-secondary" onClick={() => onUnsuspendUser(user)}>
+                                  Mở khóa
+                                </button>
+                              ) : (
+                                <button className="btn btn-sm btn-danger" onClick={() => onSuspendUser(user)}>
+                                  Khóa
+                                </button>
+                              )
                             )}
                           </div>
                         </td>

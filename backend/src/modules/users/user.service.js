@@ -3,6 +3,10 @@ const bcrypt = require('bcryptjs');
 const { validateStrongPassword } = require('../../common/validators/password.validator');
 const Order = require('../orders/order.model');
 const PurchaseRequest = require('../orders/purchase-request.model');
+const Report = require('../reports/report.model');
+const Transaction = require('../payments/transaction.model');
+const Review = require('../reports/review.model');
+const Dispute = require('../reports/dispute.model');
 
 const PHONE_REGEX = /^0\d{9,10}$/;
 const ORDER_TERMINAL_STATUSES = ['completed', 'cancelled'];
@@ -515,12 +519,19 @@ module.exports = {
  */
 async function getAdminDashboardStats() {
   try {
-    // Get basic user stats first
     const [
       totalUsers,
       activeUsers,
       suspendedUsers,
-      usersByRole
+      usersByRole,
+      pendingReports,
+      reviewingReports,
+      unresolvedReports,
+      pendingWithdrawals,
+      pendingReviews,
+      openOrders,
+      pendingDisputes,
+      recentReports
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ isSuspended: false }),
@@ -532,11 +543,28 @@ async function getAdminDashboardStats() {
             count: { $sum: 1 }
           }
         }
-      ])
+      ]),
+      Report.countDocuments({ status: 'pending' }),
+      Report.countDocuments({ status: 'reviewing' }),
+      Report.countDocuments({ status: { $in: ['pending', 'reviewing'] } }),
+      Transaction.countDocuments({ type: 'withdrawal', status: 'pending' }),
+      Review.countDocuments({
+        status: 'active',
+        'moderatorAssessment.isReviewed': { $ne: true },
+        'moderatorAssessment.isBad': { $ne: true },
+        'moderatorAssessment.verdict': { $nin: ['good', 'bad'] }
+      }),
+      Order.countDocuments({ status: { $in: ['awaiting_seller_confirmation', 'awaiting_payment', 'paid', 'shipped'] } }),
+      Dispute.countDocuments({ status: { $in: ['pending', 'investigating'] } }),
+      Report.find({ status: { $in: ['pending', 'reviewing'] } })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('reporterId', 'fullName email')
+        .populate('reportedUserId', 'fullName email')
+        .populate('productId', 'title')
     ]);
 
     return {
-      // User management stats
       userStats: {
         totalUsers,
         activeUsers,
@@ -546,18 +574,18 @@ async function getAdminDashboardStats() {
           return acc;
         }, {})
       },
-      
-      // Moderation stats (simplified for now)
+
       moderationStats: {
-        pendingReports: 0,
-        reviewingReports: 0,
-        unresolvedReports: 0,
-        pendingWithdrawals: 0,
-        reportedReviews: 0,
-        openOrders: 0,
-        pendingDisputes: 0,
+        pendingReports,
+        reviewingReports,
+        unresolvedReports,
+        pendingWithdrawals,
+        pendingReviews,
+        reportedReviews: pendingReviews,
+        openOrders,
+        pendingDisputes,
         pendingProducts: 0,
-        recentReports: []
+        recentReports
       }
     };
   } catch (error) {
