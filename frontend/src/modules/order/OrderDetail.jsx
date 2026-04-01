@@ -98,7 +98,8 @@ const OrderDetail = () => {
   const orderStatuses = {
     'pending': 'Chờ thanh toán',
     'paid': 'Đã thanh toán',
-    'shipped': 'Đã giao hàng',
+    'shipped': 'Đang giao hàng',
+    'delivered': 'Đã giao đến nơi',
     'completed': 'Hoàn thành',
     'cancelled': 'Đã hủy',
     'disputed': 'Tranh chấp'
@@ -108,6 +109,7 @@ const OrderDetail = () => {
     'pending': 'status-pending',
     'paid': 'status-paid',
     'shipped': 'status-shipped',
+    'delivered': 'status-delivered', // you can reuse a color in css if needed
     'completed': 'status-completed',
     'cancelled': 'status-cancelled',
     'disputed': 'status-disputed'
@@ -218,7 +220,9 @@ const OrderDetail = () => {
   useEffect(() => {
     if (order) {
       checkReviewStatus();
-      fetchDispute();
+      if (order.status === 'disputed') {
+        fetchDispute();
+      }
     }
   }, [order]);
 
@@ -281,6 +285,7 @@ const OrderDetail = () => {
   }, [order, user, dispute, location.search]);
 
   const fetchDispute = async () => {
+    if (!order || !order._id) return;
     try {
       const response = await getDisputeByOrderId(order._id);
       setDispute(response.data);
@@ -374,6 +379,7 @@ const OrderDetail = () => {
   };
 
   const checkReviewStatus = async () => {
+    if (!order || !order._id) return;
     try {
       // Kiem tra nguoi dung co the danh gia khong
       const canReviewResponse = await canReviewOrder(order._id);
@@ -404,6 +410,23 @@ const OrderDetail = () => {
     setShowShipModal(false);
     fetchOrder(); // Tai lai du lieu don hang
     alert('Xác nhận giao hàng thành công!');
+  };
+
+  const handleConfirmDelivery = async (orderId) => {
+    if (!window.confirm('Bạn xác nhận đơn hàng này đã được giao đến tay người mua?')) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const { confirmDelivery } = await import('../../services/order.service');
+      await confirmDelivery(orderId);
+      await fetchOrder();
+      alert('Đã cập nhật trạng thái: Đã giao đến nơi');
+    } catch (err) {
+      alert(err.message || 'Có lỗi xảy ra khi xác nhận giao đến nơi');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReceiptSuccess = async (result = {}) => {
@@ -507,6 +530,7 @@ const OrderDetail = () => {
         label: 'Đơn hàng được tạo',
         date: order.createdAt,
         completed: true,
+        isCurrent: false,
         variant: 'normal'
       },
       {
@@ -514,6 +538,7 @@ const OrderDetail = () => {
         label: 'Chờ thanh toán',
         date: order.createdAt,
         completed: true,
+        isCurrent: ['pending', 'awaiting_payment'].includes(order.status),
         variant: 'normal'
       },
       {
@@ -521,13 +546,23 @@ const OrderDetail = () => {
         label: 'Đã thanh toán',
         date: order.paidAt,
         completed: !!order.paidAt,
+        isCurrent: order.status === 'paid',
         variant: 'normal'
       },
       {
         key: 'shipped',
-        label: 'Đã giao hàng',
+        label: 'Đang giao hàng',
         date: order.shippedAt,
         completed: !!order.shippedAt,
+        isCurrent: order.status === 'shipped',
+        variant: 'normal'
+      },
+      {
+        key: 'delivered',
+        label: 'Đã giao đến nơi',
+        date: order.deliveredAt,
+        completed: !!order.deliveredAt,
+        isCurrent: order.status === 'delivered',
         variant: 'normal'
       }
     ];
@@ -602,7 +637,7 @@ const OrderDetail = () => {
         label: 'Hoàn thành',
         date: order.completedAt,
         completed: order.status === 'completed',
-        isCurrent: order.status === 'shipped' || order.status === 'disputed',
+        isCurrent: order.status === 'completed',
         variant: 'normal'
       });
     }
@@ -643,6 +678,7 @@ const OrderDetail = () => {
 
     if (isBuyer()) {
       switch (order.status) {
+        case 'awaiting_payment':
         case 'pending':
           buttons.push(
             <button
@@ -656,17 +692,20 @@ const OrderDetail = () => {
           );
           break;
         case 'shipped':
-          buttons.push(
-            <button
-              key="confirm-receipt"
-              className="btn btn-success"
-              onClick={() => setShowReceiptModal(true)}
-            >
-              <i className="fas fa-check-circle"></i>
-              Xác nhận nhận hàng
-            </button>
-          );
-          // Add dispute button for shipped orders
+        case 'delivered':
+          if (order.status === 'delivered') {
+            buttons.push(
+              <button
+                key="confirm-receipt"
+                className="btn btn-success"
+                onClick={() => setShowReceiptModal(true)}
+              >
+                <i className="fas fa-check-circle"></i>
+                Xác nhận nhận hàng
+              </button>
+            );
+          }
+          // Add dispute button for shipped and delivered orders
           buttons.push(
             <button
               key="dispute"
@@ -690,10 +729,11 @@ const OrderDetail = () => {
               }}
             >
               <i className="fas fa-undo"></i>
-              Yêu cầu hoàn hàng
+              Yêu cầu hoàn trả
             </button>
           );
           break;
+
         case 'completed':
           // Add rating button if user can review and hasn't reviewed yet
           if (canReview && !existingReview) {
@@ -740,6 +780,18 @@ const OrderDetail = () => {
             >
               <i className="fas fa-shipping-fast"></i>
               Xác nhận giao hàng
+            </button>
+          );
+          break;
+        case 'shipped':
+          buttons.push(
+            <button
+              key="deliver"
+              className="btn btn-info"
+              onClick={() => handleConfirmDelivery(order._id)}
+            >
+              <i className="fas fa-box-open"></i>
+              Xác nhận giao đến nơi
             </button>
           );
           break;
@@ -947,14 +999,23 @@ const OrderDetail = () => {
               <span className="label">Giá sản phẩm:</span>
               <span className="value">{formatPrice(order.agreedPrice)}</span>
             </div>
-            <div className="price-item">
-              <span className="label">Phí nền tảng (5%, trừ từ người bán):</span>
-              <span className="value">{formatPrice(order.platformFee)}</span>
-            </div>
-            <div className="price-item total">
-              <span className="label">Tổng cộng:</span>
-              <span className="value">{formatPrice(order.totalAmount)}</span>
-            </div>
+            {isSeller() ? (
+              <>
+                <div className="price-item">
+                  <span className="label">Phí nền tảng (5%):</span>
+                  <span className="value" style={{ color: '#e74c3c' }}>-{formatPrice(order.platformFee)}</span>
+                </div>
+                <div className="price-item total">
+                  <span className="label">Tổng nhận được:</span>
+                  <span className="value" style={{ color: '#27ae60' }}>{formatPrice(order.agreedPrice - (order.platformFee || 0))}</span>
+                </div>
+              </>
+            ) : (
+              <div className="price-item total">
+                <span className="label">Tổng thanh toán:</span>
+                <span className="value">{formatPrice(order.totalAmount)}</span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -123,8 +123,123 @@ async function createWithdrawal(req, res, next) {
   }
 }
 
+/**
+ * [ADMIN] Lấy danh sách lệnh rút tiền đang chờ
+ * GET /api/wallets/admin/withdrawals
+ */
+async function getPendingWithdrawals(req, res, next) {
+  try {
+    const Transaction = require('./transaction.model');
+    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [withdrawals, total] = await Promise.all([
+      Transaction.find({ type: 'withdrawal', status })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('userId', 'fullName email phone'),
+      Transaction.countDocuments({ type: 'withdrawal', status })
+    ]);
+
+    return sendSuccess(res, 200, {
+      withdrawals,
+      pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) }
+    }, 'Lấy danh sách yêu cầu rút tiền thành công');
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * [ADMIN] Duyệt lệnh rút tiền
+ * POST /api/wallets/admin/withdrawals/:id/approve
+ */
+async function approveWithdrawal(req, res, next) {
+  try {
+    const { id } = req.params;
+    const Transaction = require('./transaction.model');
+    const Wallet = require('./wallet.model');
+    const mongoose = require('mongoose');
+
+    const tx = await Transaction.findById(id);
+    if (!tx || tx.type !== 'withdrawal') {
+      return sendError(res, 404, 'Không tìm thấy lệnh rút tiền');
+    }
+    if (tx.status !== 'pending') {
+      return sendError(res, 400, 'Lệnh rút đã được xử lý');
+    }
+
+    // Trừ tiền khỏi ví người dùng (atomic)
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const wallet = await Wallet.findOne({ userId: tx.userId }).session(session);
+      if (!wallet || wallet.balance < tx.amount) {
+        await session.abortTransaction();
+        return sendError(res, 400, 'Số dư không đủ');
+      }
+      const balanceBefore = wallet.balance;
+      wallet.balance -= tx.amount;
+      wallet.totalWithdrawn += tx.amount;
+      await wallet.save({ session });
+
+      tx.status = 'completed';
+      tx.completedAt = new Date();
+      tx.balanceBefore = balanceBefore;
+      tx.balanceAfter = wallet.balance;
+      tx.metadata = { ...(tx.metadata || {}), approvedBy: req.user.userId, approvedAt: new Date() };
+      await tx.save({ session });
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+
+    return sendSuccess(res, 200, tx, 'Duyệt lệnh rút tiền thành công');
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * [ADMIN] Từ chối lệnh rút tiền
+ * POST /api/wallets/admin/withdrawals/:id/reject
+ */
+async function rejectWithdrawal(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const Transaction = require('./transaction.model');
+
+    const tx = await Transaction.findById(id);
+    if (!tx || tx.type !== 'withdrawal') {
+      return sendError(res, 404, 'Không tìm thấy lệnh rút tiền');
+    }
+    if (tx.status !== 'pending') {
+      return sendError(res, 400, 'Lệnh rút đã được xử lý');
+    }
+
+    tx.status = 'cancelled';
+    tx.cancelledAt = new Date();
+    tx.failureReason = reason || 'Admin từ chối';
+    tx.metadata = { ...(tx.metadata || {}), rejectedBy: req.user.userId, rejectedAt: new Date(), reason };
+    await tx.save();
+
+    return sendSuccess(res, 200, tx, 'Từ chối lệnh rút tiền thành công');
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getBalance,
   getTransactions,
-  createWithdrawal
+  createWithdrawal,
+  getPendingWithdrawals,
+  approveWithdrawal,
+  rejectWithdrawal
 };

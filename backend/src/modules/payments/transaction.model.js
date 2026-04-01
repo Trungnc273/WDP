@@ -57,7 +57,7 @@ const transactionSchema = new mongoose.Schema({
   // Payment method (for deposits)
   paymentMethod: {
     type: String,
-    enum: ['bank_transfer', 'vnpay', 'wallet', 'escrow'],
+    enum: ['bank_transfer', 'vnpay', 'sepay', 'wallet', 'escrow'],
     default: 'wallet'
   },
   
@@ -67,6 +67,11 @@ const transactionSchema = new mongoose.Schema({
   },
   
   vnpayTransactionNo: {
+    type: String
+  },
+
+  // SePay transaction details (if applicable)
+  sepayTransactionId: {
     type: String
   },
   

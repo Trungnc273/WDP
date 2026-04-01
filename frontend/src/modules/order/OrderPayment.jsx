@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrderById, payOrder } from '../../services/order.service';
 import walletService from '../../services/wallet.service';
+import sePayService, { postToSepay } from '../../services/sepay.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import './OrderPayment.css';
 
@@ -16,6 +17,7 @@ const OrderPayment = () => {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('sepay');
 
   const getUserId = (value) => value?._id || value?.id || value?.userId || value || null;
 
@@ -34,6 +36,12 @@ const OrderPayment = () => {
       const normalizedOrder = orderData?.data || orderData;
       setOrder(normalizedOrder);
       setBalance(balanceData.balance);
+      
+      // Auto-select wallet if they have enough balance
+      if (balanceData.balance >= normalizedOrder.totalAmount) {
+        setPaymentMethod('wallet');
+      }
+      
       setError(null);
     } catch (err) {
       setError(err.message || 'Không thể tải thông tin đơn hàng');
@@ -43,32 +51,51 @@ const OrderPayment = () => {
   };
 
   const handlePayment = async () => {
-    if (balance < order.totalAmount) {
-      const confirmTopUp = window.confirm(
-        'Số dư ví không đủ để thanh toán. Bạn có muốn nạp tiền không?'
-      );
-      if (confirmTopUp) {
-        navigate('/wallet/topup');
+    if (paymentMethod === 'wallet') {
+      if (balance < order.totalAmount) {
+        const confirmTopUp = window.confirm(
+          'Số dư ví không đủ để thanh toán. Bạn có muốn nạp tiền không?'
+        );
+        if (confirmTopUp) {
+          navigate('/wallet/topup');
+        }
+        return;
       }
-      return;
-    }
 
-    const confirmPayment = window.confirm(
-      `Bạn có chắc chắn muốn thanh toán ${formatPrice(order.totalAmount)} cho đơn hàng này?`
-    );
-    
-    if (!confirmPayment) return;
+      const confirmPayment = window.confirm(
+        `Bạn có chắc chắn muốn thanh toán ${formatPrice(order.totalAmount)} cho đơn hàng này bằng Ví Reflow?`
+      );
+      
+      if (!confirmPayment) return;
 
-    setPaymentLoading(true);
-    
-    try {
-      await payOrder(id);
-      alert('Thanh toán thành công! Tiền đã được chuyển vào ký quỹ và sẽ được chuyển cho người bán khi bạn xác nhận đã nhận hàng.');
-      navigate('/orders');
-    } catch (err) {
-      alert(err.message || 'Không thể thực hiện thanh toán');
-    } finally {
-      setPaymentLoading(false);
+      setPaymentLoading(true);
+      try {
+        await payOrder(id);
+        alert('Thanh toán thành công! Tiền đã được chuyển vào ký quỹ và sẽ được chuyển cho người bán khi bạn xác nhận đã nhận hàng.');
+        navigate('/orders');
+      } catch (err) {
+        alert(err.message || 'Không thể thực hiện thanh toán');
+      } finally {
+        setPaymentLoading(false);
+      }
+    } else if (paymentMethod === 'sepay') {
+      setPaymentLoading(true);
+      try {
+        const response = await sePayService.createOrderPayment(id, {
+          amount: order.totalAmount,
+          orderInfo: `Thanh toan don hang ${order.orderCode || id.slice(-8)}`
+        });
+        
+        if (response.checkoutUrl && response.fields) {
+          // SEPay requires a POST form submission (not GET redirect)
+          postToSepay(response.checkoutUrl, response.fields);
+        } else {
+          throw new Error('Khong nhan duoc thong tin thanh toan tu SePay');
+        }
+      } catch (err) {
+        alert(err.message || 'Loi khi tao giao dich thanh toan qua SePay');
+        setPaymentLoading(false);
+      }
     }
   };
 
@@ -234,25 +261,62 @@ const OrderPayment = () => {
             </div>
           </div>
 
-          <div className="wallet-info">
-            <h4>Thông tin ví</h4>
-            <div className="balance-info">
-              <span className="label">Số dư hiện tại:</span>
-              <span className={`balance ${isInsufficientBalance ? 'insufficient' : 'sufficient'}`}>
-                {formatPrice(balance)}
-              </span>
+          <div className="payment-method-selection" style={{ marginTop: '20px' }}>
+            <h4>Chọn phương thức thanh toán</h4>
+            <div className="method-options" style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input 
+                  type="radio" 
+                  name="paymentMethod" 
+                  value="sepay" 
+                  checked={paymentMethod === 'sepay'}
+                  onChange={() => setPaymentMethod('sepay')}
+                />
+                Chuyển khoản QR (SEPay)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input 
+                  type="radio" 
+                  name="paymentMethod" 
+                  value="wallet" 
+                  checked={paymentMethod === 'wallet'}
+                  onChange={() => setPaymentMethod('wallet')}
+                />
+                Số dư ví Reflow
+              </label>
             </div>
+          </div>
+
+          <div className="wallet-info" style={{ marginTop: '20px' }}>
+            {paymentMethod === 'wallet' && (
+              <>
+                <h4>Thông tin ví</h4>
+                <div className="balance-info">
+                  <span className="label">Số dư hiện tại:</span>
+                  <span className={`balance ${isInsufficientBalance ? 'insufficient' : 'sufficient'}`}>
+                    {formatPrice(balance)}
+                  </span>
+                </div>
+                
+                {isInsufficientBalance && (
+                  <div className="insufficient-notice">
+                    <i className="fas fa-exclamation-triangle"></i>
+                    Số dư không đủ để thanh toán. Cần nạp thêm {formatPrice(order.totalAmount - balance)}
+                  </div>
+                )}
+              </>
+            )}
             
-            {isInsufficientBalance && (
-              <div className="insufficient-notice">
-                <i className="fas fa-exclamation-triangle"></i>
-                Số dư không đủ để thanh toán. Cần nạp thêm {formatPrice(order.totalAmount - balance)}
+            {paymentMethod === 'sepay' && (
+              <div className="sepay-info" style={{ padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', color: '#0369a1' }}>
+                <i className="fas fa-info-circle" style={{ marginRight: '8px' }}></i>
+                Hệ thống sẽ chuyển bạn đến trang thanh toán an toàn của SePay để quét mã QR ngân hàng. Đơn hàng sẽ tự động cập nhật ngay khi bạn chuyển khoản xong.
               </div>
             )}
           </div>
 
-          <div className="payment-actions">
-            {isInsufficientBalance ? (
+          <div className="payment-actions" style={{ marginTop: '20px' }}>
+            {paymentMethod === 'wallet' && isInsufficientBalance ? (
               <>
                 <button 
                   onClick={() => navigate('/wallet/topup')}
@@ -287,10 +351,15 @@ const OrderPayment = () => {
                       <i className="fas fa-spinner fa-spin"></i>
                       Đang xử lý...
                     </>
+                  ) : paymentMethod === 'sepay' ? (
+                    <>
+                      <i className="fas fa-qrcode"></i>
+                      Quét mã QR thanh toán
+                    </>
                   ) : (
                     <>
                       <i className="fas fa-credit-card"></i>
-                      Thanh toán ngay
+                      Thanh toán bằng Ví
                     </>
                   )}
                 </button>

@@ -26,6 +26,7 @@ import Withdrawal from '../modules/wallet/Withdrawal';
 
 import PurchaseRequests from '../modules/order/PurchaseRequests';
 import OrderPayment from '../modules/order/OrderPayment';
+import SEPayOrderSuccess from '../modules/order/SEPayOrderSuccess';
 import Orders from '../modules/order/Orders';
 import OrderDetail from '../modules/order/OrderDetail';
 import SellerOrders from '../modules/order/SellerOrders';
@@ -143,6 +144,8 @@ function AppRoutes() {
       <Route path="/purchase-requests" element={<RoleLockedRoute requireAuth><PurchaseRequests /></RoleLockedRoute>} />
       <Route path="/seller-orders" element={<RoleLockedRoute requireAuth><SellerOrders /></RoleLockedRoute>} />
       <Route path="/orders/:id/pay" element={<RoleLockedRoute requireAuth><OrderPayment /></RoleLockedRoute>} />
+      <Route path="/orders/sepay-success" element={<RoleLockedRoute requireAuth><SEPayOrderSuccess /></RoleLockedRoute>} />
+      <Route path="/orders/sepay-result" element={<RoleLockedRoute requireAuth><SEPayOrderSuccess /></RoleLockedRoute>} />
       <Route path="/orders/:id" element={<RoleLockedRoute requireAuth><OrderDetail /></RoleLockedRoute>} />
       <Route path="/order-detail/:id" element={<RoleLockedRoute requireAuth><OrderDetail /></RoleLockedRoute>} />
       <Route path="/orders" element={<RoleLockedRoute requireAuth><Orders /></RoleLockedRoute>} />

@@ -83,7 +83,7 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
       throw new Error('Vui lòng cập nhật số điện thoại và địa chỉ trước khi mua hàng');
     }
 
-    const isQuickBuy = message.trim() === 'Mua ngay';
+    const isQuickBuy = message.trim() === 'Mua ngay' || message.includes('mua ngay');
     
     // For quick buy, bypass pending request check and create order directly
     if (isQuickBuy) {
@@ -99,8 +99,11 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
         agreedAmount: agreedPrice,
         platformFee: platformFee,
         totalToPay: totalToPay,
-        status: 'awaiting_seller_confirmation',
+        status: 'awaiting_payment',
         paymentStatus: 'unpaid',
+        confirmedBySeller: true,
+        confirmedBySellerAt: new Date(),
+        paymentDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
         shippingRecipientName: String(buyer.fullName || '').trim(),
         shippingPhone: buyerPhone,
         shippingAddress: buyerAddress
@@ -356,6 +359,7 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       confirmedBySeller: skipSellerConfirmation,
       confirmedBySellerAt: skipSellerConfirmation ? new Date() : null,
       paymentStatus: 'unpaid',
+      paymentDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       shippingRecipientName: String(buyer.fullName || '').trim(),
       shippingPhone: buyerPhone,
       shippingAddress: buyerAddress
@@ -1128,6 +1132,7 @@ module.exports = {
   confirmOrderBySeller,
   payOrder,
   confirmShipment,
+  confirmDelivery,
   confirmReceipt,
   getAllOrders,     
   forceCancelOrder  
@@ -1288,8 +1293,50 @@ async function confirmShipment(orderId, sellerId, shipmentData = {}) {
 }
 
 /**
- * Confirm receipt (buyer action) - releases funds to seller
+ * Confirm delivery (seller action) — shipper/seller đã giao đến tay người mua
+ * shipped → delivered
  */
+async function confirmDelivery(orderId, sellerId) {
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw new Error('Đơn hàng không tồn tại');
+  }
+
+  if (order.sellerId.toString() !== sellerId.toString()) {
+    throw new Error('Bạn không có quyền xác nhận giao hàng cho đơn hàng này');
+  }
+
+  if (order.status !== 'shipped') {
+    throw new Error('Đơn hàng chưa được xác nhận giao đi (phải ở trạng thái "Đang giao hàng")');
+  }
+
+  order.status = 'delivered';
+  order.deliveredAt = new Date();
+  await order.save();
+
+  await order.populate([
+    { path: 'buyerId', select: 'fullName email avatar' },
+    { path: 'sellerId', select: 'fullName email avatar' },
+    { path: 'productId', select: 'title price images' }
+  ]);
+
+  try {
+    await notificationService.createNotification(order.buyerId._id, {
+      type: 'order_shipped',
+      orderId: order._id,
+      senderId: sellerId,
+      title: 'Đơn hàng đã được giao đến nơi',
+      message: 'Người bán xác nhận đơn hàng đã giao đến nơi. Vui lòng xác nhận nhận hàng trong 5 ngày.'
+    });
+  } catch (notificationError) {
+    console.error('Error sending delivered notification:', notificationError);
+  }
+
+  return order;
+}
+
+
 async function confirmReceipt(orderId, buyerId) {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1307,9 +1354,9 @@ async function confirmReceipt(orderId, buyerId) {
       throw new Error('Bạn không có quyền xác nhận nhận hàng cho đơn hàng này');
     }
     
-    // Check order status
-    if (order.status !== 'shipped') {
-      throw new Error('Đơn hàng chưa được giao');
+    // Check order status — must be 'delivered' (seller đã xác nhận giao đến nơi)
+    if (order.status !== 'delivered') {
+      throw new Error('Đơn hàng chưa được người bán xác nhận giao đến nơi');
     }
     
     // Import escrow service

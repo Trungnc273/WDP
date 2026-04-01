@@ -99,6 +99,12 @@
   border: 1px solid #c7c8ff;
 }
 
+.status-delivered {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
 .status-completed {
   background-color: #d4edda;
   color: #155724;

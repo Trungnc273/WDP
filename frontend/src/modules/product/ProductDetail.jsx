@@ -191,16 +191,23 @@ const ProductDetail = () => {
     }
   };
 
-  const handlePurchaseSuccess = (_response, meta = {}) => {
+  const handlePurchaseSuccess = (response, meta = {}) => {
     setShowPurchaseRequest(false);
-    const shouldShowQuickBuySuccess = Boolean(meta?.isQuickBuy);
+    setIsQuickBuy(false);
 
-    if (shouldShowQuickBuySuccess) {
-      setShowPurchaseSuccessModal(true);
+    if (meta?.isQuickBuy) {
+      // Sau khi tạo đơn mua ngay thành công, chuyển đến trang đơn hàng để thanh toán QR
+      // The backend returns the order document directly in response.data for a quick buy
+      const orderId = response?.data?._id || response?.data?.order?._id || response?.data?.orderId || response?.orderId || response?.order?._id || response?._id;
+      
+      if (orderId) {
+        navigate(`/orders/${orderId}/pay`);
+      } else {
+        navigate('/orders/buying');
+      }
       return;
     }
 
-    setIsQuickBuy(false);
     alert('Gửi yêu cầu mua hàng thành công! Người bán sẽ xem xét và phản hồi sớm.');
   };
 

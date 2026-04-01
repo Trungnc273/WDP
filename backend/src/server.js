@@ -6,11 +6,15 @@ const { Server } = require("socket.io");
 const app = require("./app");
 const connectDB = require("./config/db"); // Ket noi den co so du lieu
 const { initializeChatSocket } = require("./modules/chat/chat.socket");
+const { startAllCronJobs } = require("./services/cron.service");
 
 const PORT = process.env.PORT || 5000;
 
 // Ket noi co so du lieu
-connectDB();
+connectDB().then(() => {
+  // Start cron jobs after DB is connected
+  startAllCronJobs();
+});
 
 const server = http.createServer(app);
 

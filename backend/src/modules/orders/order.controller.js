@@ -328,6 +328,30 @@ async function confirmReceipt(req, res) {
     return sendError(res, 400, error.message);
   }
 }
+
+/**
+ * Seller xác nhận đã giao hàng đến nơi
+ * POST /api/orders/:orderId/deliver
+ */
+async function confirmDelivery(req, res) {
+  try {
+    const { orderId } = req.params;
+    const sellerId = req.user.userId;
+
+    if (!orderId) {
+      return sendError(res, 400, 'ID đơn hàng không hợp lệ');
+    }
+
+    const order = await orderService.confirmDelivery(orderId, sellerId);
+    return sendSuccess(res, 200, order, 'Xác nhận giao hàng đến nơi thành công');
+  } catch (error) {
+    console.error('Confirm delivery error:', error);
+    if (error.message.includes('không tồn tại') || error.message.includes('không có quyền')) {
+      return sendError(res, 403, error.message);
+    }
+    return sendError(res, 400, error.message);
+  }
+}
 /**
  * Lấy danh sách toàn bộ đơn hàng (Dành cho Moderator/Admin)
  * GET /api/orders/moderator/all
@@ -400,6 +424,7 @@ module.exports = {
   rejectPurchaseRequest,
   payOrder,
   confirmShipment,
+  confirmDelivery,
   confirmReceipt,
   getOrdersAsBuyer,
   getOrdersAsSeller,
