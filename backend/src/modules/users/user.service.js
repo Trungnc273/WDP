@@ -5,17 +5,11 @@ const Order = require('../orders/order.model');
 const PurchaseRequest = require('../orders/purchase-request.model');
 
 const PHONE_REGEX = /^0\d{9,10}$/;
-const ACTIVE_ORDER_STATUSES = [
-  'awaiting_seller_confirmation',
-  'awaiting_payment',
-  'paid',
-  'shipped',
-  'disputed'
-];
+const ORDER_TERMINAL_STATUSES = ['completed', 'cancelled'];
 
 async function hasActiveOrdersForUser(userId) {
   return Order.exists({
-    status: { $in: ACTIVE_ORDER_STATUSES },
+    status: { $nin: ORDER_TERMINAL_STATUSES },
     $or: [
       { buyerId: userId },
       { sellerId: userId }

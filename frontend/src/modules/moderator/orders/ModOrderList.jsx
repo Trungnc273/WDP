@@ -61,6 +61,8 @@ const ModOrderList = () => {
 
   // Map trạng thái backend sang màu hiển thị ở UI.
   const STATUS_COLOR = {
+    pending: "gold",
+    delivered: "processing",
     awaiting_seller_confirmation: "blue",
     awaiting_payment: "gold",
     paid: "cyan",
@@ -72,6 +74,8 @@ const ModOrderList = () => {
 
   // Map trạng thái backend sang nhãn tiếng Việt cho bảng moderator.
   const STATUS_LABEL = {
+    pending: "Chờ thanh toán",
+    delivered: "Đã giao hàng",
     awaiting_seller_confirmation: "Chờ xác nhận",
     awaiting_payment: "Chờ thanh toán",
     paid: "Đã thanh toán",

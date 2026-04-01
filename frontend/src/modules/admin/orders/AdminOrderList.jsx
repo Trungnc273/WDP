@@ -71,6 +71,8 @@ const AdminOrderList = () => {
   }, [filters.status]);
 
   const STATUS_LABEL = {
+    pending: 'Chờ thanh toán',
+    delivered: 'Đã giao hàng',
     awaiting_seller_confirmation: 'Chờ xác nhận',
     awaiting_payment: 'Chờ thanh toán',
     paid: 'Đã thanh toán',
@@ -212,7 +214,7 @@ const AdminOrderList = () => {
                         </td>
                         <td>
                           <span className={`status status-${order.status}`}>
-                            {STATUS_LABEL[order.status] || order.status}
+                            {STATUS_LABEL[order.status] || 'Không xác định'}
                           </span>
                         </td>
                         <td>

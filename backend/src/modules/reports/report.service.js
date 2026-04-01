@@ -8,17 +8,11 @@ const notificationService = require('../notifications/notification.service');
 // Nguong canh bao de xu ly manh tay voi bai dang.
 const PRODUCT_WARN_THRESHOLD = 3;
 const USER_AUTO_SUSPEND_REPORT_THRESHOLD = 3;
-const ACTIVE_ORDER_STATUSES = [
-  'awaiting_seller_confirmation',
-  'awaiting_payment',
-  'paid',
-  'shipped',
-  'disputed'
-];
+const ORDER_TERMINAL_STATUSES = ['completed', 'cancelled'];
 
 async function hasActiveOrdersForUser(userId) {
   return Order.exists({
-    status: { $in: ACTIVE_ORDER_STATUSES },
+    status: { $nin: ORDER_TERMINAL_STATUSES },
     $or: [
       { buyerId: userId },
       { sellerId: userId }
@@ -686,6 +680,9 @@ async function resolveReport(
     // Khoa tai khoan truc tiep.
     const user = await User.findById(report.reportedUserId);
     if (user) {
+      if (user.role === 'admin') {
+        throw new Error('Không thể khóa tài khoản admin');
+      }
       const hasActiveOrders = await hasActiveOrdersForUser(user._id);
       if (hasActiveOrders) {
         throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');

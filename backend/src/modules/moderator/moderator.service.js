@@ -15,17 +15,24 @@ const EscrowHold = require("../payments/escrow-hold.model");
 const walletService = require("../payments/wallet.service");
 const notificationService = require("../notifications/notification.service");
 
-const ACTIVE_ORDER_STATUSES = [
-  "awaiting_seller_confirmation",
-  "awaiting_payment",
-  "paid",
-  "shipped",
-  "disputed"
-];
+const ORDER_TERMINAL_STATUSES = ["completed", "cancelled"];
+
+function normalizeOrderStatus(status, confirmedBySeller = false) {
+  if (status === "pending") {
+    return confirmedBySeller ? "awaiting_payment" : "awaiting_seller_confirmation";
+  }
+
+  // Legacy status: don da giao thanh cong nhung chua dong bo voi flow moi.
+  if (status === "delivered") {
+    return "shipped";
+  }
+
+  return status;
+}
 
 async function hasActiveOrdersForUser(userId) {
   return Order.exists({
-    status: { $in: ACTIVE_ORDER_STATUSES },
+    status: { $nin: ORDER_TERMINAL_STATUSES },
     $or: [{ buyerId: userId }, { sellerId: userId }]
   });
 }
@@ -33,8 +40,10 @@ async function hasActiveOrdersForUser(userId) {
 // Luồng trạng thái đơn hàng cho moderator: chỉ đi tới trước, không cho quay ngược.
 const MODERATOR_ORDER_TRANSITIONS = {
   awaiting_seller_confirmation: ["cancelled"],
+  pending: ["cancelled"],
   awaiting_payment: ["cancelled"],
   paid: ["shipped", "disputed", "cancelled"],
+  delivered: ["completed", "disputed"],
   shipped: ["completed", "disputed"],
   disputed: ["completed", "cancelled"],
   completed: [],
@@ -384,6 +393,9 @@ async function getRevenueReport(filters = {}) {
 async function banUser(userId, suspendedReason = "") {
   const user = await User.findById(userId);
   if (!user) throw new Error("Người dùng không tồn tại");
+  if (user.role === "admin") {
+    throw new Error("Không thể khóa tài khoản admin");
+  }
 
   const hasActiveOrders = await hasActiveOrdersForUser(userId);
   if (hasActiveOrders) {
@@ -467,7 +479,13 @@ async function resolveReport(reportId, moderatorId, payload) {
 
 async function getOrders(filters = {}, pagination = {}) {
   const query = {};
-  if (filters.status) query.status = filters.status;
+  if (filters.status === "awaiting_payment") {
+    query.status = { $in: ["awaiting_payment", "pending"] };
+  } else if (filters.status === "shipped") {
+    query.status = { $in: ["shipped", "delivered"] };
+  } else if (filters.status) {
+    query.status = filters.status;
+  }
 
   const keywordRegex = buildRegexKeyword(filters.keyword);
   const { page, limit, skip } = parsePagination(pagination);
@@ -495,9 +513,14 @@ async function getOrders(filters = {}, pagination = {}) {
     });
   }
 
+  const normalizedOrders = orders.map((order) => ({
+    ...order,
+    status: normalizeOrderStatus(order.status, order.confirmedBySeller)
+  }));
+
   const total = await Order.countDocuments(query);
   return {
-    orders,
+    orders: normalizedOrders,
     pagination: {
       page,
       limit,
@@ -518,9 +541,12 @@ async function getOrderById(orderId) {
     throw new Error("Đơn hàng không tồn tại");
   }
 
+  const normalizedStatus = normalizeOrderStatus(order.status, order.confirmedBySeller);
+
   return {
     ...order.toObject(),
-    allowedNextStatuses: getAllowedNextStatuses(order.status)
+    status: normalizedStatus,
+    allowedNextStatuses: getAllowedNextStatuses(normalizedStatus)
   };
 }
 
@@ -535,10 +561,11 @@ async function updateOrderStatusByModerator(orderId, nextStatus, moderatorId, no
     throw new Error("Đơn hàng không tồn tại");
   }
 
-  const allowedNextStatuses = getAllowedNextStatuses(order.status);
+  const currentStatus = normalizeOrderStatus(order.status, order.confirmedBySeller);
+  const allowedNextStatuses = getAllowedNextStatuses(currentStatus);
   if (!allowedNextStatuses.includes(nextStatus)) {
     throw new Error(
-      `Không thể chuyển từ ${order.status} sang ${nextStatus}. Trạng thái hợp lệ tiếp theo: ${allowedNextStatuses.join(", ") || "không có"}`
+      `Không thể chuyển từ ${currentStatus} sang ${nextStatus}. Trạng thái hợp lệ tiếp theo: ${allowedNextStatuses.join(", ") || "không có"}`
     );
   }
 

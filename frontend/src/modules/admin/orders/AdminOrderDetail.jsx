@@ -33,6 +33,9 @@ const AdminOrderDetail = () => {
   };
 
   const STATUS_LABEL = {
+    pending: 'Chờ thanh toán',
+    delivered: 'Đã giao hàng',
+    awaiting_seller_confirmation: 'Chờ xác nhận',
     awaiting_payment: 'Chờ thanh toán',
     paid: 'Đã thanh toán',
     shipped: 'Đang giao',
@@ -149,7 +152,7 @@ const AdminOrderDetail = () => {
               {/* KHUNG TRẠNG THÁI VÀ SỐ TIỀN (HIGHLIGHT BOX) */}
               <div className="receipt-row"><label>TRẠNG THÁI:</label></div>
               <div className="status-highlight-box">
-                <span className="status-text">{STATUS_LABEL[order.status]}</span>
+                <span className="status-text">{STATUS_LABEL[order.status] || 'Không xác định'}</span>
                 <span className="amount-text">{formatCurrency(order.totalToPay)}</span>
               </div>
 

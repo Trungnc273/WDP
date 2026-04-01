@@ -35,6 +35,9 @@ const ModOrderDetail = () => {
   };
 
   const STATUS_LABEL = {
+    pending: "Chờ thanh toán",
+    delivered: "Đã giao hàng",
+    awaiting_seller_confirmation: "Chờ xác nhận",
     awaiting_payment: "Chờ thanh toán",
     paid: "Đã thanh toán",
     shipped: "Đang giao",
@@ -129,7 +132,18 @@ const ModOrderDetail = () => {
           <Descriptions.Item label="Ngày tạo đơn">{formatDateTime(order?.createdAt)}</Descriptions.Item>
           <Descriptions.Item label="Ngày giao hàng">{formatDateTime(order?.shippedAt)}</Descriptions.Item>
           <Descriptions.Item label="Trạng thái hiện tại">
-            <Tag className="mod-status-pill" color={order?.status === "completed" ? "green" : "processing"}>
+            <Tag
+              className="mod-status-pill"
+              color={
+                order?.status === "completed"
+                  ? "green"
+                  : order?.status === "cancelled"
+                    ? "red"
+                    : order?.status === "disputed"
+                      ? "orange"
+                      : "processing"
+              }
+            >
               {STATUS_LABEL[order?.status] || "N/A"}
             </Tag>
           </Descriptions.Item>
