@@ -161,7 +161,19 @@ export const confirmOrderBySeller = async (orderId) => {
   }
 };
 
-export default {
+/**
+ * Confirm delivery (seller action - shipped → delivered)
+ */
+export const confirmDelivery = async (orderId) => {
+  try {
+    const response = await api.post(`/orders/${orderId}/deliver`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+const orderService = {
   createPurchaseRequest,
   createSellerOfferFromChat,
   getSentPurchaseRequests,
@@ -170,9 +182,12 @@ export default {
   rejectPurchaseRequest,
   payOrder,
   confirmShipment,
+  confirmDelivery,
   confirmReceipt,
   getOrdersAsBuyer,
   getOrdersAsSeller,
   getOrderById,
   confirmOrderBySeller
 };
+
+export default orderService;

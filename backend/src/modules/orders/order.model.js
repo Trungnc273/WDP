@@ -82,7 +82,7 @@ const orderSchema = new mongoose.Schema({
   // Order status
   status: {
     type: String,
-    enum: ['awaiting_seller_confirmation', 'awaiting_payment', 'paid', 'shipped', 'completed', 'cancelled', 'disputed'],
+    enum: ['awaiting_seller_confirmation', 'awaiting_payment', 'paid', 'shipped', 'delivered', 'completed', 'cancelled', 'disputed'],
     default: 'awaiting_seller_confirmation'
   },
   
@@ -117,6 +117,16 @@ const orderSchema = new mongoose.Schema({
   },
   
   cancelledAt: {
+    type: Date
+  },
+  
+  // Delivered timestamp (seller marks as delivered)
+  deliveredAt: {
+    type: Date
+  },
+
+  // Payment deadline (createdAt + 10 min, used by auto-cancel cron)
+  paymentDeadline: {
     type: Date
   },
   
@@ -166,7 +176,9 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ buyerId: 1, status: 1 });
 orderSchema.index({ sellerId: 1, status: 1 });
 orderSchema.index({ createdAt: -1 });
-orderSchema.index({ status: 1, shippedAt: 1 }); // For auto-release cron job
+orderSchema.index({ status: 1, shippedAt: 1 });   // For shipped queries
+orderSchema.index({ status: 1, deliveredAt: 1 }); // For auto-complete cron job
+orderSchema.index({ status: 1, paymentDeadline: 1 }); // For auto-cancel cron job
 
 orderSchema.pre('validate', async function(next) {
   if (this.orderCode) {
@@ -197,7 +209,7 @@ orderSchema.virtual('canBeShipped').get(function() {
 
 // Virtual for checking if order can be completed
 orderSchema.virtual('canBeCompleted').get(function() {
-  return this.status === 'shipped';
+  return this.status === 'delivered';
 });
 
 // Virtual for checking if order is eligible for auto-release

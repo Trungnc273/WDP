@@ -75,6 +75,10 @@ router.patch('/:id/confirm', orderController.confirmOrderBySeller);
 // POST /api/orders/:orderId/ship
 router.post('/:orderId/ship', orderController.confirmShipment);
 
+// Confirm delivery (seller) — hàng đã giao đến tay người mua
+// POST /api/orders/:orderId/deliver
+router.post('/:orderId/deliver', orderController.confirmDelivery);
+
 // Confirm receipt (buyer)
 // POST /api/orders/:orderId/confirm-receipt
 router.post('/:orderId/confirm-receipt', orderController.confirmReceipt);

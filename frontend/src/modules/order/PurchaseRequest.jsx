@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPurchaseRequest } from '../../services/order.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import './PurchaseRequest.css';
@@ -8,6 +8,16 @@ const PurchaseRequest = ({ product, onClose, onSuccess, isQuickBuy = false }) =>
     message: isQuickBuy ? 'Mua ngay' : '',
     agreedPrice: product?.price || 0
   });
+
+  useEffect(() => {
+    if (isQuickBuy && product) {
+      setFormData({
+        message: 'Mua ngay',
+        agreedPrice: product.price
+      });
+    }
+  }, [isQuickBuy, product]);
+
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -119,18 +129,13 @@ const PurchaseRequest = ({ product, onClose, onSuccess, isQuickBuy = false }) =>
         </div>
 
         <div className="price-summary">
-          <div className="price-row">
-            <span className="price-label">Giá sản phẩm:</span>
+          <div className="price-row total">
+            <span className="price-label">Tổng tiền thanh toán:</span>
             <span className="price-value">{formatPrice(product?.price)} VND</span>
           </div>
-          <div className="price-row">
-            <span className="price-label">Hoa hồng nền tảng (5%):</span>
-            <span className="price-value">{formatPrice(Math.round(product?.price * 0.05))} VND</span>
-          </div>
-          <div className="price-row total">
-            <span className="price-label">Tổng tiền:</span>
-            <span className="price-value">{formatPrice(Math.round(product?.price * 1.05))} VND</span>
-          </div>
+          <p style={{ fontSize: '12px', color: '#888', margin: '6px 0 0 0' }}>
+            * Phí dịch vụ 5% đã được tính vào phần người bán nhận
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="purchase-request-form">

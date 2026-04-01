@@ -36,7 +36,8 @@ const Orders = () => {
     'awaiting_payment': 'Chờ thanh toán',
     'pending': 'Chờ thanh toán',
     'paid': 'Đã thanh toán',
-    'shipped': 'Đã giao hàng',
+    'shipped': 'Đang giao hàng',
+    'delivered': 'Đã giao đến nơi',
     'completed': 'Hoàn thành',
     'cancelled': 'Đã hủy',
     'disputed': 'Tranh chấp'
@@ -48,6 +49,7 @@ const Orders = () => {
     'pending': 'status-pending',
     'paid': 'status-paid',
     'shipped': 'status-shipped',
+    'delivered': 'status-delivered', // matching OrderDetail.jsx
     'completed': 'status-completed',
     'cancelled': 'status-cancelled',
     'disputed': 'status-disputed'
@@ -200,6 +202,7 @@ const Orders = () => {
     
     if (isBuyer) {
       switch (order.status) {
+        case 'awaiting_payment':
         case 'pending':
           return (
             <button 
@@ -213,7 +216,7 @@ const Orders = () => {
               Thanh toán
             </button>
           );
-        case 'shipped':
+        case 'delivered':
           return (
             <>
               <button 
@@ -299,6 +302,18 @@ const Orders = () => {
                   }}
                 >
                   Xác nhận giao hàng
+                </button>
+              );
+        case 'shipped':
+              return (
+                <button 
+                  className="btn btn-info btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/orders/${order._id}`);
+                  }}
+                >
+                  Xác nhận giao đến nơi
                 </button>
               );
         case 'disputed':

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import vnpayService from '../../services/vnpay.service';
+import sePayService from '../../services/sepay.service';
 import './TopUp.css';
 
 const TopUp = () => {
@@ -18,12 +18,10 @@ const TopUp = () => {
     50000, 100000, 200000, 500000, 1000000, 2000000
   ];
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-  }, [user, navigate]);
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
 
   const handleAmountChange = (e) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
@@ -75,13 +73,27 @@ const TopUp = () => {
         orderInfo: orderInfo?.trim() || `Nạp ${normalizedAmount.toLocaleString('vi-VN')} VNĐ vào ví`
       };
 
-      const result = await vnpayService.createPayment(paymentData);
-      
-      // Chuyen huong sang trang thanh toan VNPay
-      window.location.href = result.paymentUrl;
+      // Gọi backend lấy thông tin form thanh toán SePay
+      const result = await sePayService.createPayment(paymentData);
+      const { checkoutUrl, fields } = result;
+
+      // Tạo form ẩn và POST sang trang thanh toán SePay
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = checkoutUrl;
+
+      Object.entries(fields).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
     } catch (error) {
       alert(error.message || 'Không thể tạo thanh toán. Vui lòng thử lại.');
-    } finally {
       setLoading(false);
     }
   };
@@ -182,8 +194,8 @@ const TopUp = () => {
             <div className="payment-method">
               <div className="method-card active">
                 <img
-                  src="/images/vnpay-logo.png"
-                  alt="VNPay"
+                  src="/images/sepay-logo.png"
+                  alt="SePay"
                   className="method-logo"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -191,8 +203,8 @@ const TopUp = () => {
                   }}
                 />
                 <div className="method-info">
-                  <h4>VNPay</h4>
-                  <p>Thanh toán qua ngân hàng, ví điện tử</p>
+                  <h4>SePay</h4>
+                  <p>Chuyển khoản ngân hàng qua mã QR</p>
                 </div>
                 <div className="method-check">✓</div>
               </div>

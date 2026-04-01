@@ -320,9 +320,9 @@ async function createDispute(buyerId, orderId, reason, description, evidenceImag
     throw new Error('Bạn không phải người mua của đơn hàng này');
   }
   
-  // Chi cho tranh chap khi don dang o trang thai da giao.
-  if (order.status !== 'shipped') {
-    throw new Error('Chỉ có thể khiếu nại đơn hàng đã được giao');
+  // Chi cho tranh chap khi don dang o trang thai da giao (shipped hoac delivered)
+  if (!['shipped', 'delivered'].includes(order.status)) {
+    throw new Error('Chỉ có thể khiếu nại đơn hàng đang giao hoặc đã giao đến nơi');
   }
   
   // Moi don chi duoc tao 1 tranh chap.
@@ -735,7 +735,7 @@ async function getDisputeByOrderId(orderId, userId) {
     .populate('moderatorId', 'fullName email');
 
   if (!dispute) {
-    throw new Error('Không tìm thấy khiếu nại cho đơn hàng này');
+    return null;
   }
 
   if (userId) {
