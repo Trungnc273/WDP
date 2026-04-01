@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const AdminHeader = ({ onToggleSidebar }) => {
   const { user, logout } = useAuth();
@@ -28,11 +28,6 @@ const AdminHeader = ({ onToggleSidebar }) => {
       </div>
 
       <div className="admin-header__right">
-        <button className="admin-header__notification">
-          <i className="fas fa-bell"></i>
-          <span className="admin-header__notification-badge">3</span>
-        </button>
-
         <div className="admin-header__user">
           <button 
             className="admin-header__user-btn"

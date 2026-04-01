@@ -1,5 +1,91 @@
 import api from './api';
 
+const MAX_EVIDENCE_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_VIDEO_DURATION_SECONDS = 180; // 3 minutes
+const ALLOWED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png']);
+const ALLOWED_VIDEO_EXTENSIONS = new Set(['mp4']);
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png']);
+const ALLOWED_VIDEO_MIME_TYPES = new Set(['video/mp4']);
+
+const getFileExtension = (filename = '') => {
+  const parts = String(filename).toLowerCase().split('.');
+  return parts.length > 1 ? parts.pop() : '';
+};
+
+const getVideoMetadata = (file) =>
+  new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({
+        duration: Number(video.duration || 0),
+        width: Number(video.videoWidth || 0),
+        height: Number(video.videoHeight || 0)
+      });
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error(`Không thể đọc metadata video: ${file.name}`));
+    };
+
+    video.src = objectUrl;
+  });
+
+const validateEvidenceFiles = async (files = []) => {
+  if (!files.length) return;
+
+  for (const file of files) {
+    const ext = getFileExtension(file?.name);
+    const mimeType = String(file?.type || '').toLowerCase();
+
+    if (!file || !file.name) {
+      throw new Error('Có tệp không hợp lệ. Vui lòng chọn lại tệp bằng chứng.');
+    }
+
+    if (Number(file.size || 0) > MAX_EVIDENCE_FILE_SIZE) {
+      throw new Error(`Tệp ${file.name} vượt quá 100MB.`);
+    }
+
+    const isImage = ALLOWED_IMAGE_EXTENSIONS.has(ext);
+    const isVideo = ALLOWED_VIDEO_EXTENSIONS.has(ext);
+
+    if (!isImage && !isVideo) {
+      throw new Error(`Tệp ${file.name} không đúng định dạng. Chỉ chấp nhận PNG, JPG/JPEG hoặc MP4.`);
+    }
+
+    if (isImage && mimeType && !ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+      throw new Error(`Tệp ảnh ${file.name} không hợp lệ. Chỉ chấp nhận PNG, JPG/JPEG.`);
+    }
+
+    if (isVideo) {
+      if (mimeType && !ALLOWED_VIDEO_MIME_TYPES.has(mimeType)) {
+        throw new Error(`Video ${file.name} không hợp lệ. Chỉ chấp nhận MP4 (H.264).`);
+      }
+
+      const metadata = await getVideoMetadata(file);
+      if (!metadata.duration || !metadata.width || !metadata.height) {
+        throw new Error(`Không đọc được thông tin video ${file.name}. Vui lòng chọn video MP4 khác.`);
+      }
+
+      if (metadata.duration > MAX_VIDEO_DURATION_SECONDS) {
+        throw new Error(`Video ${file.name} dài quá 3 phút.`);
+      }
+
+      const shortEdge = Math.min(metadata.width, metadata.height);
+      const longEdge = Math.max(metadata.width, metadata.height);
+      const resolutionValid =
+        shortEdge >= 720 && shortEdge <= 1080 && longEdge >= 1280 && longEdge <= 1920;
+
+      if (!resolutionValid) {
+        throw new Error(`Video ${file.name} phải ở chuẩn 720p-1080p.`);
+      }
+    }
+  }
+};
+
 /**
  * Service báo cáo và tranh chấp
  * Xử lý các API liên quan đến báo cáo vi phạm và tranh chấp đơn hàng
@@ -136,6 +222,8 @@ export const confirmSellerReturn = async (disputeId) => {
  */
 export const uploadEvidenceMedia = async (files = []) => {
   if (!files.length) return [];
+
+  await validateEvidenceFiles(files);
 
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));

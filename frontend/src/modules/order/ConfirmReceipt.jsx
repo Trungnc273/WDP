@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { confirmReceipt } from '../../services/order.service';
 import { createReview } from '../../services/review.service';
+import { uploadEvidenceMedia } from '../../services/report.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import './ConfirmReceipt.css';
 
@@ -20,6 +21,8 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
     satisfied: true
   });
   const [selectedHighlights, setSelectedHighlights] = useState([]);
+  const [reviewEvidenceFiles, setReviewEvidenceFiles] = useState([]);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -102,6 +105,42 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const isVideoEvidence = (url = '') => /\.(mp4)$/i.test(url);
+
+  const handleReviewEvidenceUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const remainingSlots = Math.max(0, 5 - reviewEvidenceFiles.length);
+    if (remainingSlots <= 0) {
+      setErrors((prev) => ({
+        ...prev,
+        evidence: 'Tối đa 5 tệp bằng chứng cho mỗi đánh giá'
+      }));
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingEvidence(true);
+    setErrors((prev) => ({ ...prev, evidence: '' }));
+    try {
+      const uploadedPaths = await uploadEvidenceMedia(files.slice(0, remainingSlots));
+      setReviewEvidenceFiles((prev) => [...prev, ...uploadedPaths].slice(0, 5));
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        evidence: error.message || 'Không thể upload bằng chứng đánh giá'
+      }));
+    } finally {
+      setUploadingEvidence(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeReviewEvidence = (index) => {
+    setReviewEvidenceFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -124,7 +163,7 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
       let reviewError = '';
 
       try {
-        await createReview(order._id, formData.rating, buildReviewComment());
+        await createReview(order._id, formData.rating, buildReviewComment(), reviewEvidenceFiles);
         reviewCreated = true;
       } catch (reviewSubmitError) {
         reviewError = reviewSubmitError.response?.data?.message || reviewSubmitError.message || 'Không thể gửi đánh giá';
@@ -358,6 +397,53 @@ const ConfirmReceipt = ({ order, onClose, onSuccess }) => {
               <div className="character-count">
                 {buildReviewComment().length}/500 ký tự
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="review-evidence">Ảnh/Video minh chứng (tùy chọn)</label>
+              <input
+                id="review-evidence"
+                type="file"
+                accept=".png,.jpg,.jpeg,.mp4,image/png,image/jpeg,video/mp4"
+                multiple
+                onChange={handleReviewEvidenceUpload}
+                disabled={loading || uploadingEvidence || reviewEvidenceFiles.length >= 5}
+                className="review-evidence-input"
+              />
+              <div className="form-helper-text">
+                Chuẩn tốt nhất: MP4 (H.264). Ảnh bắt buộc PNG/JPEG/JPG. Tối đa 5 tệp.
+              </div>
+              <div className="form-helper-text">
+                Giới hạn mỗi tệp: ≤ 100MB, video ≤ 3 phút, 720p-1080p.
+              </div>
+              <div className="form-helper-text">
+                Video bắt buộc là quay mở hộp liên tục, không chỉnh sửa.
+              </div>
+              {uploadingEvidence && <div className="form-helper-text">Đang upload tệp...</div>}
+              {errors.evidence && <span className="error-message">{errors.evidence}</span>}
+
+              {reviewEvidenceFiles.length > 0 && (
+                <div className="review-evidence-grid">
+                  {reviewEvidenceFiles.map((file, index) => (
+                    <div key={`${file}-${index}`} className="review-evidence-item">
+                      {isVideoEvidence(file) ? (
+                        <video src={getImageUrl(file)} controls className="review-evidence-media" />
+                      ) : (
+                        <img src={getImageUrl(file)} alt={`review-evidence-${index}`} className="review-evidence-media" />
+                      )}
+                      <button
+                        type="button"
+                        className="review-evidence-remove"
+                        onClick={() => removeReviewEvidence(index)}
+                        disabled={loading}
+                        aria-label="Xóa tệp bằng chứng"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

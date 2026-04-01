@@ -66,6 +66,61 @@ function buildRegexKeyword(keyword) {
   return new RegExp(keyword.trim(), "i");
 }
 
+async function autoApproveHighRatingReviews() {
+  await Review.updateMany(
+    {
+      rating: { $gte: 4 },
+      "moderatorAssessment.isReviewed": { $ne: true },
+      "moderatorAssessment.isBad": { $ne: true },
+      "moderatorAssessment.verdict": { $nin: ["good", "bad"] }
+    },
+    {
+      $set: {
+        "moderatorAssessment.isReviewed": true,
+        "moderatorAssessment.isBad": false,
+        "moderatorAssessment.verdict": "good",
+        "moderatorAssessment.note": "Tự động duyệt: đánh giá từ 4 sao trở lên",
+        "moderatorAssessment.markedAt": new Date(),
+        "moderatorAssessment.penaltyLevel": 0
+      }
+    }
+  );
+}
+
+function normalizeReviewMediaFields(reviewDoc) {
+  if (!reviewDoc) return reviewDoc;
+
+  const raw = typeof reviewDoc.toObject === 'function'
+    ? reviewDoc.toObject()
+    : reviewDoc;
+
+  const candidates = [
+    raw?.evidenceFiles,
+    raw?.evidenceImages,
+    raw?.media,
+    raw?.attachments,
+    raw?.data?.evidenceFiles,
+    raw?.data?.evidenceImages
+  ];
+
+  const unifiedEvidenceFiles = Array.from(
+    new Set(
+      candidates
+        .filter(Array.isArray)
+        .flat()
+        .map((file) => String(file || '').trim())
+        .filter(Boolean)
+        .filter((file) => /\.(png|jpe?g|mp4)$/i.test(file))
+    )
+  ).slice(0, 5);
+
+  return {
+    ...raw,
+    evidenceFiles: unifiedEvidenceFiles,
+    evidenceImages: unifiedEvidenceFiles
+  };
+}
+
 async function buildReportedUserStatsMap(reportedUserIds = []) {
   const uniqueIds = Array.from(
     new Set(
@@ -269,6 +324,19 @@ async function getRevenueReport(filters = {}) {
     completedAt: { $gte: from, $lte: to }
   };
 
+  const grossRevenueExpr = { $ifNull: ["$totalToPay", 0] };
+  const platformRevenueExpr = {
+    $let: {
+      vars: {
+        gross: grossRevenueExpr,
+        storedFee: { $ifNull: ["$platformFee", 0] }
+      },
+      in: {
+        $cond: [{ $gt: ["$$storedFee", 0] }, "$$storedFee", { $multiply: ["$$gross", 0.05] }]
+      }
+    }
+  };
+
   const [summaryAgg, breakdownAgg, topProducts, recentOrders] = await Promise.all([
     Order.aggregate([
       { $match: query },
@@ -276,8 +344,8 @@ async function getRevenueReport(filters = {}) {
         $group: {
           _id: null,
           completedOrders: { $sum: 1 },
-          grossRevenue: { $sum: { $ifNull: ["$totalToPay", 0] } },
-          platformRevenue: { $sum: { $ifNull: ["$platformFee", 0] } }
+          grossRevenue: { $sum: grossRevenueExpr },
+          platformRevenue: { $sum: platformRevenueExpr }
         }
       }
     ]),
@@ -290,8 +358,8 @@ async function getRevenueReport(filters = {}) {
             month: { $month: "$completedAt" }
           },
           completedOrders: { $sum: 1 },
-          grossRevenue: { $sum: { $ifNull: ["$totalToPay", 0] } },
-          platformRevenue: { $sum: { $ifNull: ["$platformFee", 0] } }
+          grossRevenue: { $sum: grossRevenueExpr },
+          platformRevenue: { $sum: platformRevenueExpr }
         }
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } }
@@ -302,8 +370,8 @@ async function getRevenueReport(filters = {}) {
         $group: {
           _id: "$productId",
           completedOrders: { $sum: 1 },
-          grossRevenue: { $sum: { $ifNull: ["$totalToPay", 0] } },
-          platformRevenue: { $sum: { $ifNull: ["$platformFee", 0] } }
+          grossRevenue: { $sum: grossRevenueExpr },
+          platformRevenue: { $sum: platformRevenueExpr }
         }
       },
       { $sort: { grossRevenue: -1 } },
@@ -377,15 +445,22 @@ async function getRevenueReport(filters = {}) {
       sellerPayout: Number(item.grossRevenue || 0) - Number(item.platformRevenue || 0)
     })),
     recentOrders: recentOrders.map((order) => ({
+      ...(function () {
+        const grossRevenue = Number(order.totalToPay || 0);
+        const storedFee = Number(order.platformFee || 0);
+        const platformRevenue = storedFee > 0 ? storedFee : grossRevenue * 0.05;
+        return {
+          grossRevenue,
+          platformRevenue,
+          sellerPayout: grossRevenue - platformRevenue
+        };
+      })(),
       orderId: order._id,
       orderCode: order.orderCode,
       completedAt: order.completedAt,
       productTitle: order.productId?.title || "N/A",
       buyerName: order.buyerId?.fullName || "N/A",
       sellerName: order.sellerId?.fullName || "N/A",
-      grossRevenue: Number(order.totalToPay || 0),
-      platformRevenue: Number(order.platformFee || 0),
-      sellerPayout: Number(order.totalToPay || 0) - Number(order.platformFee || 0)
     }))
   };
 }
@@ -612,6 +687,8 @@ async function updateOrderStatusByModerator(orderId, nextStatus, moderatorId, no
 
 async function getReviews(filters = {}, pagination = {}) {
   // Luong mod review: loc theo status va trang thai tham dinh cua moderator.
+  await autoApproveHighRatingReviews();
+
   const query = {};
   if (filters.status) query.status = filters.status;
 
@@ -663,7 +740,7 @@ async function getReviews(filters = {}, pagination = {}) {
 
   const total = await Review.countDocuments(query);
   return {
-    reviews,
+    reviews: reviews.map(normalizeReviewMediaFields),
     pagination: {
       page,
       limit,

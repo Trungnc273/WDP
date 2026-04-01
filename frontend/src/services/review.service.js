@@ -10,11 +10,13 @@ import api from './api';
  * @param {string} orderId - Mã đơn hàng
  * @param {number} rating - Số sao (1-5)
  * @param {string} comment - Nội dung đánh giá
+ * @param {string[]} evidenceFiles - Danh sách tệp bằng chứng (ảnh/video) đã upload
  */
-export const createReview = async (orderId, rating, comment) => {
+export const createReview = async (orderId, rating, comment, evidenceFiles = []) => {
   const response = await api.post(`/reviews/orders/${orderId}/rate`, {
     rating,
-    comment
+    comment,
+    evidenceFiles
   });
   return response.data;
 };

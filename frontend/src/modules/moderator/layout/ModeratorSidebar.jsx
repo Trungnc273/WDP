@@ -4,7 +4,6 @@ import {
   FlagOutlined,
   ShoppingOutlined,
   StarOutlined,
-  BankOutlined,
   SafetyCertificateOutlined
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -23,7 +22,6 @@ const ModeratorSidebar = ({ onNavigate }) => {
     if (location.pathname.startsWith("/moderator/reports")) return "/moderator/reports";
     if (location.pathname.startsWith("/moderator/orders")) return "/moderator/orders";
     if (location.pathname.startsWith("/moderator/reviews")) return "/moderator/reviews";
-    if (location.pathname.startsWith("/moderator/withdrawals")) return "/moderator/withdrawals";
     if (location.pathname.startsWith("/moderator/disputes")) return "/moderator/disputes";
     return "/moderator/dashboard";
   };
@@ -69,11 +67,6 @@ const ModeratorSidebar = ({ onNavigate }) => {
             key: "/moderator/reviews",
             icon: <StarOutlined />,
             label: "Đánh giá & Nhận xét",
-          },
-          {
-            key: "/moderator/withdrawals",
-            icon: <BankOutlined />,
-            label: "Yêu cầu Rút tiền",
           },
           {
             key: "/moderator/disputes",

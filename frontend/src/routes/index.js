@@ -75,8 +75,6 @@ import ModOrderDetail from "../modules/moderator/orders/ModOrderDetail";
 // Đánh giá
 import ModReviewList from "../modules/moderator/reviews/ModReviewList";
 
-// Yêu cầu rút tiền
-import ModWithdrawalList from "../modules/moderator/withdrawals/ModWithdrawalList";
 import ModDisputeList from "../modules/moderator/disputes/ModDisputeList";
 import ModDisputeDetail from "../modules/moderator/disputes/ModDisputeDetail";
 // ====================================================
@@ -182,10 +180,7 @@ function AppRoutes() {
         {/* 3. Module Quản lý Đánh giá */}
         <Route path="reviews" element={<ModReviewList />} />
 
-        {/* 4. Module Quản lý Rút tiền */}
-        <Route path="withdrawals" element={<ModWithdrawalList />} />
-
-        {/* 5. Module Quản lý Tranh chấp */}
+        {/* 4. Module Quản lý Tranh chấp */}
         <Route path="disputes" element={<ModDisputeList />} />
         <Route path="disputes/:id" element={<ModDisputeDetail />} />
 

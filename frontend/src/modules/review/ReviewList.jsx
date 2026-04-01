@@ -64,6 +64,27 @@ const ReviewList = ({ userId, showStats = true }) => {
     });
   };
 
+  const isVideoEvidence = (url = '') => /\.(mp4)$/i.test(url);
+
+  const extractReviewMediaFiles = (review) => {
+    const candidates = [
+      review?.evidenceFiles,
+      review?.evidenceImages,
+      review?.media,
+      review?.attachments,
+      review?.data?.evidenceFiles,
+      review?.data?.evidenceImages
+    ];
+
+    const merged = candidates
+      .filter(Array.isArray)
+      .flat()
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(merged));
+  };
+
 
 
   if (loading && currentPage === 1) {
@@ -143,6 +164,20 @@ const ReviewList = ({ userId, showStats = true }) => {
               {review.comment && (
                 <div className="review-comment">
                   {review.comment}
+                </div>
+              )}
+
+              {extractReviewMediaFiles(review).length > 0 && (
+                <div className="review-evidence-grid">
+                  {extractReviewMediaFiles(review).map((file, index) => (
+                    <div key={`${file}-${index}`} className="review-evidence-item">
+                      {isVideoEvidence(file) ? (
+                        <video src={getImageUrl(file)} controls className="review-evidence-media" />
+                      ) : (
+                        <img src={getImageUrl(file)} alt={`review-evidence-${index}`} className="review-evidence-media" />
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 

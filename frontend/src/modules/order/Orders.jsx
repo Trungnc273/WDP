@@ -235,16 +235,7 @@ const Orders = () => {
                   openDisputeModal(order, 'normal');
                 }}
               >
-                Khiếu nại
-              </button>
-              <button
-                className="btn btn-warning btn-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openDisputeModal(order, 'return');
-                }}
-              >
-                Hoàn hàng
+                Khiếu nại và hoàn tiền
               </button>
             </>
           );

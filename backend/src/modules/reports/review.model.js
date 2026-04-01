@@ -51,6 +51,24 @@ const reviewSchema = new mongoose.Schema({
     trim: true,
     maxlength: 500
   },
+
+  // Optional media evidence attached by buyer when confirming receipt/review.
+  evidenceFiles: {
+    type: [String],
+    default: [],
+    validate: {
+      validator(files) {
+        return !Array.isArray(files) || files.length <= 5;
+      },
+      message: 'Tối đa 5 tệp bằng chứng cho mỗi đánh giá'
+    }
+  },
+
+  // Legacy alias to keep old UI/API payloads working.
+  evidenceImages: {
+    type: [String],
+    default: []
+  },
   
   // Review status
   status: {

@@ -216,6 +216,19 @@ function AppShell() {
     navigate('/login');
   };
 
+  const handleLogoClick = (event) => {
+    event.preventDefault();
+    setShowNotification(false);
+    setShowUserMenu(false);
+
+    if (location.pathname === '/') {
+      window.location.reload();
+      return;
+    }
+
+    navigate('/');
+  };
+
   return (
     <div className="App">
       {!isModeratorRoute && !isAdminRoute && (
@@ -224,19 +237,12 @@ function AppShell() {
             {/* Ben trai: Logo + menu mobile */}
             <div className="navbar__left">
               <MobileMenu />
-              <Link to="/" className="navbar__logo navbar__logo--large">
+              <Link to="/" className="navbar__logo navbar__logo--large" onClick={handleLogoClick}>
                 <img 
                   src="/images/logo/logo.png" 
                   alt="ReFlow Logo" 
                   className="navbar__logo-image"
                 />
-              </Link>
-            </div>
-
-            {/* O giua: Menu chinh */}
-            <div className="navbar__center">
-              <Link to="/" className="navbar__menu-item">
-                Trang chủ
               </Link>
             </div>
 
@@ -273,8 +279,8 @@ function AppShell() {
                         onClick={handleNotificationBellClick}
                       >
                         <span className="icon">🔔</span>
-                        {(hasNewNotification || newNotificationCount > 0) && (
-                          <span className="notification-badge">{newNotificationCount > 99 ? '99+' : Math.max(newNotificationCount, 1)}</span>
+                        {unreadCount > 0 && (
+                          <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
                         )}
                       </button>
                       {showNotification && (

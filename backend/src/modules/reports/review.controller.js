@@ -13,7 +13,7 @@ const { sendSuccess, sendError } = require('../../common/utils/response.util');
 async function createReview(req, res) {
   try {
     const { orderId } = req.params;
-    const { rating, comment } = req.body;
+    const { rating, comment, evidenceFiles } = req.body;
     const reviewerId = req.user.userId;
     
     // Validate required fields
@@ -21,7 +21,13 @@ async function createReview(req, res) {
       return sendError(res, 400, 'Vui lòng chọn số sao đánh giá');
     }
     
-    const review = await reviewService.createReview(reviewerId, orderId, rating, comment);
+    const review = await reviewService.createReview(
+      reviewerId,
+      orderId,
+      rating,
+      comment,
+      evidenceFiles
+    );
     
     sendSuccess(res, 200, review, 'Đánh giá thành công');
   } catch (error) {

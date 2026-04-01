@@ -4,7 +4,6 @@ import {
   FlagOutlined,
   ShoppingOutlined,
   StarOutlined,
-  BankOutlined,
   SafetyCertificateOutlined,
   ArrowRightOutlined
 } from "@ant-design/icons";
@@ -24,7 +23,6 @@ const ModeratorDashboard = () => {
     reviewingReports: 0,
     openOrders: 0,
     pendingReviews: 0,
-    pendingWithdrawals: 0,
     pendingDisputes: 0,
     badReviews: 0
   });
@@ -43,7 +41,6 @@ const ModeratorDashboard = () => {
           openOrders: data.openOrders || 0,
           pendingReviews: (data.pendingReviews ?? data.reportedReviews) || 0,
           badReviews: data.badReviews || 0,
-          pendingWithdrawals: data.pendingWithdrawals || 0,
           pendingDisputes: data.pendingDisputes || 0
         });
       } catch (err) {
@@ -90,17 +87,6 @@ const ModeratorDashboard = () => {
       bg: "#faf0ff",
       route: "/moderator/reviews?status=active&assessment=pending",
       count: stats.pendingReviews,
-      countLabel: "chờ duyệt",
-      sub: []
-    },
-    {
-      key: "withdrawals",
-      label: "Yêu cầu Rút tiền",
-      icon: <BankOutlined />,
-      color: "#f39c12",
-      bg: "#fffbf0",
-      route: "/moderator/withdrawals",
-      count: stats.pendingWithdrawals,
       countLabel: "chờ duyệt",
       sub: []
     },

@@ -358,6 +358,28 @@
   background: #f2f7ff !important;
 }
 
+.mod-review-evidence-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mod-review-evidence-item {
+  width: 110px;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #0f172a;
+}
+
+.mod-review-evidence-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* Legacy stat cards (kept for compat) */
 .mod-stat-row {
   display: grid;
@@ -417,6 +439,11 @@
 
   .mod-filter-row {
     width: 100%;
+  }
+
+  .mod-review-evidence-item {
+    width: 88px;
+    height: 88px;
   }
 
   .mod-filter-row .ant-input-affix-wrapper,

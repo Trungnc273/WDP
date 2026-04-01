@@ -164,13 +164,16 @@ const Dispute = ({ order, onSuccess, onCancel, initialReason = '' }) => {
             <input
               type="file"
               id="evidence"
-              accept="image/*,video/*"
+              accept=".png,.jpg,.jpeg,.mp4,image/png,image/jpeg,video/mp4"
               multiple
               onChange={handleImageUpload}
               disabled={evidenceImages.length >= 5 || loading || uploadingImages}
             />
             <div className="upload-note">
-              Bắt buộc ít nhất 1 tệp, tối đa 5 tệp (ảnh hoặc video).
+              Bắt buộc ít nhất 1 tệp, tối đa 5 tệp. Chỉ nhận ảnh PNG/JPG/JPEG và video MP4 (H.264), ≤ 100MB, ≤ 3 phút, 720p-1080p.
+            </div>
+            <div className="upload-note">
+              Video cần là bản quay mở hộp liên tục, không chỉnh sửa.
             </div>
             {uploadingImages && <div className="upload-note">Đang upload bằng chứng...</div>}
             

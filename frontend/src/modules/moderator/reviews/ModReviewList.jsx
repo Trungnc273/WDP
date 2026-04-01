@@ -3,6 +3,7 @@ import { WarningOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCirc
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getModeratorReviews, markBadModeratorReview, markGoodModeratorReview } from "../../../services/moderator.service";
+import { getImageUrl } from "../../../utils/imageHelper";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -210,6 +211,27 @@ const ModReviewList = () => {
         <span style={{ color: "#d1d5db" }}>{"★".repeat(5 - rounded)}</span>
       </span>
     );
+  };
+
+  const isVideoEvidence = (url = "") => /\.(mp4)$/i.test(url);
+
+  const extractReviewMediaFiles = (review) => {
+    const candidates = [
+      review?.evidenceFiles,
+      review?.evidenceImages,
+      review?.media,
+      review?.attachments,
+      review?.data?.evidenceFiles,
+      review?.data?.evidenceImages
+    ];
+
+    const merged = candidates
+      .filter(Array.isArray)
+      .flat()
+      .map((file) => String(file || "").trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(merged));
   };
 
   const formatDateTime = (value) => {
@@ -482,6 +504,23 @@ const ModReviewList = () => {
             )}
             <Descriptions.Item label="Nội dung" span={2}>
               {selectedReview.comment || "(Không có nội dung)"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ảnh/video đính kèm" span={2}>
+              {extractReviewMediaFiles(selectedReview).length ? (
+                <div className="mod-review-evidence-grid">
+                  {extractReviewMediaFiles(selectedReview).map((file, index) => (
+                    <div key={`${file}-${index}`} className="mod-review-evidence-item">
+                      {isVideoEvidence(file) ? (
+                        <video src={getImageUrl(file)} controls className="mod-review-evidence-media" />
+                      ) : (
+                        <img src={getImageUrl(file)} alt={`review-evidence-${index}`} className="mod-review-evidence-media" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span>Không có tệp đính kèm</span>
+              )}
             </Descriptions.Item>
             </Descriptions>
           </>

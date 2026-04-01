@@ -9,11 +9,17 @@ const IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'gif'];
 // Bo sung webp/heic/heif/m4v de ho tro tep tu dien thoai va trinh duyet hien dai.
 const EVIDENCE_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'mp4', 'mov', 'm4v', 'webm', 'avi', 'mkv'];
 
+// Strict formats for dispute/report evidence upload endpoint.
+const DISPUTE_EVIDENCE_FORMATS = ['jpg', 'jpeg', 'png', 'mp4'];
+
 // Max file size for product images: 5MB
 const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024;
 
 // Max file size for evidence media: 20MB
 const MAX_EVIDENCE_FILE_SIZE = 20 * 1024 * 1024;
+
+// Max file size for dispute evidence media: 100MB
+const MAX_DISPUTE_EVIDENCE_FILE_SIZE = 100 * 1024 * 1024;
 
 // Configure storage by upload bucket (products/evidence)
 const createStorage = (bucket) => multer.diskStorage({
@@ -67,6 +73,14 @@ const uploadEvidence = multer({
   }
 });
 
+const uploadDisputeEvidence = multer({
+  storage: createStorage('evidence'),
+  fileFilter: createFileFilter(DISPUTE_EVIDENCE_FORMATS),
+  limits: {
+    fileSize: MAX_DISPUTE_EVIDENCE_FILE_SIZE
+  }
+});
+
 // Error handler for multer errors
 const handleUploadError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -92,5 +106,6 @@ const handleUploadError = (err, req, res, next) => {
 module.exports = {
   upload,
   uploadEvidence,
+  uploadDisputeEvidence,
   handleUploadError
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { upload, uploadEvidence, handleUploadError } = require('../../common/middlewares/upload.middleware');
+const { upload, uploadEvidence, uploadDisputeEvidence, handleUploadError } = require('../../common/middlewares/upload.middleware');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
 
 // Upload single image
@@ -70,7 +70,7 @@ router.post('/images', authenticate, upload.array('images', 5), handleUploadErro
 });
 
 // Upload evidence files (images/videos) for disputes/reports
-router.post('/evidence', authenticate, uploadEvidence.array('files', 5), handleUploadError, (req, res) => {
+router.post('/evidence', authenticate, uploadDisputeEvidence.array('files', 5), handleUploadError, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

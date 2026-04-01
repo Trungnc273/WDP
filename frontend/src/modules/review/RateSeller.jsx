@@ -1,14 +1,47 @@
 import React, { useState } from 'react';
 import { createReview } from '../../services/review.service';
+import { uploadEvidenceMedia } from '../../services/report.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import './RateSeller.css';
 
 const RateSeller = ({ order, onSuccess, onCancel }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isVideoEvidence = (url = '') => /\.(mp4)$/i.test(url);
+
+  const handleEvidenceUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const remainingSlots = Math.max(0, 5 - evidenceFiles.length);
+    if (remainingSlots <= 0) {
+      setError('Tối đa 5 tệp bằng chứng cho mỗi đánh giá');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingEvidence(true);
+    setError('');
+    try {
+      const uploaded = await uploadEvidenceMedia(files.slice(0, remainingSlots));
+      setEvidenceFiles((prev) => [...prev, ...uploaded].slice(0, 5));
+    } catch (uploadError) {
+      setError(uploadError.message || 'Không thể upload ảnh/video minh chứng');
+    } finally {
+      setUploadingEvidence(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeEvidence = (index) => {
+    setEvidenceFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +55,7 @@ const RateSeller = ({ order, onSuccess, onCancel }) => {
     setError('');
 
     try {
-      await createReview(order._id, rating, comment);
+      await createReview(order._id, rating, comment, evidenceFiles);
       onSuccess && onSuccess();
     } catch (error) {
       setError(error.response?.data?.message || 'Có lỗi xảy ra khi đánh giá');
@@ -124,6 +157,44 @@ const RateSeller = ({ order, onSuccess, onCancel }) => {
             <div className="char-count">{comment.length}/500</div>
           </div>
 
+          <div className="comment-section">
+            <label htmlFor="review-evidence">Ảnh/Video minh chứng (tùy chọn):</label>
+            <input
+              id="review-evidence"
+              type="file"
+              accept=".png,.jpg,.jpeg,.mp4,image/png,image/jpeg,video/mp4"
+              multiple
+              onChange={handleEvidenceUpload}
+              disabled={loading || uploadingEvidence || evidenceFiles.length >= 5}
+              className="review-evidence-input"
+            />
+            <div className="char-count">PNG/JPG/JPEG hoặc MP4 (H.264), ≤100MB, ≤3 phút, 720p-1080p.</div>
+            <div className="char-count">Video cần quay mở hộp liên tục, không chỉnh sửa.</div>
+            {uploadingEvidence && <div className="char-count">Đang upload tệp...</div>}
+
+            {evidenceFiles.length > 0 && (
+              <div className="review-evidence-grid">
+                {evidenceFiles.map((file, index) => (
+                  <div key={`${file}-${index}`} className="review-evidence-item">
+                    {isVideoEvidence(file) ? (
+                      <video src={getImageUrl(file)} controls className="review-evidence-media" />
+                    ) : (
+                      <img src={getImageUrl(file)} alt={`review-evidence-${index}`} className="review-evidence-media" />
+                    )}
+                    <button
+                      type="button"
+                      className="review-evidence-remove"
+                      onClick={() => removeEvidence(index)}
+                      disabled={loading}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && <div className="error-message">{error}</div>}
 
           <div className="form-actions">
@@ -138,7 +209,7 @@ const RateSeller = ({ order, onSuccess, onCancel }) => {
             <button 
               type="submit" 
               className="submit-btn"
-              disabled={loading || rating === 0}
+              disabled={loading || rating === 0 || uploadingEvidence}
             >
               {loading ? 'Đang gửi...' : 'Gửi đánh giá'}
             </button>

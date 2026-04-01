@@ -140,6 +140,29 @@
   font-size: 14px;
 }
 
+.review-evidence-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.review-evidence-item {
+  width: 110px;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+.review-evidence-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .reviewed-product {
   display: flex;
   align-items: center;
@@ -240,6 +263,11 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .review-evidence-item {
+    width: 88px;
+    height: 88px;
   }
   
   .pagination {

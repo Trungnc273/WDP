@@ -247,6 +247,8 @@ const ModDisputeDetail = () => {
   }
 
   const disputeTimeline = buildDisputeTimeline(dispute);
+  const isPending = dispute?.status === "pending";
+  const isInvestigating = dispute?.status === "investigating";
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
@@ -314,26 +316,32 @@ const ModDisputeDetail = () => {
             <Button
               type="default"
               onClick={handleInvestigating}
-              disabled={dispute?.status === "investigating"}
+              disabled={!isPending}
             >
               Chuyển sang Đang điều tra
             </Button>
 
-            <Button
-              type="default"
-              onClick={handleSendTimelineUpdate}
-              loading={sendingTimelineUpdate}
-            >
-              Gửi phản hồi vào diễn biến
-            </Button>
+            {isInvestigating && (
+              <Button
+                type="default"
+                onClick={handleSendTimelineUpdate}
+                loading={sendingTimelineUpdate}
+              >
+                Gửi phản hồi vào diễn biến
+              </Button>
+            )}
 
-            <Popconfirm title="Xác nhận hoàn tiền cho người mua?" onConfirm={() => handleResolve("refund")}>
-              <Button type="primary" danger icon={<StopOutlined />}>Hoàn tiền cho người mua</Button>
-            </Popconfirm>
+            {isInvestigating && (
+              <Popconfirm title="Xác nhận hoàn tiền cho người mua?" onConfirm={() => handleResolve("refund")}>
+                <Button type="primary" danger icon={<StopOutlined />}>Hoàn tiền cho người mua</Button>
+              </Popconfirm>
+            )}
 
-            <Popconfirm title="Xác nhận nhả tiền cho người bán?" onConfirm={() => handleResolve("release")}>
-              <Button type="primary" icon={<CheckCircleOutlined />}>Nhả tiền cho người bán</Button>
-            </Popconfirm>
+            {isInvestigating && (
+              <Popconfirm title="Xác nhận nhả tiền cho người bán?" onConfirm={() => handleResolve("release")}>
+                <Button type="primary" icon={<CheckCircleOutlined />}>Nhả tiền cho người bán</Button>
+              </Popconfirm>
+            )}
           </div>
         )}
       </Card>

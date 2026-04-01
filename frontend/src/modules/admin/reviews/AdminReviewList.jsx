@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getModeratorReviews, markBadModeratorReview } from '../../../services/moderator.service';
+import { getImageUrl } from '../../../utils/imageHelper';
 import '../AdminModules.css';
 
 const AdminReviewList = () => {
@@ -72,6 +73,27 @@ const AdminReviewList = () => {
         <span style={{ color: '#d1d5db' }}>{'★'.repeat(5 - rounded)}</span>
       </span>
     );
+  };
+
+  const isVideoEvidence = (url = '') => /\.(mp4)$/i.test(url);
+
+  const extractReviewMediaFiles = (review) => {
+    const candidates = [
+      review?.evidenceFiles,
+      review?.evidenceImages,
+      review?.media,
+      review?.attachments,
+      review?.data?.evidenceFiles,
+      review?.data?.evidenceImages
+    ];
+
+    const merged = candidates
+      .filter(Array.isArray)
+      .flat()
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(merged));
   };
 
   const openDetailModal = (review) => {
@@ -420,6 +442,22 @@ const AdminReviewList = () => {
                     <label>Nội dung:</label>
                     <span>{selectedReview.comment || '(Không có nội dung)'}</span>
                   </div>
+                  {extractReviewMediaFiles(selectedReview).length > 0 && (
+                    <div className="detail-item full-width">
+                      <label>Ảnh/video đính kèm:</label>
+                      <div className="review-evidence-grid">
+                        {extractReviewMediaFiles(selectedReview).map((file, index) => (
+                          <div key={`${file}-${index}`} className="review-evidence-item">
+                            {isVideoEvidence(file) ? (
+                              <video src={getImageUrl(file)} controls className="review-evidence-media" />
+                            ) : (
+                              <img src={getImageUrl(file)} alt={`review-evidence-${index}`} className="review-evidence-media" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

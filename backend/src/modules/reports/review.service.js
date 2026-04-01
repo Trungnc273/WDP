@@ -2,6 +2,65 @@ const Review = require('./review.model');
 const Order = require('../orders/order.model');
 const User = require('../users/user.model');
 
+const REVIEW_MEDIA_PATH_REGEX = /\.(png|jpe?g|mp4)$/i;
+
+function normalizeReviewEvidenceFiles(evidenceFiles = []) {
+  if (!Array.isArray(evidenceFiles)) {
+    throw new Error('Danh sách bằng chứng không hợp lệ');
+  }
+
+  const normalized = evidenceFiles
+    .map((file) => String(file || '').trim())
+    .filter(Boolean);
+
+  if (normalized.length > 5) {
+    throw new Error('Tối đa 5 tệp bằng chứng cho mỗi đánh giá');
+  }
+
+  for (const file of normalized) {
+    if (!REVIEW_MEDIA_PATH_REGEX.test(file)) {
+      throw new Error('Định dạng bằng chứng không hợp lệ. Chỉ chấp nhận PNG, JPG/JPEG hoặc MP4.');
+    }
+  }
+
+  return normalized;
+}
+
+function extractLegacyEvidenceFiles(review = {}) {
+  const candidates = [
+    review?.evidenceFiles,
+    review?.evidenceImages,
+    review?.media,
+    review?.attachments,
+    review?.data?.evidenceFiles,
+    review?.data?.evidenceImages
+  ];
+
+  const merged = candidates
+    .filter(Array.isArray)
+    .flat()
+    .map((file) => String(file || '').trim())
+    .filter(Boolean)
+    .filter((file) => REVIEW_MEDIA_PATH_REGEX.test(file));
+
+  return Array.from(new Set(merged)).slice(0, 5);
+}
+
+function normalizeReviewPayload(reviewDoc) {
+  if (!reviewDoc) return reviewDoc;
+
+  const raw = typeof reviewDoc.toObject === 'function'
+    ? reviewDoc.toObject()
+    : reviewDoc;
+
+  const unifiedEvidenceFiles = extractLegacyEvidenceFiles(raw);
+  return {
+    ...raw,
+    evidenceFiles: unifiedEvidenceFiles,
+    evidenceImages: unifiedEvidenceFiles
+  };
+}
+
 /**
  * Service xu ly nghiep vu danh gia va diem so seller.
  */
@@ -9,7 +68,7 @@ const User = require('../users/user.model');
 /**
  * Tao danh gia cho seller sau khi don hoan thanh.
  */
-async function createReview(reviewerId, orderId, rating, comment = '') {
+async function createReview(reviewerId, orderId, rating, comment = '', evidenceFiles = []) {
   // Kiem tra rating hop le 1..5.
   if (!rating || rating < 1 || rating > 5) {
     throw new Error('Đánh giá phải từ 1 đến 5 sao');
@@ -38,14 +97,38 @@ async function createReview(reviewerId, orderId, rating, comment = '') {
     throw new Error('Bạn đã đánh giá đơn hàng này rồi');
   }
   
+  const normalizedEvidenceFiles = normalizeReviewEvidenceFiles(evidenceFiles);
+  const normalizedRating = Number(rating || 0);
+  const shouldAutoApprove = normalizedRating >= 4;
+  const autoModerationAssessment = shouldAutoApprove
+    ? {
+        isReviewed: true,
+        isBad: false,
+        verdict: 'good',
+        note: 'Tự động duyệt: đánh giá từ 4 sao trở lên',
+        markedAt: new Date(),
+        penaltyLevel: 0
+      }
+    : {
+        isReviewed: false,
+        isBad: false,
+        verdict: null,
+        note: '',
+        markedAt: null,
+        penaltyLevel: 0
+      };
+
   // Tao review active.
   const review = await Review.create({
     orderId: orderId,
     reviewerId: reviewerId,
     reviewedUserId: order.sellerId,
     productId: order.productId,
-    rating: rating,
+    rating: normalizedRating,
     comment: comment.trim(),
+    evidenceFiles: normalizedEvidenceFiles,
+    evidenceImages: normalizedEvidenceFiles,
+    moderatorAssessment: autoModerationAssessment,
     status: 'active'
   });
   
@@ -60,7 +143,7 @@ async function createReview(reviewerId, orderId, rating, comment = '') {
     { path: 'orderId', select: 'agreedAmount' }
   ]);
   
-  return review;
+  return normalizeReviewPayload(review);
 }
 
 /**
@@ -110,7 +193,7 @@ async function getReviews(userId, filters = {}, pagination = {}) {
   const stats = await Review.calculateAverageRating(userId);
   
   return {
-    reviews,
+    reviews: reviews.map(normalizeReviewPayload),
     stats: {
       averageRating: stats.averageRating,
       totalReviews: stats.totalReviews
@@ -138,7 +221,7 @@ async function getReviewById(reviewId) {
     throw new Error('Đánh giá không tồn tại');
   }
   
-  return review;
+  return normalizeReviewPayload(review);
 }
 
 /**
@@ -150,7 +233,7 @@ async function getReviewByOrderId(orderId) {
     .populate('reviewedUserId', 'fullName avatar')
     .populate('productId', 'title images');
   
-  return review; // Co the null neu don chua duoc review.
+  return normalizeReviewPayload(review); // Co the null neu don chua duoc review.
 }
 
 /**
@@ -188,7 +271,7 @@ async function updateReview(reviewId, reviewerId, rating, comment) {
   // Tinh lai diem seller sau khi sua.
   await updateUserRating(review.reviewedUserId);
   
-  return review;
+  return normalizeReviewPayload(review);
 }
 
 /**
@@ -214,7 +297,7 @@ async function deleteReview(reviewId, reviewerId) {
   // Tinh lai diem seller sau khi an review.
   await updateUserRating(review.reviewedUserId);
   
-  return review;
+  return normalizeReviewPayload(review);
 }
 
 /**
@@ -311,7 +394,7 @@ async function getReviewsByReviewer(reviewerId, pagination = {}) {
   const total = await Review.countDocuments({ reviewerId: reviewerId });
   
   return {
-    reviews,
+    reviews: reviews.map(normalizeReviewPayload),
     pagination: {
       page,
       limit,

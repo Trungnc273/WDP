@@ -77,20 +77,52 @@ const OrderDetail = () => {
 
   const isVideoEvidence = (url = '') => /\.(mp4|mov|webm|avi|mkv)$/i.test(url);
 
+  const extractReviewMediaFiles = (review) => {
+    if (!review) return [];
+
+    const candidates = [
+      review.evidenceFiles,
+      review.evidenceImages,
+      review.media,
+      review.attachments,
+      review.data?.evidenceFiles,
+      review.data?.evidenceImages
+    ];
+
+    const merged = candidates
+      .filter(Array.isArray)
+      .flat()
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(merged));
+  };
+
   const renderEvidencePreview = (files = []) => {
     if (!files.length) return null;
 
+    const imageFiles = files.filter((file) => !isVideoEvidence(file));
+    const videoFiles = files.filter((file) => isVideoEvidence(file));
+
     return (
-      <div className="evidence-preview-grid">
-        {files.map((file, index) => (
-          <div key={`${file}-${index}`} className="evidence-preview-item">
-            {isVideoEvidence(file) ? (
-              <video src={getImageUrl(file)} controls className="evidence-preview-media" />
-            ) : (
-              <img src={getImageUrl(file)} alt={`evidence-${index}`} className="evidence-preview-media" />
-            )}
+      <div className="evidence-preview-section">
+        {imageFiles.length > 0 && (
+          <div className="evidence-preview-grid">
+            {imageFiles.map((file, index) => (
+              <div key={`${file}-${index}`} className="evidence-preview-item">
+                <img src={getImageUrl(file)} alt={`evidence-${index}`} className="evidence-preview-media" />
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+
+        {videoFiles.length > 0 && (
+          <div className="evidence-preview-video-row">
+            {videoFiles.map((file, index) => (
+              <video key={`${file}-${index}`} src={getImageUrl(file)} controls className="evidence-preview-video" />
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -269,8 +301,19 @@ const OrderDetail = () => {
 
     if (action === 'followup' && dispute.status !== 'resolved') {
       setShowBuyerFollowUpModal(true);
+
+      // Consume action param after first auto-open to avoid reopening modal on page reload.
+      params.delete('action');
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : ''
+        },
+        { replace: true }
+      );
     }
-  }, [order, user, dispute, location.search]);
+  }, [order, user, dispute, location.search, navigate, location.pathname]);
 
   useEffect(() => {
     if (!order || !user || !dispute) return;
@@ -716,20 +759,7 @@ const OrderDetail = () => {
               }}
             >
               <i className="fas fa-exclamation-triangle"></i>
-              Khiếu nại
-            </button>
-          );
-          buttons.push(
-            <button
-              key="return-request"
-              className="btn btn-warning"
-              onClick={() => {
-                setDisputeMode('return');
-                setShowDisputeModal(true);
-              }}
-            >
-              <i className="fas fa-undo"></i>
-              Yêu cầu hoàn trả
+              Khiếu nại và hoàn tiền
             </button>
           );
           break;
@@ -1098,6 +1128,14 @@ const OrderDetail = () => {
                   "{existingReview.comment}"
                 </div>
               )}
+
+              {extractReviewMediaFiles(existingReview).length > 0 && (
+                <div className="review-evidence-wrap">
+                  <div className="review-evidence-title">Ảnh/video đính kèm:</div>
+                  {renderEvidencePreview(extractReviewMediaFiles(existingReview))}
+                </div>
+              )}
+
               <div className="review-date">
                 Đánh giá vào {formatDate(existingReview.createdAt)}
               </div>
@@ -1220,27 +1258,14 @@ const OrderDetail = () => {
                 <label>Bằng chứng (ảnh/video, tối đa 5)</label>
                 <input
                   type="file"
-                  accept="image/*,video/*"
+                  accept=".png,.jpg,.jpeg,.mp4,image/png,image/jpeg,video/mp4"
                   multiple
                   onChange={handleSellerEvidenceUpload}
                   disabled={sellerEvidenceImages.length >= 5}
                 />
-                {sellerEvidenceImages.length > 0 && (
-                  <div className="image-preview">
-                    {sellerEvidenceImages.map((file, i) => (
-                      isVideoEvidence(file) ? (
-                        <video
-                          key={i}
-                          src={getImageUrl(file)}
-                          controls
-                          style={{ width: 80, height: 80, objectFit: 'cover', marginRight: 8, background: '#000' }}
-                        />
-                      ) : (
-                        <img key={i} src={getImageUrl(file)} alt={`evidence-${i}`} style={{ width: 80, height: 80, objectFit: 'cover', marginRight: 8 }} />
-                      )
-                    ))}
-                  </div>
-                )}
+                <small className="form-hint">Chỉ nhận PNG/JPG/JPEG hoặc MP4 (H.264), ≤ 100MB, ≤ 3 phút, 720p-1080p.</small>
+                <small className="form-hint">Video cần là bản quay mở hộp liên tục, không chỉnh sửa.</small>
+                {renderEvidencePreview(sellerEvidenceImages)}
               </div>
               <div className="form-actions">
                 <button className="btn btn-outline" onClick={() => setShowSellerResponseModal(false)}>Hủy</button>
@@ -1276,11 +1301,13 @@ const OrderDetail = () => {
                 <label>Bằng chứng bổ sung (ảnh/video, tối đa 5)</label>
                 <input
                   type="file"
-                  accept="image/*,video/*"
+                  accept=".png,.jpg,.jpeg,.mp4,image/png,image/jpeg,video/mp4"
                   multiple
                   onChange={handleBuyerFollowUpUpload}
                   disabled={buyerFollowUpEvidence.length >= 5}
                 />
+                <small className="form-hint">Chỉ nhận PNG/JPG/JPEG hoặc MP4 (H.264), ≤ 100MB, ≤ 3 phút, 720p-1080p.</small>
+                <small className="form-hint">Video cần là bản quay mở hộp liên tục, không chỉnh sửa.</small>
                 {renderEvidencePreview(buyerFollowUpEvidence)}
               </div>
               <div className="form-actions">
