@@ -463,6 +463,15 @@
   background: #ff7875;
 }
 
+.btn-warning {
+  background: #faad14;
+  color: #1f1f1f;
+}
+
+.btn-warning:hover {
+  background: #ffc53d;
+}
+
 .btn-sm {
   padding: 4px 8px;
   font-size: 12px;

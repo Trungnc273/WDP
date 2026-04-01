@@ -24,6 +24,8 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [suspendTarget, setSuspendTarget] = useState(null);
+  const [suspendSubmitting, setSuspendSubmitting] = useState(false);
+  const [suspendError, setSuspendError] = useState('');
 
   useEffect(() => {
     loadUsers();
@@ -103,11 +105,14 @@ const UserManagement = () => {
       setError('Không thể khóa tài khoản admin');
       return;
     }
+    setSuspendError('');
     setSuspendTarget(user);
     setShowSuspendModal(true);
   };
 
   const closeSuspendModal = () => {
+    setSuspendSubmitting(false);
+    setSuspendError('');
     setShowSuspendModal(false);
     setSuspendTarget(null);
   };
@@ -118,6 +123,8 @@ const UserManagement = () => {
     }
 
     try {
+      setSuspendSubmitting(true);
+      setSuspendError('');
       const response = await adminUserApi.suspendUser(suspendTarget._id, suspendData);
       const updatedUser = response?.data?.data;
       setSuccess(`Đã khóa "${suspendTarget.fullName}" thành công`);
@@ -129,7 +136,10 @@ const UserManagement = () => {
       closeSuspendModal();
       loadUsers();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Không thể khóa người dùng');
+      const message = err.response?.data?.message || err.message || 'Không thể khóa người dùng';
+      setSuspendError(message);
+    } finally {
+      setSuspendSubmitting(false);
     }
   };
 
@@ -239,6 +249,8 @@ const UserManagement = () => {
         <SuspendModal
           onSubmit={handleSuspendUser}
           onCancel={closeSuspendModal}
+          submitting={suspendSubmitting}
+          submitError={suspendError}
         />
       )}
     </div>

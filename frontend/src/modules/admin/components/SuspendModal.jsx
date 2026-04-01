@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const SuspendModal = ({ onSubmit, onCancel }) => {
+const SuspendModal = ({ onSubmit, onCancel, submitting = false, submitError = '' }) => {
   const [suspendData, setSuspendData] = useState({
     suspendedUntil: '',
     reason: ''
@@ -79,6 +79,7 @@ const SuspendModal = ({ onSubmit, onCancel }) => {
               placeholder="Nhập lý do khóa tài khoản..."
               rows="4"
               className={errors.reason ? 'error' : ''}
+              disabled={submitting}
             />
             {errors.reason && <span className="error-message">{errors.reason}</span>}
           </div>
@@ -94,23 +95,32 @@ const SuspendModal = ({ onSubmit, onCancel }) => {
               value={suspendData.suspendedUntil}
               onChange={handleChange}
               className={errors.suspendedUntil ? 'error' : ''}
+              disabled={submitting}
             />
             {errors.suspendedUntil && <span className="error-message">{errors.suspendedUntil}</span>}
           </div>
+
+          {submitError && (
+            <div className="alert alert-error" style={{ marginBottom: 0 }}>
+              {submitError}
+            </div>
+          )}
 
           <div className="form-actions">
             <button
               type="button"
               className="btn btn-secondary"
               onClick={onCancel}
+              disabled={submitting}
             >
               Hủy
             </button>
             <button
               type="submit"
               className="btn btn-warning"
+              disabled={submitting}
             >
-              Khóa tài khoản
+              {submitting ? 'Đang khóa...' : 'Khóa tài khoản'}
             </button>
           </div>
         </form>
