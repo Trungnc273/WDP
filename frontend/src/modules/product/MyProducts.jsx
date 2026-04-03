@@ -33,6 +33,29 @@ const MyProducts = () => {
   const [processingAction, setProcessingAction] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
+  const isRestrictionActive = (account) => {
+    const isRestricted = account?.isSellingRestricted === true || account?.isSellingRestricted === 'true';
+    if (!isRestricted) return false;
+
+    if (!account?.sellingRestrictedUntil) return true;
+
+    const restrictedUntilTime = new Date(account.sellingRestrictedUntil).getTime();
+    return Number.isFinite(restrictedUntilTime) && restrictedUntilTime > Date.now();
+  };
+
+  const buildRestrictionMessage = (account) => {
+    const untilText = account?.sellingRestrictedUntil
+      ? ` đến ${new Date(account.sellingRestrictedUntil).toLocaleString('vi-VN')}`
+      : '';
+    const reasonText = account?.sellingRestrictedReason
+      ? ` Lý do: ${account.sellingRestrictedReason}`
+      : '';
+
+    return `Tài khoản của bạn đang bị hạn chế quyền bán${untilText}. Không thể hiện lại tin trong thời gian này.${reasonText}`;
+  };
+
+  const canShowProducts = !isRestrictionActive(user);
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -330,9 +353,17 @@ const MyProducts = () => {
                             <button
                               onClick={() => {
                                 const action = getVisibilityAction(product);
+                                if (action.nextStatus === 'active' && !canShowProducts) {
+                                  const restrictionMessage = buildRestrictionMessage(user);
+                                  setFeedback({ type: 'error', message: restrictionMessage });
+                                  window.alert(restrictionMessage);
+                                  return;
+                                }
                                 openVisibilityModal(product, action.nextStatus);
                               }}
                               className={`action-btn ${getVisibilityAction(product).className}`}
+                              disabled={getVisibilityAction(product).nextStatus === 'active' && !canShowProducts}
+                              title={getVisibilityAction(product).nextStatus === 'active' && !canShowProducts ? 'Tài khoản đang bị hạn chế quyền bán' : ''}
                             >
                               {getVisibilityAction(product).label}
                             </button>

@@ -366,6 +366,18 @@ async function setProductVisibility(productId, userId, nextStatus) {
       throw new Error('Trạng thái hiển thị không hợp lệ');
     }
 
+    if (nextStatus === 'active') {
+      const seller = await User.findById(userId);
+      if (!seller) {
+        throw new Error('Người bán không tồn tại');
+      }
+
+      const isSellingRestricted = await refreshSellingRestriction(seller);
+      if (isSellingRestricted) {
+        throw new Error(getSellingRestrictionMessage(seller));
+      }
+    }
+
     if (product.status === 'sold') {
       throw new Error('Sản phẩm đã bán, chỉ có thể xem');
     }

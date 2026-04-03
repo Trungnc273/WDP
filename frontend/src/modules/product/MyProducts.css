@@ -66,6 +66,7 @@
 
 .product-actions{padding:12px 14px;border-top:1px solid #f1f5f9;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .action-btn{padding:8px 12px;border-radius:8px;border:1px solid rgba(2,6,23,0.06);background:#fff;cursor:pointer}
+.action-btn:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.15)}
 .view-btn{background:transparent}
 .edit-btn{background:#fff;border:1px solid rgba(11,116,255,0.12);color:var(--accent)}
 .show-btn{background:#0b74ff;color:#fff}
