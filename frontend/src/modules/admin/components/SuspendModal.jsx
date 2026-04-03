@@ -12,14 +12,14 @@ const SuspendModal = ({ onSubmit, onCancel, submitting = false, submitError = ''
     const newErrors = {};
 
     if (!suspendData.reason.trim()) {
-      newErrors.reason = 'Lý do khóa là bắt buộc';
+      newErrors.reason = 'Lý do hạn chế quyền bán là bắt buộc';
     }
 
     if (suspendData.suspendedUntil) {
       const suspendDate = new Date(suspendData.suspendedUntil);
       const now = new Date();
       if (suspendDate <= now) {
-        newErrors.suspendedUntil = 'Thời gian khóa phải sau thời điểm hiện tại';
+        newErrors.suspendedUntil = 'Thời gian hạn chế phải sau thời điểm hiện tại';
       }
     }
 
@@ -64,19 +64,19 @@ const SuspendModal = ({ onSubmit, onCancel, submitting = false, submitError = ''
     <div className="modal-overlay">
       <div className="modal-content suspend-modal">
         <div className="modal-header">
-          <h2>Khóa người dùng</h2>
+          <h2>Hạn chế quyền bán</h2>
           <button className="modal-close" onClick={onCancel}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="suspend-form">
           <div className="form-group">
-            <label htmlFor="reason">Lý do khóa *</label>
+            <label htmlFor="reason">Lý do hạn chế *</label>
             <textarea
               id="reason"
               name="reason"
               value={suspendData.reason}
               onChange={handleChange}
-              placeholder="Nhập lý do khóa tài khoản..."
+              placeholder="Nhập lý do hạn chế quyền bán..."
               rows="4"
               className={errors.reason ? 'error' : ''}
               disabled={submitting}
@@ -86,7 +86,7 @@ const SuspendModal = ({ onSubmit, onCancel, submitting = false, submitError = ''
 
           <div className="form-group">
             <label htmlFor="suspendedUntil">
-              Khóa đến ngày (để trống nếu khóa vĩnh viễn)
+              Hạn chế đến ngày (để trống nếu vô thời hạn)
             </label>
             <input
               type="datetime-local"
@@ -120,7 +120,7 @@ const SuspendModal = ({ onSubmit, onCancel, submitting = false, submitError = ''
               className="btn btn-warning"
               disabled={submitting}
             >
-              {submitting ? 'Đang khóa...' : 'Khóa tài khoản'}
+              {submitting ? 'Đang áp dụng...' : 'Hạn chế quyền bán'}
             </button>
           </div>
         </form>

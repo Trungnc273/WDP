@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productController = require('./product.controller');
 const { authenticate, optionalAuthenticate } = require('../../common/middlewares/auth.middleware');
+const { requireSellerCanSell } = require('../../common/middlewares/seller-restriction.middleware');
 
 /**
  * Product Routes
@@ -22,7 +23,7 @@ router.get('/search', productController.searchProducts);
 router.get('/my-products', authenticate, productController.getMyProducts);
 
 // POST /api/products - Create product (protected)
-router.post('/', authenticate, productController.createProduct);
+router.post('/', authenticate, requireSellerCanSell, productController.createProduct);
 
 // PUT /api/products/:id - Update product (protected, owner only)
 router.put('/:id', authenticate, productController.updateProduct);

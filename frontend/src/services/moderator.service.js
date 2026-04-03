@@ -98,6 +98,18 @@ export async function resolveModeratorReport(reportId, payload) {
     throw new Error('moderatorDecision không hợp lệ');
   }
 
+  if (status === 'dismissed' && moderatorDecision !== 'reply_feedback') {
+    throw new Error('Khi bỏ qua báo cáo chỉ được dùng quyết định trả lời phản hồi');
+  }
+
+  if (moderatorDecision === 'reply_feedback') {
+    const hasReply = Boolean(String(moderatorReply || '').trim());
+    const hasReplyToReportedUser = Boolean(String(moderatorReplyToReportedUser || '').trim());
+    if (!hasReply && !hasReplyToReportedUser) {
+      throw new Error('Quyết định trả lời phản hồi cần ít nhất 1 nội dung phản hồi');
+    }
+  }
+
   if (moderatorReply && moderatorReply.trim().length > 500) {
     throw new Error('Phản hồi cho người dùng không được vượt quá 500 ký tự');
   }

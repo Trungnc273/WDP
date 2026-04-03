@@ -4,6 +4,7 @@ const Product = require('../products/product.model');
 const Order = require('../orders/order.model');
 const User = require('../users/user.model');
 const notificationService = require('../notifications/notification.service');
+const { applySellingRestrictionToUser } = require('../../common/utils/seller-restriction.util');
 
 // Nguong canh bao de xu ly manh tay voi bai dang.
 const PRODUCT_WARN_THRESHOLD = 3;
@@ -26,7 +27,7 @@ async function tryAutoSuspendByReportThreshold(reportedUserId) {
   }
 
   const user = await User.findById(reportedUserId);
-  if (!user || user.role === 'admin' || user.isSuspended) {
+  if (!user || user.role === 'admin' || user.isSellingRestricted) {
     return false;
   }
 
@@ -38,16 +39,13 @@ async function tryAutoSuspendByReportThreshold(reportedUserId) {
     return false;
   }
 
-  const hasActiveOrders = await hasActiveOrdersForUser(reportedUserId);
-  if (hasActiveOrders) {
-    return false;
-  }
-
-  user.isSuspended = true;
-  user.suspendedUntil = undefined;
-  user.suspendedReason = `Tài khoản bị khóa tự động do đã nhận từ ${USER_AUTO_SUSPEND_REPORT_THRESHOLD} báo cáo trở lên.`;
   user.violationCount = Math.max(Number(user.violationCount || 0), USER_AUTO_SUSPEND_REPORT_THRESHOLD);
-  await user.save();
+
+  await applySellingRestrictionToUser(user, {
+    reason: `Tài khoản bị hạn chế quyền bán tự động do đã nhận từ ${USER_AUTO_SUSPEND_REPORT_THRESHOLD} báo cáo trở lên.`,
+    source: 'report_threshold_auto'
+  });
+
   return true;
 }
 
@@ -600,6 +598,44 @@ async function getAllReports(filters = {}, pagination = {}) {
   };
 }
 
+function validateModerationDecision(report, status, decision, reply, replyToReportedUser) {
+  const allowedStatuses = ['resolved', 'dismissed'];
+  const allowedDecisions = ['remove_content', 'warn_user', 'ban_user', 'reply_feedback'];
+
+  if (!allowedStatuses.includes(status)) {
+    throw new Error('Trạng thái xử lý báo cáo không hợp lệ');
+  }
+
+  if (!allowedDecisions.includes(decision)) {
+    throw new Error('Quyết định xử lý báo cáo không hợp lệ');
+  }
+
+  if (status === 'dismissed' && decision !== 'reply_feedback') {
+    throw new Error('Khi bỏ qua báo cáo chỉ được dùng quyết định trả lời phản hồi');
+  }
+
+  if (decision === 'reply_feedback') {
+    const hasReply = Boolean(String(reply || '').trim());
+    const hasReplyToReportedUser = Boolean(String(replyToReportedUser || '').trim());
+    if (!hasReply && !hasReplyToReportedUser) {
+      throw new Error('Quyết định trả lời phản hồi cần ít nhất 1 nội dung phản hồi cho người báo cáo hoặc người bị báo cáo');
+    }
+  }
+
+  if (status === 'resolved' && decision === 'remove_content') {
+    if (report.reportType !== 'product') {
+      throw new Error('Quyết định gỡ nội dung chỉ áp dụng cho báo cáo sản phẩm');
+    }
+    if (!report.productId) {
+      throw new Error('Không tìm thấy sản phẩm để thực hiện gỡ nội dung');
+    }
+  }
+
+  if (status === 'resolved' && ['warn_user', 'ban_user'].includes(decision) && !report.reportedUserId) {
+    throw new Error('Không tìm thấy người dùng bị báo cáo để áp dụng quyết định');
+  }
+}
+
 /**
  * Xu ly bao cao theo quyet dinh moderator/admin.
  */
@@ -621,6 +657,8 @@ async function resolveReport(
   if (report.status === 'resolved' || report.status === 'dismissed') {
     throw new Error('Báo cáo này đã được xử lý trước đó rồi');
   }
+
+  validateModerationDecision(report, status, decision, reply, replyToReportedUser);
 
   // Luu thong tin ket qua xu ly.
   report.status = status; // 'resolved' hoặc 'dismissed'
@@ -648,16 +686,14 @@ async function resolveReport(
 
       user.violationCount = nextWarningCount;
       if (penalty.shouldSuspendNow) {
-        const hasActiveOrders = await hasActiveOrdersForUser(user._id);
-        if (!hasActiveOrders) {
-          user.isSuspended = true;
-          const suspendUntil = new Date();
-          suspendUntil.setTime(suspendUntil.getTime() + penalty.durationMs);
-          user.suspendedUntil = suspendUntil;
-          user.suspendedReason = `Tài khoản bị khóa do vi phạm từ báo cáo ở mốc ${nextWarningCount} cảnh báo (mức ${penalty.level}) trong ${penalty.label}.`;
-        }
+        await applySellingRestrictionToUser(user, {
+          durationMs: penalty.durationMs,
+          reason: `Tài khoản bị hạn chế quyền bán do vi phạm từ báo cáo ở mốc ${nextWarningCount} cảnh báo (mức ${penalty.level}) trong ${penalty.label}.`,
+          source: 'report_warning'
+        });
+      } else {
+        await user.save();
       }
-      await user.save();
     }
 
     // Neu san pham bi warn du nguong thi tu dong go bai.
@@ -677,19 +713,17 @@ async function resolveReport(
       }
     }
   } else if (status === 'resolved' && decision === 'ban_user' && report.reportedUserId) {
-    // Khoa tai khoan truc tiep.
+    // Han che quyen ban truc tiep.
     const user = await User.findById(report.reportedUserId);
     if (user) {
       if (user.role === 'admin') {
         throw new Error('Không thể khóa tài khoản admin');
       }
-      const hasActiveOrders = await hasActiveOrdersForUser(user._id);
-      if (hasActiveOrders) {
-        throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
-      }
-      user.isSuspended = true; // Khóa tài khoản
-      user.suspendedReason = notes || 'Tài khoản bị khóa trực tiếp theo quyết định ban_user của moderator.';
-      await user.save();
+
+      await applySellingRestrictionToUser(user, {
+        reason: notes || 'Tài khoản bị hạn chế quyền bán trực tiếp theo quyết định ban_user của moderator.',
+        source: 'report_ban'
+      });
     }
   }
 

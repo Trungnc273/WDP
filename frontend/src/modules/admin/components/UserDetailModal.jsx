@@ -22,16 +22,6 @@ const UserDetailModal = ({
     return 'Người dùng';
   };
 
-  const getKycLabel = (status) => {
-    const labels = {
-      not_submitted: 'Chưa gửi',
-      pending: 'Chờ duyệt',
-      approved: 'Đã duyệt',
-      rejected: 'Bị từ chối'
-    };
-    return labels[status] || status || 'Chưa gửi';
-  };
-
   return (
     <div className="modal-overlay">
       <div className="modal-content user-detail-modal">
@@ -61,12 +51,7 @@ const UserDetailModal = ({
 
             <div className="detail-item">
               <label>Trạng thái</label>
-              <span>{user.isSuspended ? 'Bị khóa' : 'Hoạt động'}</span>
-            </div>
-
-            <div className="detail-item">
-              <label>KYC</label>
-              <span>{getKycLabel(user.kycStatus)}</span>
+              <span>{user.isSellingRestricted ? 'Hạn chế quyền bán' : 'Hoạt động'}</span>
             </div>
 
             <div className="detail-item">
@@ -97,13 +82,13 @@ const UserDetailModal = ({
           </button>
 
           {canManageLock && (
-            user.isSuspended ? (
+            user.isSellingRestricted ? (
               <button className="btn btn-secondary" onClick={onUnsuspend}>
-                Mở khóa tài khoản
+                Gỡ hạn chế quyền bán
               </button>
             ) : (
               <button className="btn btn-danger" onClick={onSuspend}>
-                Khóa tài khoản
+                Hạn chế quyền bán
               </button>
             )
           )}

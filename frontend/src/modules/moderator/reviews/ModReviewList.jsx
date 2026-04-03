@@ -109,7 +109,7 @@ const ModReviewList = () => {
     }
 
     setPendingReview(review);
-    setModeratorNote("Review phản ánh chất lượng phục vụ kém, cần xử lý tài khoản người bán");
+    setModeratorNote("Review phản ánh chất lượng phục vụ kém, cần hạn chế quyền bán của người bán");
     setBadReviewModalOpen(true);
   };
 
@@ -122,14 +122,14 @@ const ModReviewList = () => {
     if (!shouldSuspendNow) {
       return {
         level: nextLevel,
-        label: "Chưa khóa tài khoản (đang tích lũy cảnh cáo)",
+        label: "Chưa hạn chế quyền bán (đang tích lũy cảnh cáo)",
         milestone: 3 - (nextCount % 3)
       };
     }
 
-    if (nextLevel === 1) return { level: 1, label: "Khóa 24 giờ", milestone: 0 };
-    if (nextLevel === 2) return { level: 2, label: "Khóa 1 tuần", milestone: 0 };
-    return { level: 3, label: "Khóa 1 năm", milestone: 0 };
+    if (nextLevel === 1) return { level: 1, label: "Hạn chế bán 24 giờ", milestone: 0 };
+    if (nextLevel === 2) return { level: 2, label: "Hạn chế bán 1 tuần", milestone: 0 };
+    return { level: 3, label: "Hạn chế bán 1 năm", milestone: 0 };
   };
 
   const submitMarkBad = async () => {
@@ -149,8 +149,8 @@ const ModReviewList = () => {
       const result = await markBadModeratorReview(reviewId, normalizedNote);
       const penalty = result?.sellerPenalty;
       const resultMessage = penalty?.shouldSuspendNow
-        ? `Đã đánh giá xấu người bán. Mức xử lý: ${penalty?.suspensionLabel || 'đã khóa tài khoản'}`
-        : `Đã đánh giá xấu người bán. Chưa khóa tài khoản, đang tích lũy mốc 3 lần.`;
+        ? `Đã đánh giá xấu người bán. Mức xử lý: hạn chế quyền bán ${penalty?.suspensionLabel || ''}`.trim()
+        : `Đã đánh giá xấu người bán. Chưa hạn chế quyền bán, đang tích lũy mốc 3 lần.`;
       message.success(resultMessage);
       setBadReviewModalOpen(false);
       setPendingReview(null);
@@ -491,8 +491,8 @@ const ModReviewList = () => {
             <Descriptions.Item label="Số lần bị mod đánh xấu">
               {selectedReview.reviewedUserId?.modBadReviewCount || 0}
             </Descriptions.Item>
-            <Descriptions.Item label="Khóa tài khoản đến" span={2}>
-              {formatDateTime(selectedReview.reviewedUserId?.suspendedUntil)}
+            <Descriptions.Item label="Hạn chế bán đến" span={2}>
+              {formatDateTime(selectedReview.reviewedUserId?.sellingRestrictedUntil || selectedReview.reviewedUserId?.suspendedUntil)}
             </Descriptions.Item>
             <Descriptions.Item label="Ngày tạo" span={2}>
               {formatDateTime(selectedReview.createdAt)}
@@ -553,8 +553,8 @@ const ModReviewList = () => {
               message={`Xử lý tại mốc kế tiếp: ${getNextPenaltyPreview(pendingReview).label}`}
               description={
                 getNextPenaltyPreview(pendingReview).milestone > 0
-                  ? `Lần đánh giá xấu thứ ${Number(pendingReview?.reviewedUserId?.modBadReviewCount || 0) + 1} cho người bán ${pendingReview?.reviewedUserId?.fullName || ""}. Cần thêm ${getNextPenaltyPreview(pendingReview).milestone} lần nữa để kích hoạt khóa.`
-                  : `Lần đánh giá xấu thứ ${Number(pendingReview?.reviewedUserId?.modBadReviewCount || 0) + 1} cho người bán ${pendingReview?.reviewedUserId?.fullName || ""} sẽ kích hoạt khóa tài khoản.`
+                  ? `Lần đánh giá xấu thứ ${Number(pendingReview?.reviewedUserId?.modBadReviewCount || 0) + 1} cho người bán ${pendingReview?.reviewedUserId?.fullName || ""}. Cần thêm ${getNextPenaltyPreview(pendingReview).milestone} lần nữa để kích hoạt hạn chế quyền bán.`
+                  : `Lần đánh giá xấu thứ ${Number(pendingReview?.reviewedUserId?.modBadReviewCount || 0) + 1} cho người bán ${pendingReview?.reviewedUserId?.fullName || ""} sẽ kích hoạt hạn chế quyền bán.`
               }
             />
             <div style={{ marginBottom: 8, fontWeight: 600 }}>Nội dung gửi cho người bán</div>

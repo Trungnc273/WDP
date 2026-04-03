@@ -7,6 +7,7 @@ const {
 const { createNotification } = require("../notifications/notification.service");
 const admin = require("../../config/firebase");
 const crypto = require("crypto");
+const { refreshSellingRestriction } = require("../../common/utils/seller-restriction.util");
 
 /**
  * Login or Register with Google Firebase idToken
@@ -93,6 +94,8 @@ async function loginWithGoogle(idToken) {
         throw error;
       }
     }
+
+    await refreshSellingRestriction(user);
   }
 
   // 5. Generate JWT token cho hệ thống nội bộ
@@ -265,6 +268,8 @@ async function loginUser(email, password) {
     }
   }
 
+  await refreshSellingRestriction(user);
+
   // Verify password
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
@@ -353,6 +358,8 @@ async function getUserById(userId) {
       throw error;
     }
   }
+
+  await refreshSellingRestriction(user);
 
   return {
     id: user._id,

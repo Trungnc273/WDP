@@ -7,9 +7,23 @@ const Report = require('../reports/report.model');
 const Transaction = require('../payments/transaction.model');
 const Review = require('../reports/review.model');
 const Dispute = require('../reports/dispute.model');
+const {
+  applySellingRestrictionToUser,
+  clearSellingRestriction
+} = require('../../common/utils/seller-restriction.util');
 
 const PHONE_REGEX = /^0\d{9,10}$/;
 const ORDER_TERMINAL_STATUSES = ['completed', 'cancelled'];
+
+function getViolationBasedRestrictionDurationMs(violationCount) {
+  if (violationCount >= 9) {
+    return 365 * 24 * 60 * 60 * 1000; // 1 year
+  }
+  if (violationCount >= 6) {
+    return 7 * 24 * 60 * 60 * 1000; // 1 week
+  }
+  return 24 * 60 * 60 * 1000; // default 24h
+}
 
 async function hasActiveOrdersForUser(userId) {
   return Order.exists({
@@ -18,6 +32,13 @@ async function hasActiveOrdersForUser(userId) {
       { buyerId: userId },
       { sellerId: userId }
     ]
+  });
+}
+
+async function hasActiveOrdersForSeller(userId) {
+  return Order.exists({
+    status: { $nin: ORDER_TERMINAL_STATUSES },
+    sellerId: userId
   });
 }
 
@@ -221,6 +242,42 @@ module.exports = {
  */
 async function getAllUsers(page = 1, limit = 10, search = '', role = '', status = '') {
   const skip = (page - 1) * limit;
+  const now = new Date();
+
+  const activeSellingRestrictionCondition = {
+    $and: [
+      { isSellingRestricted: true },
+      {
+        $or: [
+          { sellingRestrictedUntil: { $exists: false } },
+          { sellingRestrictedUntil: null },
+          { sellingRestrictedUntil: { $gt: now } }
+        ]
+      }
+    ]
+  };
+
+  const activeAccountSuspensionCondition = {
+    $and: [
+      { isSuspended: true },
+      {
+        $or: [
+          { suspendedUntil: { $exists: false } },
+          { suspendedUntil: null },
+          { suspendedUntil: { $gt: now } }
+        ]
+      }
+    ]
+  };
+
+  const effectiveAccountSuspendedCondition = activeAccountSuspensionCondition;
+
+  const effectiveSellingRestrictedCondition = {
+    $and: [
+      { role: { $ne: 'moderator' } },
+      activeSellingRestrictionCondition
+    ]
+  };
   
   // Build query
   const query = {};
@@ -237,10 +294,16 @@ async function getAllUsers(page = 1, limit = 10, search = '', role = '', status 
     query.role = role;
   }
   
-  if (status === 'suspended') {
-    query.isSuspended = true;
+  if (status === 'account_suspended') {
+    query.$and = query.$and || [];
+    query.$and.push(effectiveAccountSuspendedCondition);
+  } else if (status === 'selling_restricted' || status === 'suspended') {
+    query.$and = query.$and || [];
+    query.$and.push(effectiveSellingRestrictedCondition);
   } else if (status === 'active') {
-    query.isSuspended = false;
+    query.$nor = query.$nor || [];
+    query.$nor.push(effectiveSellingRestrictedCondition);
+    query.$nor.push(effectiveAccountSuspendedCondition);
   }
   
   const users = await User.find(query)
@@ -340,18 +403,26 @@ async function updateUserAdmin(userId, updateData) {
       throw new Error('Người dùng không tồn tại');
     }
     if (existingUser.role === 'admin') {
-      throw new Error('Không thể khóa tài khoản admin');
+      throw new Error('Không thể hạn chế quyền bán của admin');
     }
 
-    const hasActiveOrders = await hasActiveOrdersForUser(userId);
+    const hasActiveOrders = await hasActiveOrdersForSeller(userId);
     if (hasActiveOrders) {
-      throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+      throw new Error('Không thể hạn chế quyền bán khi người dùng đang có đơn bán đang xử lý');
     }
+
+    filteredData.isSellingRestricted = true;
+    filteredData.sellingRestrictionSource = 'admin';
+    filteredData.isSuspended = false;
   }
   
-  // Handle suspension
+  // Preserve compatibility for existing admin edit forms.
   if (filteredData.isSuspended === false) {
     filteredData.suspendedUntil = undefined;
+    filteredData.isSellingRestricted = false;
+    filteredData.sellingRestrictedUntil = undefined;
+    filteredData.sellingRestrictedReason = undefined;
+    filteredData.sellingRestrictionSource = undefined;
   }
   
   const user = await User.findByIdAndUpdate(
@@ -426,46 +497,124 @@ async function suspendUser(userId, suspendedUntil, reason) {
   }
   
   if (user.role === 'admin') {
-    throw new Error('Không thể khóa tài khoản admin');
+    throw new Error('Không thể hạn chế quyền bán của admin');
   }
 
-  const hasActiveOrders = await hasActiveOrdersForUser(userId);
-  if (hasActiveOrders) {
-    throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+  if (user.role === 'moderator') {
+    const hasActiveOrders = await hasActiveOrdersForUser(userId);
+    if (hasActiveOrders) {
+      throw new Error('Không thể khóa tài khoản khi moderator đang có đơn hàng đang xử lý');
+    }
+
+    user.isSuspended = true;
+    user.suspendedUntil = suspendedUntil ? new Date(suspendedUntil) : undefined;
+    user.suspendedReason = String(reason || '').trim() || 'Tài khoản moderator bị khóa bởi admin.';
+    await clearSellingRestriction(user);
+    await user.save();
+
+    return User.findById(userId).select('-password');
   }
-  
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    {
-      isSuspended: true,
-      suspendedUntil: suspendedUntil ? new Date(suspendedUntil) : undefined,
-      suspendedReason: reason || user.suspendedReason || 'Tài khoản bị khóa bởi admin.',
-      violationCount: user.violationCount + 1
-    },
-    { new: true }
-  ).select('-password');
-  
-  return updatedUser;
+
+  const hasActiveOrders = await hasActiveOrdersForSeller(userId);
+  if (hasActiveOrders) {
+    throw new Error('Không thể hạn chế quyền bán khi người dùng đang có đơn bán đang xử lý');
+  }
+
+  const nextViolationCount = (user.violationCount || 0) + 1;
+  const defaultDurationMs = getViolationBasedRestrictionDurationMs(nextViolationCount);
+
+  await applySellingRestrictionToUser(user, {
+    until: suspendedUntil,
+    durationMs: suspendedUntil ? undefined : defaultDurationMs,
+    reason: reason || `Quyền bán bị hạn chế bởi admin theo mức vi phạm lần ${nextViolationCount}.`,
+    source: 'admin',
+    hideActiveProducts: true
+  });
+
+  user.isSuspended = false;
+  user.suspendedUntil = undefined;
+  user.suspendedReason = undefined;
+  user.violationCount = nextViolationCount;
+  await user.save();
+
+  return User.findById(userId).select('-password');
 }
 
 /**
  * Unsuspend user (Admin only)
  */
 async function unsuspendUser(userId) {
-  const user = await User.findByIdAndUpdate(
-    userId,
-    {
-      isSuspended: false,
-      suspendedUntil: undefined
-    },
-    { new: true }
-  ).select('-password');
+  const user = await User.findById(userId);
   
   if (!user) {
     throw new Error('Người dùng không tồn tại');
   }
+
+  if (user.role === 'moderator') {
+    user.isSuspended = false;
+    user.suspendedUntil = undefined;
+    user.suspendedReason = undefined;
+    await user.save();
+    return User.findById(userId).select('-password');
+  }
+
+  await clearSellingRestriction(user);
+  user.isSuspended = false;
+  user.suspendedUntil = undefined;
+  user.suspendedReason = undefined;
+  await user.save();
   
-  return user;
+  return User.findById(userId).select('-password');
+}
+
+/**
+ * Lock moderator account (Admin only)
+ */
+async function lockModeratorAccount(userId, suspendedUntil, reason) {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+
+  if (user.role !== 'moderator') {
+    throw new Error('Chỉ áp dụng khóa tài khoản cho moderator');
+  }
+
+  const hasActiveOrders = await hasActiveOrdersForUser(userId);
+  if (hasActiveOrders) {
+    throw new Error('Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý');
+  }
+
+  user.isSuspended = true;
+  user.suspendedUntil = suspendedUntil ? new Date(suspendedUntil) : undefined;
+  user.suspendedReason = String(reason || '').trim() || 'Tài khoản moderator bị khóa bởi admin.';
+  await clearSellingRestriction(user);
+  await user.save();
+
+  return User.findById(userId).select('-password');
+}
+
+/**
+ * Unlock moderator account (Admin only)
+ */
+async function unlockModeratorAccount(userId) {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+
+  if (user.role !== 'moderator') {
+    throw new Error('Chỉ áp dụng mở khóa tài khoản cho moderator');
+  }
+
+  user.isSuspended = false;
+  user.suspendedUntil = undefined;
+  user.suspendedReason = undefined;
+  await user.save();
+
+  return User.findById(userId).select('-password');
 }
 
 /**
@@ -473,8 +622,8 @@ async function unsuspendUser(userId) {
  */
 async function getSystemStats() {
   const totalUsers = await User.countDocuments();
-  const activeUsers = await User.countDocuments({ isSuspended: false });
-  const suspendedUsers = await User.countDocuments({ isSuspended: true });
+  const activeUsers = await User.countDocuments({ isSellingRestricted: false });
+  const suspendedUsers = await User.countDocuments({ isSellingRestricted: true });
   
   const usersByRole = await User.aggregate([
     {
@@ -511,6 +660,8 @@ module.exports = {
   deleteUser,
   suspendUser,
   unsuspendUser,
+  lockModeratorAccount,
+  unlockModeratorAccount,
   getSystemStats,
   getAdminDashboardStats
 };
@@ -534,8 +685,8 @@ async function getAdminDashboardStats() {
       recentReports
     ] = await Promise.all([
       User.countDocuments(),
-      User.countDocuments({ isSuspended: false }),
-      User.countDocuments({ isSuspended: true }),
+      User.countDocuments({ isSellingRestricted: false }),
+      User.countDocuments({ isSellingRestricted: true }),
       User.aggregate([
         {
           $group: {

@@ -35,12 +35,31 @@ export const adminUserApi = {
     return api.delete(`/users/admin/users/${userId}`);
   },
 
-  // Suspend user
+  // Restrict selling permissions
+  restrictSelling: (userId, restrictionData) => {
+    return api.post(`/users/admin/users/${userId}/suspend`, restrictionData);
+  },
+
+  // Remove selling restriction
+  unrestrictSelling: (userId) => {
+    return api.post(`/users/admin/users/${userId}/unsuspend`);
+  },
+
+  // Lock moderator account
+  lockModeratorAccount: (userId, lockData = {}) => {
+    return api.post(`/users/admin/users/${userId}/suspend`, lockData);
+  },
+
+  // Unlock moderator account
+  unlockModeratorAccount: (userId) => {
+    return api.post(`/users/admin/users/${userId}/unsuspend`);
+  },
+
+  // Backward-compatible aliases
   suspendUser: (userId, suspendData) => {
     return api.post(`/users/admin/users/${userId}/suspend`, suspendData);
   },
 
-  // Unsuspend user
   unsuspendUser: (userId) => {
     return api.post(`/users/admin/users/${userId}/unsuspend`);
   },

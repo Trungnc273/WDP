@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { getModeratorRevenueReport } from '../../../services/moderator.service';
 import {
   ResponsiveContainer,
-  AreaChart,
   Area,
+  ComposedChart,
+  Line,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -40,6 +41,20 @@ const AdminRevenueReport = () => {
   const formatDateTime = (value) => {
     if (!value) return 'N/A';
     return new Date(value).toLocaleString('vi-VN');
+  };
+
+  const formatCompactCurrencyTick = (value) => {
+    const amount = Number(value || 0);
+    if (Math.abs(amount) >= 1000000000) {
+      return `${(amount / 1000000000).toFixed(1)}B`;
+    }
+    if (Math.abs(amount) >= 1000000) {
+      return `${(amount / 1000000).toFixed(1)}M`;
+    }
+    if (Math.abs(amount) >= 1000) {
+      return `${(amount / 1000).toFixed(0)}K`;
+    }
+    return `${amount}`;
   };
 
   const fetchRevenueReport = async (from, to) => {
@@ -84,14 +99,36 @@ const AdminRevenueReport = () => {
     sellerPayout: 0
   };
 
-  const monthlyChartData = (report?.breakdown || []).map((item) => ({
-    ...item,
-    periodLabel: item.period?.slice(2).replace('-', '/') || ''
-  }));
+  const monthlyChartData = (report?.breakdown || []).map((item) => {
+    const periodRaw = String(item.period || '');
+    let periodLabel = periodRaw;
+
+    if (/^\d{4}-\d{2}$/.test(periodRaw)) {
+      const [year, month] = periodRaw.split('-');
+      periodLabel = `${month}/${year}`;
+    }
+
+    return {
+      ...item,
+      grossRevenue: Number(item.grossRevenue || 0),
+      systemRevenue: Number(item.platformRevenue || 0),
+      periodLabel
+    };
+  });
 
   const topProductChartData = (report?.topProducts || []).slice(0, 6).map((item) => ({
     name: String(item.title || 'N/A').slice(0, 18),
-    grossRevenue: Number(item.grossRevenue || 0)
+    grossRevenue: Number(item.grossRevenue || 0),
+    platformRevenue: Number(item.platformRevenue || 0),
+    sellerPayout: Number(item.sellerPayout || 0),
+    completedOrders: Number(item.completedOrders || 0)
+  }));
+
+  const recentOrdersChartData = (report?.recentOrders || []).slice(0, 8).map((item) => ({
+    orderCode: (item.orderCode || String(item.orderId || '').slice(-8)).toUpperCase(),
+    grossRevenue: Number(item.grossRevenue || 0),
+    platformRevenue: Number(item.platformRevenue || 0),
+    sellerPayout: Number(item.sellerPayout || 0)
   }));
 
   const revenueSplitData = [
@@ -109,7 +146,6 @@ const AdminRevenueReport = () => {
     <div className="admin-module admin-revenue-report">
       <div className="admin-module__header">
         <h1>Báo cáo doanh thu</h1>
-        <p>Phí nền tảng: 5% trên mỗi đơn hoàn tất. Người bán nhận 95%.</p>
       </div>
 
       {error && (
@@ -119,9 +155,9 @@ const AdminRevenueReport = () => {
         </div>
       )}
 
-      <div className="admin-module__filters">
-        <div className="filter-group">
-          <div className="form-group">
+      <div className="admin-module__filters revenue-filter-panel">
+        <div className="revenue-filter-grid">
+          <div className="form-group revenue-filter-field">
             <label>Từ ngày</label>
             <input
               type="date"
@@ -131,7 +167,7 @@ const AdminRevenueReport = () => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group revenue-filter-field">
             <label>Đến ngày</label>
             <input
               type="date"
@@ -141,7 +177,7 @@ const AdminRevenueReport = () => {
             />
           </div>
 
-          <div className="filter-actions">
+          <div className="filter-actions revenue-filter-actions">
             <button type="button" className="btn btn-primary" onClick={handleApplyFilter}>
               <i className="fas fa-filter"></i>
               Áp dụng
@@ -162,24 +198,24 @@ const AdminRevenueReport = () => {
       ) : (
         <>
           <div className="revenue-overview-grid">
-            <div className="revenue-overview-card">
+            <div className="revenue-overview-card revenue-overview-card--orders">
               <div className="label">Tổng đơn hoàn tất</div>
-              <div className="value">{Number(summary.completedOrders || 0).toLocaleString('vi-VN')}</div>
+              <div className="value revenue-value--orders">{Number(summary.completedOrders || 0).toLocaleString('vi-VN')}</div>
               <div className="meta">Đơn đã hoàn thành trong kỳ lọc</div>
             </div>
-            <div className="revenue-overview-card">
+            <div className="revenue-overview-card revenue-overview-card--gross">
               <div className="label">Doanh thu gộp</div>
-              <div className="value">{formatCurrency(summary.grossRevenue)}</div>
+              <div className="value revenue-value--gross">{formatCurrency(summary.grossRevenue)}</div>
               <div className="meta">Tổng tiền người mua đã thanh toán</div>
             </div>
-            <div className="revenue-overview-card">
+            <div className="revenue-overview-card revenue-overview-card--system">
               <div className="label">Doanh thu hệ thống (5%)</div>
-              <div className="value">{formatCurrency(summary.platformRevenue)}</div>
+              <div className="value revenue-value--system">{formatCurrency(summary.platformRevenue)}</div>
               <div className="meta">Tỷ lệ thực tế: {platformRatePercent.toFixed(2)}%</div>
             </div>
-            <div className="revenue-overview-card">
+            <div className="revenue-overview-card revenue-overview-card--seller">
               <div className="label">Chi trả người bán (95%)</div>
-              <div className="value">{formatCurrency(summary.sellerPayout)}</div>
+              <div className="value revenue-value--seller">{formatCurrency(summary.sellerPayout)}</div>
               <div className="meta">Doanh thu chuyển về ví người bán</div>
             </div>
           </div>
@@ -189,25 +225,47 @@ const AdminRevenueReport = () => {
               <h3>Xu hướng doanh thu theo tháng</h3>
               <div className="revenue-chart-wrap">
                 <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={monthlyChartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                  <ComposedChart data={monthlyChartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="grossRevenueFill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
                         <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
                       </linearGradient>
-                      <linearGradient id="platformRevenueFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
-                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="periodLabel" tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(v) => `${Math.round(v / 1000000)}M`} />
+                    <YAxis
+                      yAxisId="gross"
+                      tick={{ fontSize: 12, fill: '#64748b' }}
+                      tickFormatter={formatCompactCurrencyTick}
+                    />
+                    <YAxis
+                      yAxisId="system"
+                      orientation="right"
+                      tick={{ fontSize: 12, fill: '#ef4444' }}
+                      tickFormatter={formatCompactCurrencyTick}
+                    />
                     <Tooltip formatter={(value) => formatCurrency(value)} />
                     <Legend />
-                    <Area type="monotone" dataKey="grossRevenue" name="Doanh thu gộp" stroke="#2563eb" fill="url(#grossRevenueFill)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="platformRevenue" name="Phí nền tảng" stroke="#ef4444" fill="url(#platformRevenueFill)" strokeWidth={2} />
-                  </AreaChart>
+                    <Area
+                      yAxisId="gross"
+                      type="monotone"
+                      dataKey="grossRevenue"
+                      name="Doanh thu gộp"
+                      stroke="#2563eb"
+                      fill="url(#grossRevenueFill)"
+                      strokeWidth={2}
+                    />
+                    <Line
+                      yAxisId="system"
+                      type="monotone"
+                      dataKey="systemRevenue"
+                      name="Doanh thu hệ thống"
+                      stroke="#ef4444"
+                      strokeWidth={2.5}
+                      dot={{ r: 3 }}
+                    />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -230,18 +288,49 @@ const AdminRevenueReport = () => {
             </div>
           </div>
 
-          <div className="admin-module__content revenue-chart-card">
-            <h3>Top sản phẩm theo doanh thu gộp</h3>
-            <div className="revenue-chart-wrap">
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={topProductChartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(v) => `${Math.round(v / 1000000)}M`} />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Bar dataKey="grossRevenue" name="Doanh thu gộp" fill="#16a34a" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="revenue-chart-grid">
+            <div className="admin-module__content revenue-chart-card">
+              <h3>Top sản phẩm: cơ cấu doanh thu và số đơn</h3>
+              <div className="revenue-chart-wrap">
+                {(report?.topProducts || []).length === 0 ? (
+                  <div className="no-data no-data-chart">Không có dữ liệu biểu đồ</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <ComposedChart data={topProductChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(v) => `${Math.round(v / 1000000)}M`} />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                      <Bar dataKey="sellerPayout" name="Chi trả người bán" stackId="rev" fill="#22c55e" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="platformRevenue" name="Doanh thu hệ thống" stackId="rev" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                      <Line type="monotone" dataKey="completedOrders" name="Số đơn" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="admin-module__content revenue-chart-card">
+              <h3>Đơn hoàn tất gần đây: so sánh phân bổ tiền</h3>
+              <div className="revenue-chart-wrap">
+                {(report?.recentOrders || []).length === 0 ? (
+                  <div className="no-data no-data-chart">Không có dữ liệu biểu đồ</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={recentOrdersChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="orderCode" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                      <Bar dataKey="grossRevenue" name="Doanh thu gộp" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="platformRevenue" name="Doanh thu hệ thống" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="sellerPayout" name="Chi trả người bán" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
           </div>
 
@@ -254,7 +343,7 @@ const AdminRevenueReport = () => {
                     <th>Kỳ</th>
                     <th>Số đơn</th>
                     <th>Doanh thu gộp</th>
-                    <th>Phí nền tảng</th>
+                    <th>Doanh thu hệ thống</th>
                     <th>Chi trả người bán</th>
                   </tr>
                 </thead>
@@ -288,7 +377,7 @@ const AdminRevenueReport = () => {
                     <th>Sản phẩm</th>
                     <th>Số đơn</th>
                     <th>Doanh thu gộp</th>
-                    <th>Phí nền tảng</th>
+                    <th>Doanh thu hệ thống</th>
                     <th>Chi trả người bán</th>
                   </tr>
                 </thead>
@@ -324,7 +413,7 @@ const AdminRevenueReport = () => {
                     <th>Người mua</th>
                     <th>Người bán</th>
                     <th>Doanh thu gộp</th>
-                    <th>Phí 5%</th>
+                    <th>Doanh thu hệ thống</th>
                     <th>Chi trả người bán</th>
                     <th>Hoàn tất lúc</th>
                   </tr>

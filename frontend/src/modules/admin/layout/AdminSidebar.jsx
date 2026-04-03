@@ -14,6 +14,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       description: 'Dashboard và thống kê'
     },
     {
+      path: '/admin/revenue',
+      icon: 'fas fa-chart-line',
+      label: 'Báo cáo doanh thu',
+      description: 'Thống kê phí 5% và chi trả'
+    },
+    {
       path: '/admin/users',
       icon: 'fas fa-users',
       label: 'Quản lý người dùng',
@@ -48,12 +54,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       icon: 'fas fa-gavel',
       label: 'Giải quyết tranh chấp',
       description: 'Xử lý tranh chấp đơn hàng'
-    },
-    {
-      path: '/admin/revenue',
-      icon: 'fas fa-chart-line',
-      label: 'Báo cáo doanh thu',
-      description: 'Thống kê phí 5% và chi trả'
     }
   ];
 
@@ -73,9 +73,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   return (
     <aside className={`admin-sidebar ${isOpen ? 'admin-sidebar--open' : ''}`}>
       <div className="admin-sidebar__header">
-        <div className="admin-sidebar__logo">
-          <i className="fas fa-shield-alt"></i>
-          <span>Admin Panel</span>
+        <div className="admin-brand">
+          <div className="admin-brand-badge">A</div>
+          <div className="admin-brand-text">
+            <div className="admin-brand-title">Admin Panel</div>
+            <div className="admin-brand-subtitle">Bảng điều hành quản trị</div>
+          </div>
         </div>
         <button 
           className="admin-sidebar__close"
@@ -94,7 +97,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         </div>
         <div className="admin-sidebar__user-info">
           <div className="admin-sidebar__user-name">{user?.fullName}</div>
-          <div className="admin-sidebar__user-role">Administrator</div>
+          <div className="admin-sidebar__user-role">Quản trị viên hệ thống</div>
         </div>
       </div>
 

@@ -37,6 +37,12 @@ router.post('/admin/users/:id/suspend', authenticate, requireAdmin, userControll
 // Unsuspend user (Admin only)
 router.post('/admin/users/:id/unsuspend', authenticate, requireAdmin, userController.unsuspendUser);
 
+// Lock moderator account (Admin only)
+router.post('/admin/users/:id/lock-account', authenticate, requireAdmin, userController.lockModeratorAccount);
+
+// Unlock moderator account (Admin only)
+router.post('/admin/users/:id/unlock-account', authenticate, requireAdmin, userController.unlockModeratorAccount);
+
 /**
  * User Routes
  * Profile management

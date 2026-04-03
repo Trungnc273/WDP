@@ -55,7 +55,7 @@ const UserFilters = ({
         >
           <option value="">Tất cả trạng thái</option>
           <option value="active">Hoạt động</option>
-          <option value="suspended">Bị khóa</option>
+          <option value="selling_restricted">Hạn chế quyền bán</option>
         </select>
 
         <button

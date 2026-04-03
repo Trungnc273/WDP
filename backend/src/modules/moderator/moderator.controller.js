@@ -108,7 +108,7 @@ async function banUser(req, res) {
 
     const suspendedReason = String(req.body?.reason || "").trim();
     const result = await moderatorService.banUser(id, suspendedReason);
-    return sendSuccess(res, 200, result, "Đã khóa tài khoản người dùng");
+    return sendSuccess(res, 200, result, "Đã hạn chế quyền bán của người dùng");
   } catch (error) {
     return sendError(res, 400, error.message);
   }

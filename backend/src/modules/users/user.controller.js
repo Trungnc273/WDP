@@ -275,7 +275,7 @@ async function deleteUser(req, res) {
 }
 
 /**
- * Suspend user (Admin only)
+ * Restrict selling permissions (Admin only)
  * POST /api/users/admin/users/:id/suspend
  */
 async function suspendUser(req, res) {
@@ -285,7 +285,7 @@ async function suspendUser(req, res) {
     
     const user = await userService.suspendUser(id, suspendedUntil, reason);
     
-    sendSuccess(res, 200, user, 'Khóa người dùng thành công');
+    sendSuccess(res, 200, user, 'Hạn chế quyền bán thành công');
   } catch (error) {
     console.error('Suspend user error:', error);
     sendError(res, 400, error.message);
@@ -293,7 +293,7 @@ async function suspendUser(req, res) {
 }
 
 /**
- * Unsuspend user (Admin only)
+ * Remove selling restriction (Admin only)
  * POST /api/users/admin/users/:id/unsuspend
  */
 async function unsuspendUser(req, res) {
@@ -302,9 +302,44 @@ async function unsuspendUser(req, res) {
     
     const user = await userService.unsuspendUser(id);
     
-    sendSuccess(res, 200, user, 'Mở khóa người dùng thành công');
+    sendSuccess(res, 200, user, 'Đã gỡ hạn chế quyền bán thành công');
   } catch (error) {
     console.error('Unsuspend user error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Lock moderator account (Admin only)
+ * POST /api/users/admin/users/:id/lock-account
+ */
+async function lockModeratorAccount(req, res) {
+  try {
+    const { id } = req.params;
+    const { suspendedUntil, reason } = req.body;
+
+    const user = await userService.lockModeratorAccount(id, suspendedUntil, reason);
+
+    sendSuccess(res, 200, user, 'Đã khóa tài khoản moderator thành công');
+  } catch (error) {
+    console.error('Lock moderator account error:', error);
+    sendError(res, 400, error.message);
+  }
+}
+
+/**
+ * Unlock moderator account (Admin only)
+ * POST /api/users/admin/users/:id/unlock-account
+ */
+async function unlockModeratorAccount(req, res) {
+  try {
+    const { id } = req.params;
+
+    const user = await userService.unlockModeratorAccount(id);
+
+    sendSuccess(res, 200, user, 'Đã mở khóa tài khoản moderator thành công');
+  } catch (error) {
+    console.error('Unlock moderator account error:', error);
     sendError(res, 400, error.message);
   }
 }
@@ -339,6 +374,8 @@ module.exports = {
   deleteUser,
   suspendUser,
   unsuspendUser,
+  lockModeratorAccount,
+  unlockModeratorAccount,
   getSystemStats,
   getAdminDashboardStats
 };

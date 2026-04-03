@@ -1,5 +1,10 @@
 const Product = require('./product.model');
 const Order = require('../orders/order.model');
+const User = require('../users/user.model');
+const {
+  refreshSellingRestriction,
+  getSellingRestrictionMessage
+} = require('../../common/utils/seller-restriction.util');
 
 const ACTIVE_ORDER_STATUSES = [
   'awaiting_seller_confirmation',
@@ -212,6 +217,16 @@ async function filterByLocation(city, additionalFilters = {}, pagination = {}) {
  */
 async function createProduct(userId, productData) {
   try {
+    const seller = await User.findById(userId);
+    if (!seller) {
+      throw new Error('Người bán không tồn tại');
+    }
+
+    const isSellingRestricted = await refreshSellingRestriction(seller);
+    if (isSellingRestricted) {
+      throw new Error(getSellingRestrictionMessage(seller));
+    }
+
     const product = new Product({
       ...productData,
       seller: userId,

@@ -1,6 +1,7 @@
 const { verifyToken } = require('../utils/jwt.util');
 const { sendError } = require('../utils/response.util');
 const User = require('../../modules/users/user.model');
+const { refreshSellingRestriction } = require('../utils/seller-restriction.util');
 
 /**
  * Middleware to verify JWT token and authenticate user
@@ -65,12 +66,16 @@ async function authenticate(req, res, next) {
       }
     }
 
+    await refreshSellingRestriction(user);
+
     // Attach user info to request object (without password)
     req.user = {
       userId: user._id,
       email: user.email,
       fullName: user.fullName,
-      role: user.role
+      role: user.role,
+      isSellingRestricted: Boolean(user.isSellingRestricted),
+      sellingRestrictedUntil: user.sellingRestrictedUntil || null
     };
 
     next();
@@ -121,12 +126,18 @@ async function optionalAuthenticate(req, res, next) {
         await user.save();
       }
 
+      if (user) {
+        await refreshSellingRestriction(user);
+      }
+
       if (user && !user.isSuspended) {
         req.user = {
           userId: user._id,
           email: user.email,
           fullName: user.fullName,
-          role: user.role
+          role: user.role,
+          isSellingRestricted: Boolean(user.isSellingRestricted),
+          sellingRestrictedUntil: user.sellingRestrictedUntil || null
         };
       }
     } catch (error) {

@@ -14,6 +14,9 @@ const escrowService = require("../payments/escrow.service");
 const EscrowHold = require("../payments/escrow-hold.model");
 const walletService = require("../payments/wallet.service");
 const notificationService = require("../notifications/notification.service");
+const {
+  applySellingRestrictionToUser
+} = require("../../common/utils/seller-restriction.util");
 
 const ORDER_TERMINAL_STATUSES = ["completed", "cancelled"];
 
@@ -471,16 +474,13 @@ async function banUser(userId, suspendedReason = "") {
   if (user.role === "admin") {
     throw new Error("Không thể khóa tài khoản admin");
   }
-
-  const hasActiveOrders = await hasActiveOrdersForUser(userId);
-  if (hasActiveOrders) {
-    throw new Error("Không thể khóa tài khoản khi người dùng đang có đơn hàng đang xử lý");
-  }
-
-  user.isSuspended = true;
-  user.suspendedReason = String(suspendedReason || '').trim() || 'Tài khoản bị khóa bởi moderator.';
   user.violationCount = (user.violationCount || 0) + 1;
-  await user.save();
+
+  await applySellingRestrictionToUser(user, {
+    reason: String(suspendedReason || '').trim() || 'Tài khoản bị hạn chế quyền bán bởi moderator.',
+    source: 'moderator_ban'
+  });
+
   return {
     user,
     suspendedReason
@@ -506,7 +506,7 @@ async function getReports(filters = {}, pagination = {}) {
     .skip(skip)
     .limit(limit)
     .populate("reporterId", "fullName email avatar")
-    .populate("reportedUserId", "fullName email avatar violationCount isSuspended suspendedUntil")
+    .populate("reportedUserId", "fullName email avatar violationCount isSuspended suspendedUntil isSellingRestricted sellingRestrictedUntil sellingRestrictedReason")
     .populate("productId", "title images")
     .lean();
 
@@ -527,7 +527,7 @@ async function getReports(filters = {}, pagination = {}) {
 async function getReportById(reportId) {
   const report = await Report.findById(reportId)
     .populate("reporterId", "fullName email avatar")
-    .populate("reportedUserId", "fullName email avatar violationCount isSuspended suspendedUntil")
+    .populate("reportedUserId", "fullName email avatar violationCount isSuspended suspendedUntil isSellingRestricted sellingRestrictedUntil sellingRestrictedReason")
     .populate("productId", "title images price")
     .lean();
 
@@ -733,7 +733,7 @@ async function getReviews(filters = {}, pagination = {}) {
     .skip(skip)
     .limit(limit)
     .populate("reviewerId", "fullName email")
-    .populate("reviewedUserId", "fullName email totalReviews isSuspended suspendedUntil modBadReviewCount")
+    .populate("reviewedUserId", "fullName email totalReviews isSuspended suspendedUntil isSellingRestricted sellingRestrictedUntil sellingRestrictedReason modBadReviewCount")
     .populate("moderatorAssessment.moderatorId", "fullName email")
     .populate("productId", "title images")
     .populate("orderId", "status agreedAmount");
@@ -791,21 +791,22 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
   const shouldSuspendNow = nextCount % 3 === 0;
 
   let suspensionConfig = null;
-  let suspendUntil = seller.suspendedUntil || null;
+  let restrictUntil = seller.sellingRestrictedUntil || null;
 
   seller.modBadReviewCount = nextCount;
 
   if (shouldSuspendNow && penaltyLevel > 0) {
     // Tai moc 3/6/9 thi khoa tai khoan theo cap do.
     suspensionConfig = getModerationSuspensionConfig(penaltyLevel);
-    suspendUntil = new Date(Date.now() + suspensionConfig.durationHours * 60 * 60 * 1000);
-
-    seller.isSuspended = true;
-    seller.suspendedUntil = suspendUntil;
-    seller.suspendedReason = `Vi phạm đánh giá do moderator xử lý (mức ${penaltyLevel}/3). ${String(note || '').trim()}`;
+    await applySellingRestrictionToUser(seller, {
+      durationMs: suspensionConfig.durationHours * 60 * 60 * 1000,
+      reason: `Vi phạm đánh giá do moderator xử lý (mức ${penaltyLevel}/3). ${String(note || '').trim()}`,
+      source: 'review_moderation'
+    });
+    restrictUntil = seller.sellingRestrictedUntil || null;
+  } else {
+    await seller.save();
   }
-
-  await seller.save();
 
   review.moderatorAssessment = {
     // Luu dau vet moderation de audit.
@@ -826,8 +827,8 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
       : 'Vui lòng rà soát chất lượng sản phẩm và cách phục vụ.';
 
     const moderationResultMessage = shouldSuspendNow && suspensionConfig
-      ? `Tài khoản bị khóa ${suspensionConfig.label} sau mốc ${nextCount} đánh giá xấu.`
-      : `Đã ghi nhận ${nextCount} đánh giá xấu. Tài khoản sẽ bị khóa khi đạt các mốc 3/6/9.`;
+      ? `Tài khoản bị hạn chế quyền bán ${suspensionConfig.label} sau mốc ${nextCount} đánh giá xấu.`
+      : `Đã ghi nhận ${nextCount} đánh giá xấu. Tài khoản sẽ bị hạn chế quyền bán khi đạt các mốc 3/6/9.`;
 
     await notificationService.createNotification(seller._id, {
       type: 'system',
@@ -842,7 +843,7 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
 
   await review.populate([
     { path: 'reviewerId', select: 'fullName email' },
-    { path: 'reviewedUserId', select: 'fullName email isSuspended suspendedUntil modBadReviewCount' },
+    { path: 'reviewedUserId', select: 'fullName email isSuspended suspendedUntil isSellingRestricted sellingRestrictedUntil sellingRestrictedReason modBadReviewCount' },
     { path: 'moderatorAssessment.moderatorId', select: 'fullName email' },
     { path: 'productId', select: 'title images' },
     { path: 'orderId', select: 'status agreedAmount' }
@@ -854,7 +855,8 @@ async function markSellerBadByReview(reviewId, moderatorId, note = '') {
       modBadReviewCount: nextCount,
       penaltyLevel,
       isSuspended: Boolean(seller.isSuspended),
-      suspendedUntil: suspendUntil,
+      isSellingRestricted: Boolean(seller.isSellingRestricted),
+      sellingRestrictedUntil: restrictUntil,
       suspensionLabel: suspensionConfig?.label || null,
       shouldSuspendNow
     }
@@ -884,7 +886,7 @@ async function markSellerGoodByReview(reviewId, moderatorId, note = '') {
 
   await review.populate([
     { path: 'reviewerId', select: 'fullName email' },
-    { path: 'reviewedUserId', select: 'fullName email isSuspended suspendedUntil modBadReviewCount' },
+    { path: 'reviewedUserId', select: 'fullName email isSuspended suspendedUntil isSellingRestricted sellingRestrictedUntil sellingRestrictedReason modBadReviewCount' },
     { path: 'moderatorAssessment.moderatorId', select: 'fullName email' },
     { path: 'productId', select: 'title images' },
     { path: 'orderId', select: 'status agreedAmount' }
@@ -959,8 +961,8 @@ async function getDisputes(filters = {}, pagination = {}) {
 
   const populateDisputes = (builder) => builder
     .populate("orderId", "agreedAmount totalToPay status")
-    .populate("buyerId", "fullName email avatar violationCount isSuspended")
-    .populate("sellerId", "fullName email avatar violationCount isSuspended")
+    .populate("buyerId", "fullName email avatar violationCount isSuspended isSellingRestricted sellingRestrictedUntil")
+    .populate("sellerId", "fullName email avatar violationCount isSuspended isSellingRestricted sellingRestrictedUntil")
     .populate("productId", "title images")
     .populate("moderatorId", "fullName email");
 
@@ -1056,8 +1058,8 @@ async function getDisputes(filters = {}, pagination = {}) {
 async function getDisputeById(disputeId) {
   const dispute = await Dispute.findById(disputeId)
     .populate("orderId", "agreedAmount totalToPay status paymentStatus")
-    .populate("buyerId", "fullName email avatar violationCount isSuspended")
-    .populate("sellerId", "fullName email avatar violationCount isSuspended")
+    .populate("buyerId", "fullName email avatar violationCount isSuspended isSellingRestricted sellingRestrictedUntil")
+    .populate("sellerId", "fullName email avatar violationCount isSuspended isSellingRestricted sellingRestrictedUntil")
     .populate("productId", "title images price")
     .populate("moderatorId", "fullName email")
     .populate("moderatorUpdates.moderatorId", "fullName email")
@@ -1126,13 +1128,12 @@ async function increaseViolationAndMaybeSuspend(userId) {
 
   user.violationCount = (user.violationCount || 0) + 1;
   if (user.violationCount >= 3) {
-    const hasActiveOrders = await hasActiveOrdersForUser(userId);
-    if (!hasActiveOrders) {
-      user.isSuspended = true;
-      const suspendUntil = new Date();
-      suspendUntil.setDate(suspendUntil.getDate() + 30);
-      user.suspendedUntil = suspendUntil;
-    }
+    await applySellingRestrictionToUser(user, {
+      durationMs: 30 * 24 * 60 * 60 * 1000,
+      reason: 'Tài khoản bị hạn chế quyền bán do vi phạm nhiều lần trong xử lý khiếu nại.',
+      source: 'dispute_violation'
+    });
+    return user;
   }
 
   await user.save();

@@ -23,7 +23,7 @@ const UserStats = ({ stats }) => {
         
         <div className="stat-card">
           <div className="stat-number">{suspendedUsers}</div>
-          <div className="stat-label">Bị khóa</div>
+          <div className="stat-label">Hạn chế quyền bán</div>
         </div>
         
       </div>

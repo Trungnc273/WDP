@@ -126,11 +126,14 @@ const ModReportList = () => {
       key: "risk",
       width: 260,
       render: (_, record) => {
-        if (record.reportType === "user" && record.reportedUserStats) {
-          const warningCount = Number(record.reportedUserStats.warningCount || 0);
-          const totalReports = Number(record.reportedUserStats.totalReports || 0);
-          const isSuspended = Boolean(record.reportedUserStats.isSuspended);
-          const shouldLockAccount = Boolean(record.reportedUserStats.shouldLockAccount);
+        const userStats = record?.reportedUserStats || null;
+        const productStats = record?.productStats || null;
+
+        if (record.reportType === "user" && userStats) {
+          const warningCount = Number(userStats.warningCount || 0);
+          const totalReports = Number(userStats.totalReports || 0);
+          const isSuspended = Boolean(userStats.isSuspended || userStats.isSellingRestricted);
+          const shouldLockAccount = Boolean(userStats.shouldLockAccount);
           const warningMeta = getWarningMeta(warningCount, isSuspended, shouldLockAccount);
           const reportMeta = getReportMeta(totalReports);
 
@@ -142,10 +145,10 @@ const ModReportList = () => {
           );
         }
 
-        if (record.reportType === "product" && record.productStats) {
-          const warningActions = Number(record.productStats.warningActions || 0);
-          const totalReports = Number(record.productStats.totalReports || 0);
-          const isRemoved = Boolean(record.productStats.isRemoved);
+        if (record.reportType === "product" && productStats) {
+          const warningActions = Number(productStats.warningActions || 0);
+          const totalReports = Number(productStats.totalReports || 0);
+          const isRemoved = Boolean(productStats.isRemoved);
           const warningMeta = getProductWarningMeta(warningActions, isRemoved);
           const reportMeta = getReportMeta(totalReports);
 
@@ -155,6 +158,30 @@ const ModReportList = () => {
               <Tag className="mod-status-pill" color={reportMeta.color}>{reportMeta.text}</Tag>
             </Space>
           );
+        }
+
+        // Fallback cho dữ liệu cũ/không đồng nhất: tránh để cột hiển thị trống.
+        if (record.reportType === "product" && userStats) {
+          const warningCount = Number(userStats.warningCount || 0);
+          const totalReports = Number(userStats.totalReports || 0);
+          const warningMeta = getWarningMeta(warningCount, Boolean(userStats.isSuspended || userStats.isSellingRestricted), Boolean(userStats.shouldLockAccount));
+          const reportMeta = getReportMeta(totalReports);
+
+          return (
+            <Space direction="vertical" size={4}>
+              <Tag className="mod-status-pill" color="default">Thiếu dữ liệu sản phẩm</Tag>
+              <Tag className="mod-status-pill" color={warningMeta.color}>{warningMeta.text}</Tag>
+              <Tag className="mod-status-pill" color={reportMeta.color}>{reportMeta.text}</Tag>
+            </Space>
+          );
+        }
+
+        if (record.reportType === "user") {
+          return <Tag className="mod-status-pill" color="default">Thiếu dữ liệu người dùng</Tag>;
+        }
+
+        if (record.reportType === "product") {
+          return <Tag className="mod-status-pill" color="default">Thiếu dữ liệu sản phẩm</Tag>;
         }
 
         return <span style={{ color: "#8c8c8c" }}>-</span>;

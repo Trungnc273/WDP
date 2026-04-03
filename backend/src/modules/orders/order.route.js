@@ -3,6 +3,7 @@ const router = express.Router();
 const orderController = require('./order.controller');
 const { authenticate } = require('../../common/middlewares/auth.middleware');
 const { requireRole } = require('../../common/middlewares/role.middleware');
+const { requireSellerCanSell } = require('../../common/middlewares/seller-restriction.middleware');
 /**
  * Order Routes
  * All routes require authentication
@@ -21,7 +22,7 @@ router.post('/purchase-request', orderController.createPurchaseRequest);
 
 // Seller creates an offer from chat
 // POST /api/orders/seller-offer
-router.post('/seller-offer', orderController.createSellerOfferFromChat);
+router.post('/seller-offer', requireSellerCanSell, orderController.createSellerOfferFromChat);
 
 // Buyer creates an offer from chat
 // POST /api/orders/buyer-offer

@@ -1,41 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getModeratorDisputes } from '../../../services/moderator.service';
-import '../AdminModules.css';
+import { useEffect, useState } from "react";
+import { Card, Table, Tag, Button, Typography, Select, message } from "antd";
+import { EyeOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { getModeratorDisputes } from "../../../services/moderator.service";
+
+const { Title } = Typography;
 
 const AdminDisputeList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [disputes, setDisputes] = useState([]);
-  const [filters, setFilters] = useState({ status: 'all' });
+  const initialStatus = searchParams.get("status") || "all";
+  const [status, setStatus] = useState(initialStatus);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [message, setMessage] = useState('');
 
   const reasonLabel = {
-    not_as_described: 'Không đúng mô tả',
-    damaged: 'Sản phẩm bị hỏng/hư hại',
-    not_received: 'Không nhận được hàng',
-    counterfeit: 'Hàng giả/hàng nhái',
-    return_request: 'Yêu cầu hoàn hàng',
-    other: 'Lý do khác'
+    not_as_described: "Không đúng mô tả",
+    damaged: "Sản phẩm bị hỏng/hư hại",
+    not_received: "Không nhận được hàng",
+    counterfeit: "Hàng giả/hàng nhái",
+    return_request: "Yêu cầu hoàn hàng",
+    other: "Lý do khác"
   };
 
-  const viMessage = (raw = '') => {
-    const input = String(raw || '').trim();
+  const viMessage = (raw = "") => {
+    const input = String(raw || "").trim();
     const map = {
-      'Dispute resolved: refund to buyer': 'Tranh chấp đã xử lý: Hoàn tiền cho người mua',
-      'Dispute resolved: release to seller': 'Tranh chấp đã xử lý: Nhả tiền cho người bán'
+      "Dispute resolved: refund to buyer": "Tranh chấp đã xử lý: Hoàn tiền cho người mua",
+      "Dispute resolved: release to seller": "Tranh chấp đã xử lý: Nhả tiền cho người bán"
     };
     return map[input] || input;
   };
 
+  // Tập trung hàm tải dữ liệu để bộ lọc và phân trang luôn đồng bộ.
   const fetchDisputes = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
       const result = await getModeratorDisputes({
         page,
         limit: pageSize,
-        status: filters.status === 'all' ? undefined : filters.status
+        status: status === "all" ? undefined : status
       });
       setDisputes(result.items);
       setPagination({
@@ -43,169 +48,104 @@ const AdminDisputeList = () => {
         pageSize: result.pagination.limit,
         total: result.pagination.total
       });
-      setMessage('');
     } catch (error) {
-      setMessage(viMessage(error.message) || 'Không thể tải danh sách khiếu nại');
+      message.error(viMessage(error.message) || "Không thể tải danh sách khiếu nại");
     } finally {
       setLoading(false);
     }
   };
 
+  // Đồng bộ trạng thái bộ lọc với query trên URL để reload vẫn giữ filter.
   useEffect(() => {
+    const queryStatus = searchParams.get("status") || "all";
+    if (queryStatus !== status) {
+      setStatus(queryStatus);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Mỗi khi đổi trạng thái lọc thì cập nhật URL và tải lại trang 1.
+  useEffect(() => {
+    setSearchParams(status === "all" ? {} : { status });
     fetchDisputes(1, pagination.pageSize);
-  }, [filters.status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   const handleResetFilter = () => {
-    setFilters({ status: 'all' });
+    setStatus("all");
   };
 
-  const getStatusLabel = (status) => {
-    const statusMap = {
-      pending: 'Chờ xử lý',
-      investigating: 'Đang điều tra',
-      resolved: 'Đã xử lý'
-    };
-    return statusMap[status] || status;
-  };
-
-  const getStatusClass = (status) => {
-    const statusClassMap = {
-      pending: 'status-orange',
-      investigating: 'status-blue',
-      resolved: 'status-green'
-    };
-    return statusClassMap[status] || 'status-blue';
-  };
+  // Cấu hình cột bảng tranh chấp.
+  const columns = [
+    {
+      title: "Mã KN",
+      dataIndex: "_id",
+      key: "_id",
+      render: (text) => <b>{String(text).slice(-8).toUpperCase()}</b>
+    },
+    { title: "Người mua", dataIndex: ["buyerId", "fullName"], key: "buyer" },
+    { title: "Người bán", dataIndex: ["sellerId", "fullName"], key: "seller" },
+    {
+      title: "Lý do",
+      dataIndex: "reason",
+      key: "reason",
+      render: (text) => <span className="mod-danger-text">{reasonLabel[text] || viMessage(text)}</span>
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (value) => {
+        if (value === "pending") return <Tag className="mod-status-pill" color="warning">Chờ xử lý</Tag>;
+        if (value === "investigating") return <Tag className="mod-status-pill" color="processing">Đang điều tra</Tag>;
+        return <Tag className="mod-status-pill" color="success">Đã xử lý</Tag>;
+      }
+    },
+    {
+      title: "Hành động",
+      key: "action",
+      render: (_, record) => (
+        <Button type="primary" icon={<EyeOutlined />} onClick={() => navigate(`/admin/disputes/${record._id}`)}>
+          Chi tiết
+        </Button>
+      )
+    }
+  ];
 
   return (
-    <div className="admin-module">
-      <div className="admin-module__header">
-        <h1>Quản lý tranh chấp</h1>
-        <p>Xem xét và giải quyết tranh chấp giữa người mua và người bán</p>
-      </div>
-
-      {message && (
-        <div className={`alert ${message.includes('thành công') ? 'alert-success' : 'alert-error'}`}>
-          {message}
-        </div>
-      )}
-
-      <div className="admin-module__filters">
-        <div className="filter-group">
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="filter-select"
-          >
-            <option value="all">Tất cả</option>
-            <option value="pending">Chờ xử lý</option>
-            <option value="investigating">Đang điều tra</option>
-            <option value="resolved">Đã xử lý</option>
-          </select>
-
-          <div className="filter-actions">
-            <button 
-              className="btn btn-secondary"
-              onClick={handleResetFilter}
-            >
-              <i className="fas fa-redo"></i>
-              Reset
-            </button>
+    <Card className="mod-panel">
+      <div className="mod-toolbar">
+        <Title level={4} style={{ margin: 0 }}>Quản lý Tranh chấp</Title>
+        <div className="mod-filter-row">
+          <Select
+            value={status}
+            onChange={setStatus}
+            style={{ width: 180 }}
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "pending", label: "Chờ xử lý" },
+              { value: "investigating", label: "Đang điều tra" },
+              { value: "resolved", label: "Đã xử lý" }
+            ]}
+          />
+          <div className="mod-filter-actions">
+            <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilter}>Reset</Button>
           </div>
         </div>
       </div>
 
-      <div className="admin-module__content">
-        {loading ? (
-          <div className="loading">
-            <i className="fas fa-spinner fa-spin"></i>
-            Đang tải...
-          </div>
-        ) : (
-          <>
-            <div className="table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Mã KN</th>
-                    <th>Người mua</th>
-                    <th>Người bán</th>
-                    <th>Lý do</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {disputes.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="no-data">
-                        Không có dữ liệu
-                      </td>
-                    </tr>
-                  ) : (
-                    disputes.map((dispute) => (
-                      <tr key={dispute._id}>
-                        <td>
-                          <strong>
-                            {String(dispute._id).slice(-8).toUpperCase()}
-                          </strong>
-                        </td>
-                        <td>{dispute.buyerId?.fullName || 'N/A'}</td>
-                        <td>{dispute.sellerId?.fullName || 'N/A'}</td>
-                        <td>
-                          <span style={{ color: '#cf1322' }}>
-                            {reasonLabel[dispute.reason] || viMessage(dispute.reason)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status ${getStatusClass(dispute.status)}`}>
-                            {getStatusLabel(dispute.status)}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => navigate(`/admin/disputes/${dispute._id}`)}
-                          >
-                            <i className="fas fa-eye"></i>
-                            Chi tiết
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {pagination.total > pagination.pageSize && (
-              <div className="pagination">
-                <button
-                  className="btn btn-sm"
-                  onClick={() => fetchDisputes(pagination.current - 1, pagination.pageSize)}
-                  disabled={pagination.current === 1}
-                >
-                  Trước
-                </button>
-                
-                <span className="page-info">
-                  Trang {pagination.current} / {Math.ceil(pagination.total / pagination.pageSize)}
-                </span>
-                
-                <button
-                  className="btn btn-sm"
-                  onClick={() => fetchDisputes(pagination.current + 1, pagination.pageSize)}
-                  disabled={pagination.current >= Math.ceil(pagination.total / pagination.pageSize)}
-                >
-                  Sau
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+      <Table
+        className="mod-table"
+        rowKey="_id"
+        columns={columns}
+        dataSource={disputes}
+        loading={loading}
+        pagination={pagination}
+        onChange={(pager) => fetchDisputes(pager.current, pager.pageSize)}
+      />
+    </Card>
   );
 };
 
 export default AdminDisputeList;
+

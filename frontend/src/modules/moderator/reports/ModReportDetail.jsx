@@ -72,9 +72,10 @@ const ModReportDetail = () => {
   const handleAction = async (status) => {
     // Luong bao cao: gui quyet dinh xu ly (resolved/dismissed) len backend.
     try {
+      const decisionForAction = status === "dismissed" ? "reply_feedback" : decision;
       await resolveModeratorReport(id, {
         status,
-        moderatorDecision: decision,
+        moderatorDecision: decisionForAction,
         moderatorReply: reply,
         moderatorReplyToReportedUser: replyToReportedUser
       });
@@ -97,6 +98,12 @@ const ModReportDetail = () => {
   const productWarningActions = Number(report?.productStats?.warningActions || 0);
   const productTotalReports = Number(report?.productStats?.totalReports || 0);
   const productIsRemoved = Boolean(report?.productStats?.isRemoved);
+  const decisionOptions = [
+    { value: "warn_user", label: "Cảnh báo người dùng" },
+    { value: "reply_feedback", label: "Trả lời phản hồi" },
+    { value: "ban_user", label: "Hạn chế quyền bán" },
+    ...(report?.reportType === "product" ? [{ value: "remove_content", label: "Gỡ nội dung" }] : [])
+  ];
 
   return (
     <Space direction="vertical" style={{ width: "100%" }} size="large">
@@ -190,8 +197,8 @@ const ModReportDetail = () => {
             message={warningLevel.message}
             description={
               isSuspended || shouldLockAccount
-                ? "Mốc khóa áp dụng theo chu kỳ 3/6/9 cảnh báo với mức khóa tăng dần 24h, 1 tuần, 1 năm."
-                : "Mốc khóa tài khoản: 3/6/9 cảnh báo."
+                ? "Mốc hạn chế quyền bán áp dụng theo chu kỳ 3/6/9 cảnh báo với mức hạn chế tăng dần 24h, 1 tuần, 1 năm."
+                : "Mốc hạn chế quyền bán: 3/6/9 cảnh báo."
             }
           />
         )}
@@ -205,12 +212,7 @@ const ModReportDetail = () => {
                 value={decision}
                 style={{ width: "100%" }}
                 onChange={setDecision}
-                options={[
-                  { value: "warn_user", label: "Cảnh báo người dùng" },
-                  { value: "reply_feedback", label: "Trả lời phản hồi" },
-                  { value: "ban_user", label: "Khóa tài khoản" },
-                  { value: "remove_content", label: "Gỡ nội dung" }
-                ]}
+                options={decisionOptions}
               />
             </div>
 

@@ -8,6 +8,10 @@ const { emitMessageToConversation, emitToUser } = require('../chat/chat.socket')
 const { encryptChatContent, decryptChatContent } = require('../../common/utils/chat-crypto.util');
 const notificationService = require('../notifications/notification.service');
 const mongoose = require('mongoose');
+const {
+  refreshSellingRestriction,
+  getSellingRestrictionMessage
+} = require('../../common/utils/seller-restriction.util');
 
 /**
  * Order Service
@@ -37,6 +41,20 @@ function normalizeOfferMessageForClient(messageDoc) {
       message?.conversationId ||
       message?.conversation
   };
+}
+
+async function assertSellerCanPerformSellerActions(userId) {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+
+  const isSellingRestricted = await refreshSellingRestriction(user);
+  if (isSellingRestricted) {
+    throw new Error(getSellingRestrictionMessage(user));
+  }
+
+  return user;
 }
 
 /**
@@ -70,6 +88,16 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
     // Check if buyer is trying to buy their own product
     if (product.seller.toString() === buyerId.toString()) {
       throw new Error('Bạn không thể mua sản phẩm của chính mình');
+    }
+
+    const seller = await User.findById(product.seller).session(session);
+    if (!seller) {
+      throw new Error('Người bán không tồn tại');
+    }
+
+    const sellerRestricted = await refreshSellingRestriction(seller, { save: false });
+    if (sellerRestricted) {
+      throw new Error('Người bán đang bị hạn chế quyền bán, không thể tạo giao dịch mới');
     }
     
     const buyer = await User.findById(buyerId).session(session);
@@ -312,6 +340,10 @@ async function acceptPurchaseRequest(requestId, sellerId) {
           : 'Bạn không có quyền chấp nhận đề nghị này'
       );
     }
+
+    if (isBuyerInitiated) {
+      await assertSellerCanPerformSellerActions(sellerId);
+    }
     
     // Check if request is still pending
     if (request.status !== 'pending') {
@@ -479,6 +511,10 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
         : 'Bạn không có quyền từ chối đề nghị này'
     );
   }
+
+  if (isBuyerInitiated) {
+    await assertSellerCanPerformSellerActions(sellerId);
+  }
   
   // Check if request is still pending
   if (request.status !== 'pending') {
@@ -544,6 +580,8 @@ async function rejectPurchaseRequest(requestId, sellerId, reason = '') {
  * Buyer can accept/reject this offer using existing accept/reject endpoints.
  */
 async function createSellerOfferFromConversation(sellerId, conversationId, message, agreedPrice) {
+  await assertSellerCanPerformSellerActions(sellerId);
+
   if (!conversationId) {
     throw new Error('Thiếu cuộc trò chuyện để gửi đề nghị');
   }

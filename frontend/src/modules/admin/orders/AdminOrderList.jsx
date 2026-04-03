@@ -1,24 +1,28 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getModeratorOrders } from '../../../services/moderator.service';
-import '../AdminModules.css';
+import { Card, Table, Tag, Button, Typography, Space, Select, Input, message } from "antd";
+import { EyeOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getModeratorOrders } from "../../../services/moderator.service";
+
+const { Title } = Typography;
 
 const AdminOrderList = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState([]);
-  const [filters, setFilters] = useState({ status: '', keyword: '' });
+  const [filters, setFilters] = useState({ status: "", keyword: "" });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [message, setMessage] = useState('');
 
-  const sanitizeKeyword = (keyword) => String(keyword || '').trim();
+  // Chuẩn hóa và validate từ khóa để tránh gửi input lỗi lên backend.
+  const sanitizeKeyword = (keyword) => String(keyword || "").trim();
 
   const validateKeyword = (keyword) => {
     if (keyword.length > 100) {
-      throw new Error('Từ khóa tìm kiếm không được vượt quá 100 ký tự');
+      throw new Error("Từ khóa tìm kiếm không được vượt quá 100 ký tự");
     }
   };
 
+  // Một điểm gọi API duy nhất giúp trạng thái bảng ổn định sau khi lọc/phân trang.
   const fetchOrders = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
@@ -31,236 +35,152 @@ const AdminOrderList = () => {
         status: filters.status || undefined,
         keyword: keyword || undefined
       });
-      
-      setOrders(result.items || []);
+      setOrders(result.items);
       setPagination({
         current: result.pagination.page,
         pageSize: result.pagination.limit,
         total: result.pagination.total
       });
-      setMessage('');
     } catch (error) {
-      setMessage(error.message || 'Không thể tải đơn hàng');
+      message.error(error.message || "Không thể tải đơn hàng");
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredOrders = useMemo(() => {
-    const k = filters.keyword.toLowerCase().trim();
-    if (!k) return orders;
-
-    return orders.filter((order) => {
-      return (
-        order.orderCode?.toLowerCase().includes(k) ||
-        order._id?.toLowerCase().includes(k) ||
-        order.buyerId?.fullName?.toLowerCase().includes(k) ||
-        order.sellerId?.fullName?.toLowerCase().includes(k) ||
-        order.trackingNumber?.toLowerCase().includes(k)
-      );
-    });
-  }, [orders, filters.keyword]);
-
   const handleResetFilters = () => {
-    setFilters({ status: '', keyword: '' });
+    // Reset toàn bộ điều kiện lọc về trạng thái ban đầu.
+    setFilters({ status: "", keyword: "" });
     fetchOrders(1, pagination.pageSize);
   };
 
   useEffect(() => {
     fetchOrders(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
 
-  const STATUS_LABEL = {
-    pending: 'Chờ thanh toán',
-    delivered: 'Đã giao hàng',
-    awaiting_seller_confirmation: 'Chờ xác nhận',
-    awaiting_payment: 'Chờ thanh toán',
-    paid: 'Đã thanh toán',
-    shipped: 'Đang giao',
-    completed: 'Hoàn tất',
-    cancelled: 'Đã hủy',
-    disputed: 'Đang tranh chấp'
+  // Map trạng thái backend sang màu hiển thị ở UI.
+  const STATUS_COLOR = {
+    pending: "gold",
+    delivered: "processing",
+    awaiting_seller_confirmation: "blue",
+    awaiting_payment: "gold",
+    paid: "cyan",
+    shipped: "processing",
+    completed: "green",
+    cancelled: "red",
+    disputed: "orange"
   };
 
-  const formatCurrency = (amount) => {
-    if (!amount || amount === 0) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+  // Map trạng thái backend sang nhãn tiếng Việt cho bảng moderator.
+  const STATUS_LABEL = {
+    pending: "Chờ thanh toán",
+    delivered: "Đã giao hàng",
+    awaiting_seller_confirmation: "Chờ xác nhận",
+    awaiting_payment: "Chờ thanh toán",
+    paid: "Đã thanh toán",
+    shipped: "Đang giao",
+    completed: "Hoàn tất",
+    cancelled: "Đã hủy",
+    disputed: "Đang tranh chấp"
   };
+
+  // Cấu hình cột bảng để tách phần dữ liệu và phần render UI.
+  const columns = [
+    {
+      title: "Mã ĐH",
+      dataIndex: "orderCode",
+      key: "orderCode",
+      render: (_, record) => <b>{record?.orderCode || String(record?._id || '').slice(-8).toUpperCase()}</b>
+    },
+    { title: "Người mua", dataIndex: ["buyerId", "fullName"], key: "buyer" },
+    { title: "Người bán", dataIndex: ["sellerId", "fullName"], key: "seller" },
+    {
+      title: "Mã vận đơn",
+      dataIndex: "trackingNumber",
+      key: "trackingNumber",
+      render: (value) => value || "-"
+    },
+    {
+      title: "Tổng tiền",
+      dataIndex: "totalToPay",
+      key: "total",
+      render: (value) => <span className="mod-money-text">{Number(value || 0).toLocaleString("vi-VN")} đ</span>
+    },
+    { 
+      title: "Trạng thái", 
+      dataIndex: "status", 
+      key: "status",
+      render: (status) => (
+        <Tag className="mod-status-pill" color={STATUS_COLOR[status] || "default"}>
+          {STATUS_LABEL[status] || status}
+        </Tag>
+      )
+    },
+    {
+      title: "Hành động",
+      key: "action",
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/admin/orders/${record._id}`)}
+          >
+            Chi tiết
+          </Button>
+        </Space>
+      )
+    }
+  ];
 
   return (
-    <div className="admin-module">
-      <div className="admin-module__header">
-        <h1>Quản lý đơn hàng</h1>
-        <p>Theo dõi và xử lý đơn hàng trong hệ thống</p>
-      </div>
-
-      {message && (
-        <div className={`alert ${message.includes('thành công') ? 'alert-success' : 'alert-error'}`}>
-          {message}
-        </div>
-      )}
-
-      <div className="admin-module__filters">
-        <div className="filter-group">
-          <input
-            type="text"
-            placeholder="Mã ĐH, người mua, người bán, mã vận đơn..."
+    <Card className="mod-panel">
+      <div className="mod-toolbar">
+        <Title level={4} style={{ margin: 0 }}>Danh sách Đơn hàng cần kiểm duyệt</Title>
+        <div className="mod-filter-row">
+          <Input
+            placeholder="Tìm đơn hàng..."
+            prefix={<SearchOutlined />}
             value={filters.keyword}
-            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && fetchOrders(1, pagination.pageSize)}
-            className="filter-input"
+            onChange={(e) => setFilters((prev) => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={() => fetchOrders(1, pagination.pageSize)}
+            style={{ width: 220 }}
           />
-          
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="filter-select"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="awaiting_seller_confirmation">Chờ xác nhận</option>
-            <option value="awaiting_payment">Chờ thanh toán</option>
-            <option value="paid">Đã thanh toán</option>
-            <option value="shipped">Đang giao</option>
-            <option value="completed">Hoàn tất</option>
-            <option value="cancelled">Đã hủy</option>
-            <option value="disputed">Đang tranh chấp</option>
-          </select>
-
-          <div className="filter-actions">
-            <button 
-              className="btn btn-primary"
-              onClick={() => fetchOrders(1, pagination.pageSize)}
-            >
-              <i className="fas fa-search"></i>
-              Lọc
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleResetFilters}
-            >
-              <i className="fas fa-redo"></i>
-              Reset
-            </button>
+          <Select
+            placeholder="Trạng thái"
+            allowClear
+            style={{ width: 180 }}
+            onChange={(value) => setFilters((prev) => ({ ...prev, status: value || "" }))}
+            options={[
+              { value: "awaiting_seller_confirmation", label: "Chờ xác nhận" },
+              { value: "awaiting_payment", label: "Chờ thanh toán" },
+              { value: "paid", label: "Đã thanh toán" },
+              { value: "shipped", label: "Đang giao" },
+              { value: "completed", label: "Hoàn tất" },
+              { value: "cancelled", label: "Đã hủy" },
+              { value: "disputed", label: "Đang tranh chấp" }
+            ]}
+          />
+          <div className="mod-filter-actions">
+            <Button type="primary" onClick={() => fetchOrders(1, pagination.pageSize)}>Lọc</Button>
+            <Button icon={<ReloadOutlined />} className="mod-reset-btn" onClick={handleResetFilters}>Reset</Button>
           </div>
         </div>
       </div>
-
-      <div className="admin-module__content">
-        {loading ? (
-          <div className="loading">
-            <i className="fas fa-spinner fa-spin"></i>
-            Đang tải...
-          </div>
-        ) : (
-          <>
-            <div className="table-container">
-              <table className="orders-table">
-                <thead>
-                  <tr>
-                    <th style={{width: '120px'}}>Mã ĐH</th>
-                    <th style={{width: '160px'}}>Người mua</th>
-                    <th style={{width: '160px'}}>Người bán</th>
-                    <th style={{width: '140px'}}>Mã vận đơn</th>
-                    <th style={{width: '130px', textAlign: 'right'}}>Tổng tiền</th>
-                    <th style={{width: '120px'}}>Trạng thái</th>
-                    <th style={{width: '100px'}}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="no-data">
-                        Không có dữ liệu
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredOrders.map((order) => (
-                      <tr key={order._id}>
-                        <td>
-                          <strong>
-                            {order.orderCode || `ORD-${order._id?.slice(-8)?.toUpperCase()}`}
-                          </strong>
-                        </td>
-                        <td>
-                          <div style={{fontWeight: '500'}}>
-                            {order.buyerId?.fullName || 'Không xác định'}
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{fontWeight: '500'}}>
-                            {order.sellerId?.fullName || 'Không xác định'}
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{
-                            fontFamily: order.trackingNumber ? 'monospace' : 'inherit',
-                            background: order.trackingNumber ? '#f0f0f0' : 'transparent',
-                            padding: order.trackingNumber ? '2px 6px' : '0',
-                            borderRadius: order.trackingNumber ? '4px' : '0',
-                            fontSize: '12px',
-                            color: order.trackingNumber ? '#333' : '#999',
-                            fontStyle: order.trackingNumber ? 'normal' : 'italic'
-                          }}>
-                            {order.trackingNumber || 'Chưa có'}
-                          </span>
-                        </td>
-                        <td style={{textAlign: 'right', fontWeight: '600', color: '#52c41a'}}>
-                          {formatCurrency(order.totalToPay || order.totalPrice || 0)}
-                        </td>
-                        <td>
-                          <span className={`status status-${order.status}`}>
-                            {STATUS_LABEL[order.status] || 'Không xác định'}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => navigate(`/admin/orders/${order._id}`)}
-                          >
-                            <i className="fas fa-eye"></i>
-                            Chi tiết
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {pagination.total > pagination.pageSize && (
-              <div className="pagination">
-                <button
-                  className="btn btn-sm"
-                  onClick={() => fetchOrders(pagination.current - 1, pagination.pageSize)}
-                  disabled={pagination.current === 1}
-                >
-                  Trước
-                </button>
-                
-                <span className="page-info">
-                  Trang {pagination.current} / {Math.ceil(pagination.total / pagination.pageSize)}
-                </span>
-                
-                <button
-                  className="btn btn-sm"
-                  onClick={() => fetchOrders(pagination.current + 1, pagination.pageSize)}
-                  disabled={pagination.current >= Math.ceil(pagination.total / pagination.pageSize)}
-                >
-                  Sau
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+      <Table
+        className="mod-table"
+        columns={columns}
+        dataSource={orders}
+        rowKey="_id"
+        loading={loading}
+        pagination={pagination}
+        onChange={(pager) => fetchOrders(pager.current, pager.pageSize)}
+      />
+    </Card>
   );
 };
 
 export default AdminOrderList;
+

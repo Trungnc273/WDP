@@ -36,20 +36,10 @@ const UserList = ({
   };
 
   const getStatusLabel = (user) => {
-    if (user.isSuspended) {
-      return <span className="status suspended">Bị khóa</span>;
+    if (user.isSellingRestricted) {
+      return <span className="status suspended">Hạn chế quyền bán</span>;
     }
     return <span className="status active">Hoạt động</span>;
-  };
-
-  const getKYCStatusLabel = (status) => {
-    const statusLabels = {
-      not_submitted: 'Chưa gửi',
-      pending: 'Chờ duyệt',
-      approved: 'Đã duyệt',
-      rejected: 'Bị từ chối'
-    };
-    return statusLabels[status] || status;
   };
 
   const handleSearchSubmit = (e) => {
@@ -96,7 +86,7 @@ const UserList = ({
           >
             <option value="">Tất cả trạng thái</option>
             <option value="active">Hoạt động</option>
-            <option value="suspended">Bị khóa</option>
+            <option value="selling_restricted">Hạn chế quyền bán</option>
           </select>
 
           <div className="filter-actions">
@@ -128,7 +118,6 @@ const UserList = ({
                     <th>Email</th>
                     <th className="role-col">Vai trò</th>
                     <th className="status-col">Trạng thái</th>
-                    <th className="kyc-col">KYC</th>
                     <th>Ngày tạo</th>
                     <th className="action-col">Thao tác</th>
                   </tr>
@@ -136,7 +125,7 @@ const UserList = ({
                 <tbody>
                   {users.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="no-data">
+                      <td colSpan="6" className="no-data">
                         Không có dữ liệu
                       </td>
                     </tr>
@@ -160,11 +149,6 @@ const UserList = ({
                           </span>
                         </td>
                         <td className="status-col">{getStatusLabel(user)}</td>
-                        <td className="kyc-col">
-                          <span className={`kyc-status ${user.kycStatus}`}>
-                            {getKYCStatusLabel(user.kycStatus)}
-                          </span>
-                        </td>
                         <td>{formatDate(user.createdAt)}</td>
                         <td className="action-col">
                           <div className="action-buttons user-action-buttons">
@@ -187,13 +171,13 @@ const UserList = ({
                             )}
 
                             {user.role !== 'admin' && (
-                              user.isSuspended ? (
+                              user.isSellingRestricted ? (
                                 <button className="btn btn-sm btn-secondary" onClick={() => onUnsuspendUser(user)}>
-                                  Mở khóa
+                                  Gỡ hạn chế bán
                                 </button>
                               ) : (
                                 <button className="btn btn-sm btn-danger" onClick={() => onSuspendUser(user)}>
-                                  Khóa
+                                  Hạn chế bán
                                 </button>
                               )
                             )}

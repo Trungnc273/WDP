@@ -4,6 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import './AdminLayout.css';
+import '../../moderator/moderator-pages.css';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);

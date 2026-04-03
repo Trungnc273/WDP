@@ -1,5 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  TeamOutlined,
+  SafetyOutlined,
+  UserDeleteOutlined,
+  WalletOutlined,
+  FlagOutlined,
+  StarOutlined,
+  AlertOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
+  RiseOutlined,
+  ArrowRightOutlined,
+  ReloadOutlined,
+  BarChartOutlined,
+  FileSearchOutlined,
+  IssuesCloseOutlined
+} from '@ant-design/icons';
 import { useAuth } from '../../../hooks/useAuth';
 import { adminUserApi } from '../../../services/adminApi';
 import './Dashboard.css';
@@ -8,6 +25,7 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const [dashboardStats, setDashboardStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadDashboardStats();
@@ -15,17 +33,19 @@ const AdminDashboard = () => {
 
   const loadDashboardStats = async () => {
     try {
+      setError('');
       const response = await adminUserApi.getAdminDashboardStats();
       setDashboardStats(response.data.data);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
+      setError('Không thể tải dữ liệu tổng quan. Vui lòng thử lại sau ít phút.');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">Đang tải tổng quan quản trị...</div>;
   }
 
   const {
@@ -41,130 +61,273 @@ const AdminDashboard = () => {
   } = userStats;
 
   const {
+    pendingReports = 0,
+    reviewingReports = 0,
     unresolvedReports = 0,
     pendingWithdrawals = 0,
+    pendingReviews = 0,
+    openOrders = 0,
+    pendingDisputes = 0,
+    recentReports = []
   } = moderationStats;
+
+  const adminCount = usersByRole.admin || 0;
+  const moderatorCount = usersByRole.moderator || 0;
+  const userCount = usersByRole.user || 0;
+
+  const quickMetrics = [
+    {
+      key: 'totalUsers',
+      title: 'Tổng người dùng',
+      value: totalUsers,
+      subtitle: `${activeUsers} đang hoạt động`,
+      tone: 'ocean',
+      icon: <TeamOutlined />,
+      route: '/admin/users'
+    },
+    {
+      key: 'moderationQueue',
+      title: 'Hàng chờ kiểm duyệt',
+      value: unresolvedReports,
+      subtitle: `${pendingReports} chờ duyệt, ${reviewingReports} đang xử lý`,
+      tone: 'amber',
+      icon: <SafetyOutlined />,
+      route: '/admin/reports'
+    },
+    {
+      key: 'riskAccounts',
+      title: 'Tài khoản hạn chế bán',
+      value: suspendedUsers,
+      subtitle: 'Theo dõi vi phạm đang áp dụng',
+      tone: 'rose',
+      icon: <UserDeleteOutlined />,
+      route: '/admin/users?status=selling_restricted'
+    },
+    {
+      key: 'financeQueue',
+      title: 'Rút tiền chờ duyệt',
+      value: pendingWithdrawals,
+      subtitle: 'Ưu tiên SLA tài chính',
+      tone: 'teal',
+      icon: <WalletOutlined />,
+      route: '/admin/withdrawals'
+    }
+  ];
+
+  const priorityItems = [
+    {
+      key: 'reports',
+      label: 'Báo cáo chưa xử lý',
+      value: unresolvedReports,
+      tone: unresolvedReports > 10 ? 'critical' : unresolvedReports > 0 ? 'warning' : 'ok',
+      route: '/admin/reports',
+      cta: 'Mở danh sách báo cáo',
+      icon: <FlagOutlined />
+    },
+    {
+      key: 'withdrawals',
+      label: 'Yêu cầu rút tiền chờ duyệt',
+      value: pendingWithdrawals,
+      tone: pendingWithdrawals > 5 ? 'critical' : pendingWithdrawals > 0 ? 'warning' : 'ok',
+      route: '/admin/withdrawals',
+      cta: 'Đi tới duyệt rút tiền',
+      icon: <WalletOutlined />
+    },
+    {
+      key: 'reviews',
+      label: 'Đánh giá chờ kiểm duyệt',
+      value: pendingReviews,
+      tone: pendingReviews > 10 ? 'warning' : 'ok',
+      route: '/admin/reviews',
+      cta: 'Xử lý đánh giá',
+      icon: <StarOutlined />
+    },
+    {
+      key: 'disputes',
+      label: 'Tranh chấp đang chờ xử lý',
+      value: pendingDisputes,
+      tone: pendingDisputes > 0 ? 'warning' : 'ok',
+      route: '/admin/disputes',
+      cta: 'Mở khu vực tranh chấp',
+      icon: <AlertOutlined />
+    }
+  ];
+
+  const operationalBlocks = [
+    {
+      key: 'users',
+      title: 'Nhân sự hệ thống',
+      icon: <UserOutlined />,
+      metrics: [
+        { label: 'Admin', value: adminCount },
+        { label: 'Moderator', value: moderatorCount },
+        { label: 'User', value: userCount }
+      ]
+    },
+    {
+      key: 'orders',
+      title: 'Vận hành giao dịch',
+      icon: <CheckCircleOutlined />,
+      metrics: [
+        { label: 'Đơn hàng đang mở', value: openOrders },
+        { label: 'Báo cáo chờ duyệt', value: pendingReports },
+        { label: 'Báo cáo đang xử lý', value: reviewingReports }
+      ]
+    }
+  ];
+
+  const quickActions = [
+    {
+      key: 'users',
+      title: 'Quản lý người dùng',
+      desc: 'Theo dõi trạng thái, phân quyền và xử lý vi phạm.',
+      route: '/admin/users',
+      icon: <UserOutlined />
+    },
+    {
+      key: 'reports',
+      title: 'Kiểm duyệt báo cáo',
+      desc: 'Ưu tiên các báo cáo mới để giảm tồn đọng.',
+      route: '/admin/reports',
+      icon: <FileSearchOutlined />
+    },
+    {
+      key: 'withdrawals',
+      title: 'Duyệt rút tiền',
+      desc: 'Đảm bảo tiến độ thanh toán và trải nghiệm người dùng.',
+      route: '/admin/withdrawals',
+      icon: <IssuesCloseOutlined />
+    },
+    {
+      key: 'revenue',
+      title: 'Báo cáo doanh thu',
+      desc: 'Xem nhanh hiệu suất và dòng tiền nền tảng.',
+      route: '/admin/revenue',
+      icon: <BarChartOutlined />
+    }
+  ];
 
   return (
     <div className="admin-dashboard">
-      <div className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <p>Chào mừng, {user?.fullName}</p>
+      <div className="dashboard-topbar">
+        <div className="dashboard-topbar__text">
+          <h1>Tổng quan vận hành quản trị</h1>
+          <p>Xin chào {user?.fullName || 'Administrator'}, đây là bức tranh tổng hợp theo thời gian thực.</p>
+        </div>
+        <button className="dashboard-refresh" onClick={loadDashboardStats}>
+          <ReloadOutlined /> Làm mới dữ liệu
+        </button>
       </div>
 
-      {/* Quick Stats */}
-      <div className="stats-overview">
-        <div className="stat-card">
-          <div className="stat-icon">👥</div>
-          <div className="stat-content">
-            <div className="stat-number">{totalUsers}</div>
-            <div className="stat-label">Tổng người dùng</div>
-          </div>
-        </div>
+      {error ? <div className="dashboard-error">{error}</div> : null}
 
-        <div className="stat-card">
-          <div className="stat-icon">⚠️</div>
-          <div className="stat-content">
-            <div className="stat-number">{unresolvedReports}</div>
-            <div className="stat-label">Báo cáo chưa xử lý</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">💵</div>
-          <div className="stat-content">
-            <div className="stat-number">{pendingWithdrawals}</div>
-            <div className="stat-label">Rút tiền chờ duyệt</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Detailed Stats Grid */}
-      <div className="stats-grid">
-        {/* User Management Stats */}
-        <div className="stats-section">
-          <h3>Quản lý người dùng</h3>
-          <div className="stats-cards">
-            <div className="mini-stat-card">
-              <div className="mini-stat-icon">✅</div>
-              <div className="mini-stat-content">
-                <div className="mini-stat-number">{activeUsers}</div>
-                <div className="mini-stat-label">Đang hoạt động</div>
-              </div>
+      <div className="dashboard-kpi-grid">
+        {quickMetrics.map((metric) => (
+          <Link
+            key={metric.key}
+            to={metric.route}
+            className={`dashboard-kpi-card dashboard-kpi-card--${metric.tone}`}
+            aria-label={`Mở ${metric.title}`}
+          >
+            <div className="dashboard-kpi-header">
+              <div className="dashboard-kpi-icon">{metric.icon}</div>
+              <div className="dashboard-kpi-title">{metric.title}</div>
             </div>
-            
-            <div className="mini-stat-card">
-              <div className="mini-stat-icon">🔒</div>
-              <div className="mini-stat-content">
-                <div className="mini-stat-number">{suspendedUsers}</div>
-                <div className="mini-stat-label">Bị khóa</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Role Distribution */}
-      <div className="role-distribution">
-        <h3>Phân bố vai trò</h3>
-        <div className="role-stats">
-          <div className="role-item">
-            <span className="role-label">Admin:</span>
-            <span className="role-count">{usersByRole.admin || 0}</span>
-          </div>
-          <div className="role-item">
-            <span className="role-label">Moderator:</span>
-            <span className="role-count">{usersByRole.moderator || 0}</span>
-          </div>
-          <div className="role-item">
-            <span className="role-label">User:</span>
-            <span className="role-count">{usersByRole.user || 0}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <h3>Thao tác nhanh</h3>
-        <div className="action-grid">
-          <Link to="/admin/users" className="action-card">
-            <div className="action-icon">👤</div>
-            <div className="action-content">
-              <h4>Quản lý người dùng</h4>
-              <p>Xem, tạo, sửa, xóa người dùng</p>
-            </div>
+            <div className="dashboard-kpi-value">{metric.value}</div>
+            <div className="dashboard-kpi-subtitle">{metric.subtitle}</div>
           </Link>
-
-          <Link to="/admin/revenue" className="action-card">
-            <div className="action-icon">📊</div>
-            <div className="action-content">
-              <h4>Báo cáo doanh thu</h4>
-              <p>Xem thống kê phí hệ thống 5% theo đơn hoàn tất</p>
-            </div>
-          </Link>
-        </div>
+        ))}
       </div>
 
-      {/* Recent Activity */}
-      <div className="recent-activity">
-        <h3>Hoạt động gần đây</h3>
-        <div className="activity-list">
-          <div className="activity-item">
-            <div className="activity-icon">👤</div>
-            <div className="activity-content">
-              <p>Người dùng đang hoạt động: {activeUsers}</p>
-              <span className="activity-time">Cập nhật liên tục</span>
-            </div>
+      <div className="dashboard-sections">
+        <section className="dashboard-section dashboard-priority">
+          <div className="dashboard-section__header">
+            <h2>Hạng mục ưu tiên</h2>
+            <p>Tập trung các đầu việc có thể ảnh hưởng trực tiếp đến trải nghiệm người dùng.</p>
           </div>
-          
-          <div className="activity-item">
-            <div className="activity-icon">📈</div>
-            <div className="activity-content">
-              <p>Tổng số người dùng: {totalUsers}</p>
-              <span className="activity-time">Thống kê hiện tại</span>
-            </div>
+          <div className="priority-list">
+            {priorityItems.map((item) => (
+              <div key={item.key} className={`priority-item priority-item--${item.tone}`}>
+                <div className="priority-item__main">
+                  <div className="priority-item__icon">{item.icon}</div>
+                  <div>
+                    <div className="priority-item__label">{item.label}</div>
+                    <div className="priority-item__value">{item.value}</div>
+                  </div>
+                </div>
+                <Link to={item.route} className="priority-item__link">
+                  {item.cta} <ArrowRightOutlined />
+                </Link>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
+
+        <section className="dashboard-section dashboard-operations">
+          <div className="dashboard-section__header">
+            <h2>Snapshot vận hành</h2>
+            <p>Tổng hợp nhanh cấu trúc người dùng và tiến độ xử lý nghiệp vụ.</p>
+          </div>
+
+          <div className="operations-grid">
+            {operationalBlocks.map((block) => (
+              <div key={block.key} className="operation-card">
+                <h3><span>{block.icon}</span>{block.title}</h3>
+                <div className="operation-metrics">
+                  {block.metrics.map((metric) => (
+                    <div key={metric.label} className="operation-metric">
+                      <span>{metric.label}</span>
+                      <strong>{metric.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="dashboard-footer-grid">
+        <section className="dashboard-section">
+          <div className="dashboard-section__header">
+            <h2>Thao tác nhanh</h2>
+            <p>Đi tới các module cần xử lý thường xuyên trong ngày.</p>
+          </div>
+          <div className="quick-actions-grid">
+            {quickActions.map((action) => (
+              <Link key={action.key} to={action.route} className="quick-action-card">
+                <div className="quick-action-card__icon">{action.icon}</div>
+                <h3>{action.title}</h3>
+                <p>{action.desc}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className="dashboard-section">
+          <div className="dashboard-section__header">
+            <h2>Báo cáo mới gần đây</h2>
+            <p>Các báo cáo mới nhất cần theo dõi ngay.</p>
+          </div>
+
+          {recentReports.length === 0 ? (
+            <div className="recent-empty">Không có báo cáo đang chờ xử lý.</div>
+          ) : (
+            <div className="recent-report-list">
+              {recentReports.map((report) => (
+                <div key={report._id} className="recent-report-item">
+                  <div className="recent-report-item__content">
+                    <strong>{report.type || 'Báo cáo'}</strong>
+                    <span>{report.reason || 'Không có mô tả bổ sung'}</span>
+                  </div>
+                  <Link to="/admin/reports" className="recent-report-item__link">
+                    Xem chi tiết
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

@@ -47,6 +47,23 @@ const UserSchema = new Schema({
     trim: true,
     maxlength: 500
   },
+  isSellingRestricted: {
+    type: Boolean,
+    default: false
+  },
+  sellingRestrictedUntil: {
+    type: Date
+  },
+  sellingRestrictedReason: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
+  sellingRestrictionSource: {
+    type: String,
+    trim: true,
+    maxlength: 50
+  },
   violationCount: {
     type: Number,
     default: 0
