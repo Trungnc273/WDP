@@ -153,7 +153,7 @@ async function generateAndSetTempPassword(email) {
  * @param {String} fullName - User full name
  * @returns {Object} { user, token }
  */
-async function registerUser(email, password, fullName, phone, address) {
+async function registerUser(email, password, fullName, phone) {
   // Check if email already exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
@@ -178,7 +178,6 @@ async function registerUser(email, password, fullName, phone, address) {
     password: hashedPassword,
     fullName: fullName.trim(),
     phone: phone.trim(),
-    address: address.trim(),
     role: "user",
   });
 
@@ -198,7 +197,6 @@ async function registerUser(email, password, fullName, phone, address) {
     email: user.email,
     fullName: user.fullName,
     phone: user.phone,
-    address: user.address,
     role: user.role,
   };
 

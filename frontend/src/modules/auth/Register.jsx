@@ -15,7 +15,6 @@ function Register() {
     confirmPassword: "",
     fullName: "",
     phone: "",
-    address: "",
   });
 
   // State cho OTP và Đếm ngược
@@ -91,12 +90,6 @@ function Register() {
       newErrors.phone = "Số điện thoại không được để trống";
     } else if (!/^0\d{9,10}$/.test(formData.phone.trim())) {
       newErrors.phone = "Số điện thoại không hợp lệ";
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = "Địa chỉ không được để trống";
-    } else if (formData.address.trim().length > 255) {
-      newErrors.address = "Địa chỉ không được vượt quá 255 ký tự";
     }
 
     const passwordValidation = validateStrongPassword(formData.password);
@@ -194,7 +187,6 @@ function Register() {
         formData.password,
         formData.fullName,
         formData.phone,
-        formData.address,
       );
       setSuccessMessage(res.message || "Mã OTP đã được gửi đến email của bạn.");
       setTimeLeft(300); // Reset đồng hồ về 5 phút
@@ -216,7 +208,6 @@ function Register() {
         formData.password,
         formData.fullName,
         formData.phone,
-        formData.address,
       );
       setSuccessMessage("Mã OTP mới đã được gửi đến email của bạn.");
       setTimeLeft(300); // Reset lại đồng hồ
@@ -300,22 +291,6 @@ function Register() {
                 disabled={loading}
               />
               {errors.phone && <span className="error">{errors.phone}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="address">Địa chỉ</label>
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="Nhập địa chỉ"
-                disabled={loading}
-              />
-              {errors.address && (
-                <span className="error">{errors.address}</span>
-              )}
             </div>
 
             <div className="form-group">

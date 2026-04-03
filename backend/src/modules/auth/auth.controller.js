@@ -15,10 +15,10 @@ const User = require("../users/user.model");
  */
 async function requestRegisterOtp(req, res, next) {
   try {
-    const { email, password, fullName, phone, address } = req.body;
+    const { email, password, fullName, phone } = req.body;
 
     // Validate (giữ nguyên logic validate cũ của bảnh)
-    if (!email || !password || !fullName || !phone || !address) {
+    if (!email || !password || !fullName || !phone) {
       return sendError(res, 400, "Vui lòng điền đầy đủ thông tin");
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -39,9 +39,6 @@ async function requestRegisterOtp(req, res, next) {
         "Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số",
       );
     }
-    if (address.trim().length === 0) {
-      return sendError(res, 400, "Địa chỉ không được để trống");
-    }
 
     // Kiểm tra xem email đã tồn tại trong DB chưa trước khi gửi OTP
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -60,7 +57,6 @@ async function requestRegisterOtp(req, res, next) {
       password,
       fullName,
       phone,
-      address,
     });
 
     // Gửi email
@@ -101,7 +97,6 @@ async function verifyAndRegister(req, res, next) {
       password,
       fullName,
       phone,
-      address,
     } = otpCheck.userData;
 
     const result = await authService.registerUser(
@@ -109,7 +104,6 @@ async function verifyAndRegister(req, res, next) {
       password,
       fullName,
       phone,
-      address,
     );
 
     return sendSuccess(res, 201, result, "Đăng ký tài khoản thành công");
