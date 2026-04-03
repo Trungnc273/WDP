@@ -65,18 +65,6 @@ async function getPublicProfile(userId) {
   if (!user) {
     throw new Error('Người dùng không tồn tại');
   }
-
-  if (filteredData.isSellingRestricted === true) {
-    await Product.updateMany(
-      {
-        seller: user._id,
-        status: 'active'
-      },
-      {
-        status: 'hidden'
-      }
-    );
-  }
   
   return user;
 }
@@ -434,6 +422,18 @@ async function updateUserAdmin(userId, updateData) {
   
   if (!user) {
     throw new Error('Người dùng không tồn tại');
+  }
+
+  if (filteredData.isSellingRestricted === true) {
+    await Product.updateMany(
+      {
+        seller: user._id,
+        status: 'active'
+      },
+      {
+        status: 'hidden'
+      }
+    );
   }
   
   return user;

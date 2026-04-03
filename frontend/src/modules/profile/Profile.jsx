@@ -115,18 +115,18 @@ function Profile() {
             <div className="avatar-info">
               <h3>{profile?.fullName}</h3>
               <p className="user-email">{profile?.email}</p>
-              <div className="user-stats">
+              <div className="profile-user-stats">
                 <div
-                  className="stat-item"
+                  className="profile-stat-item"
                   style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                  <span className="stat-label">Đánh giá:</span>
-                  <span className="stat-value">
+                  <span className="profile-stat-label">Đánh giá:</span>
+                  <span className="profile-stat-value">
                     {profile?.rating > 0
                       ? `${profile.rating.toFixed(1)}/5`
                       : "Chưa có"}
                     {profile?.totalReviews > 0 && (
-                      <span className="review-count">
+                      <span className="profile-review-count">
                         {" "}
                         ({profile.totalReviews} đánh giá)
                       </span>
@@ -135,16 +135,16 @@ function Profile() {
                   {profile?._id && (
                     <Link
                       to={`/user/${profile._id}/reviews`}
-                      className="btn btn-outline btn-sm"
+                      className="btn btn-outline btn-sm profile-review-link"
                       style={{ marginLeft: "8px" }}
                     >
                       Xem chi tiết đánh giá
                     </Link>
                   )}
                 </div>
-                <div className="stat-item">
-                  <span className="stat-label">Thành viên từ:</span>
-                  <span className="stat-value">
+                <div className="profile-stat-item">
+                  <span className="profile-stat-label">Thành viên từ:</span>
+                  <span className="profile-stat-value">
                     {formatDate(profile?.createdAt)}
                   </span>
                 </div>
