@@ -71,14 +71,22 @@ async function createSePayOrderPayment(userId, orderId, amount, orderInfo) {
 
 async function handleSePayIPN(body, receivedSecretKey) {
   const expectedSecretKey = process.env.SEPAY_SECRET_KEY;
-  if (!receivedSecretKey || receivedSecretKey !== expectedSecretKey) {
-    console.warn('[SEPay IPN] Invalid secret key received');
+  
+  const trimmedReceived = receivedSecretKey ? receivedSecretKey.trim() : '';
+  const trimmedExpected = expectedSecretKey ? expectedSecretKey.trim() : '';
+
+  if (!trimmedReceived || trimmedReceived !== trimmedExpected) {
+    console.warn('[SEPay IPN] Unauthorized: Key mismatch.');
+    console.warn('[SEPay IPN] Expected (first 5):', trimmedExpected.substring(0, 5));
+    console.warn('[SEPay IPN] Received (first 5):', trimmedReceived.substring(0, 5));
     return { success: false, message: 'Unauthorized' };
   }
+
   const notification_type = body && body.notification_type;
   const order = body && body.order;
   const txInfo = body && body.transaction;
-  console.log('[SEPay IPN] Received:', JSON.stringify({ notification_type, inv: order && order.order_invoice_number }));
+  
+  console.log('[SEPay IPN] Payload:', JSON.stringify(body));
   if (notification_type !== 'ORDER_PAID') return { success: true, message: 'Event ignored' };
   const inv = order && order.order_invoice_number;
   if (!inv) return { success: false, message: 'Missing order_invoice_number' };

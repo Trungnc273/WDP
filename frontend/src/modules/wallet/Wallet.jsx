@@ -194,9 +194,6 @@ const Wallet = () => {
       <div className="wallet-header">
         <h1>Ví của tôi</h1>
         <div className="wallet-actions">
-          <Link to="/wallet/topup" className="btn btn-primary">
-            Nạp tiền
-          </Link>
           <Link to="/wallet/withdraw" className="btn btn-secondary">
             Rút tiền
           </Link>
@@ -306,6 +303,7 @@ const Wallet = () => {
                   let displayAmount = rawAmount; // Mặc định hiển thị đúng số tiền
                   let displaySign = '';
                   let displayClass = '';
+                  let displaySuffix = '';
 
                   const debitTypes = new Set(['withdrawal', 'payment', 'fee']);
                   const creditTypes = new Set(['deposit', 'refund', 'earning']);
@@ -324,21 +322,24 @@ const Wallet = () => {
                     }
                   }
 
-                  // Logic cho Rút tiền (withdrawal)
+                  // Logic cho Rút tiền/Thanh toán (debit types)
                   if (debitTypes.has(type)) {
                     if (isCompleted && rawAmount > 0) {
                       displayAmount = rawAmount;
                       displaySign = '-';
                       displayClass = 'negative';
                     } else if (isPending && rawAmount > 0) {
-                      displayAmount = rawAmount;
-                      displaySign = '-';
-                      displayClass = 'pending-amount';
-                    } else {
-                      // Rút tiền thất bại -> Giữ nguyên số tiền, màu đen (class trống)
+                      // Đang xử lý -> bớt dấu âm, chữ màu đen, có hậu tố
                       displayAmount = rawAmount;
                       displaySign = '';
                       displayClass = '';
+                      displaySuffix = ' ( không thành công)';
+                    } else {
+                      // Thất bại -> Giữ nguyên số tiền, màu đen, có hậu tố
+                      displayAmount = rawAmount;
+                      displaySign = '';
+                      displayClass = '';
+                      displaySuffix = ' ( không thành công)';
                     }
                   }
 
@@ -365,7 +366,7 @@ const Wallet = () => {
 
                       <div className="transaction-amount">
                         <div className={`amount ${displayClass}`}>
-                          {displaySign}{formatPrice(displayAmount)}
+                          {displaySign}{formatPrice(displayAmount)}{displaySuffix}
                         </div>
                         {getStatusBadge(transaction.status)}
 

@@ -49,14 +49,25 @@ async function createSePayPayment(req, res, next) {
  */
 async function handleSePayIPN(req, res) {
   try {
-    const receivedSecretKey = req.headers['x-secret-key'];
+    // SEPay might send X-Secret-Key or X-SePay-Secret-Key
+    const receivedSecretKey = req.headers['x-secret-key'] || req.headers['x-sepay-secret-key'] || req.query.secret_key;
+    
+    console.log('[SEPay IPN] Incoming request from:', req.ip);
+    console.log('[SEPay IPN] Headers received:', JSON.stringify(req.headers));
+
     const result = await sepayService.handleSePayIPN(req.body, receivedSecretKey);
 
-    // Luôn trả 200 để SePay không gửi lại
+    if (!result.success) {
+      console.warn('[SEPay IPN] Logic failed:', result.message);
+    } else {
+      console.log('[SEPay IPN] Success:', result.message);
+    }
+
+    // Always return 200 to acknowledge SePay
     return res.status(200).json({ success: result.success, message: result.message });
   } catch (error) {
-    console.error('[SEPay IPN Controller] Error:', error);
-    // Vẫn trả 200 để SePay không retry
+    console.error('[SEPay IPN Controller] Critical Error:', error.message);
+    // Return 200 to stop retries even on internal errors
     return res.status(200).json({ success: false, message: 'Internal error' });
   }
 }
