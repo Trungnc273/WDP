@@ -20,10 +20,11 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
 
 const CreateProduct = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
@@ -46,13 +47,100 @@ const CreateProduct = () => {
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
+  const isRestrictionActive = (flag, until) => {
+    if (!flag) {
+      return false;
     }
-    fetchCategories();
-  }, [user, navigate]);
+
+    if (!until) {
+      return true;
+    }
+
+    const untilTime = new Date(until);
+    if (Number.isNaN(untilTime.getTime())) {
+      return false;
+    }
+
+    return untilTime > new Date();
+  };
+
+  const buildSellingRestrictionMessage = (currentUser) => {
+    const restrictedUntilText = currentUser?.sellingRestrictedUntil
+      ? ` đến ${new Date(currentUser.sellingRestrictedUntil).toLocaleString('vi-VN')}`
+      : '';
+    const reasonText = currentUser?.sellingRestrictedReason
+      ? ` Lý do: ${currentUser.sellingRestrictedReason}`
+      : ' Lý do: vi phạm chính sách của hệ thống.';
+
+    return `Tài khoản đang bị hạn chế quyền bán${restrictedUntilText}.${reasonText}`;
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const guardCreateAccess = async () => {
+      try {
+        if (!user) {
+          navigate('/login');
+          return;
+        }
+
+        let latestUser = user;
+        if (typeof refreshUser === 'function') {
+          const refreshed = await refreshUser();
+          if (refreshed) {
+            latestUser = refreshed;
+          }
+        }
+
+        const sellingRestricted = isRestrictionActive(
+          latestUser?.isSellingRestricted,
+          latestUser?.sellingRestrictedUntil,
+        );
+        const accountSuspended = isRestrictionActive(
+          latestUser?.isSuspended,
+          latestUser?.suspendedUntil,
+        );
+
+        if (sellingRestricted || accountSuspended) {
+          if (sellingRestricted) {
+            alert(buildSellingRestrictionMessage(latestUser));
+          } else {
+            const suspendedUntilText = latestUser?.suspendedUntil
+              ? ` đến ${new Date(latestUser.suspendedUntil).toLocaleString('vi-VN')}`
+              : '';
+            const reasonText = latestUser?.suspendedReason
+              ? ` Lý do: ${latestUser.suspendedReason}`
+              : ' Lý do: vi phạm chính sách của hệ thống.';
+            alert(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+          }
+
+          navigate('/');
+          return;
+        }
+
+        await fetchCategories();
+      } catch (error) {
+        console.error('Error checking create-product access:', error);
+        alert('Không thể xác minh trạng thái tài khoản lúc này. Vui lòng thử lại sau.');
+        navigate('/');
+      } finally {
+        if (isMounted) {
+          setCheckingAccess(false);
+        }
+      }
+    };
+
+    guardCreateAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, refreshUser, navigate]);
+
+  if (checkingAccess) {
+    return <div className="loading">Đang kiểm tra quyền đăng tin...</div>;
+  }
 
   const fetchCategories = async () => {
     try {

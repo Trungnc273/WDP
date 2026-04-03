@@ -71,6 +71,18 @@ const notificationService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  /**
+    * Lấy thông tin báo cáo theo mã báo cáo
+   */
+  getReportById: async (reportId) => {
+    try {
+      const response = await api.get(`/reports/${reportId}`);
+      return response.data.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };
 

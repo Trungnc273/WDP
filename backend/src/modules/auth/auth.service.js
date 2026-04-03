@@ -369,6 +369,12 @@ async function getUserById(userId) {
     phone: user.phone,
     address: user.address,
     role: user.role,
+    isSellingRestricted: Boolean(user.isSellingRestricted),
+    sellingRestrictedUntil: user.sellingRestrictedUntil || null,
+    sellingRestrictedReason: user.sellingRestrictedReason || '',
+    isSuspended: Boolean(user.isSuspended),
+    suspendedUntil: user.suspendedUntil || null,
+    suspendedReason: user.suspendedReason || ''
   };
 }
 

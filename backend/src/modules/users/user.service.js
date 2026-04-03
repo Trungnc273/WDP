@@ -2,6 +2,7 @@ const User = require('./user.model');
 const bcrypt = require('bcryptjs');
 const { validateStrongPassword } = require('../../common/validators/password.validator');
 const Order = require('../orders/order.model');
+const Product = require('../products/product.model');
 const PurchaseRequest = require('../orders/purchase-request.model');
 const Report = require('../reports/report.model');
 const Transaction = require('../payments/transaction.model');
@@ -48,6 +49,18 @@ async function getUserById(userId) {
   
   if (!user) {
     throw new Error('Người dùng không tồn tại');
+  }
+
+  if (filteredData.isSellingRestricted === true) {
+    await Product.updateMany(
+      {
+        seller: user._id,
+        status: 'active'
+      },
+      {
+        status: 'hidden'
+      }
+    );
   }
   
   return user;

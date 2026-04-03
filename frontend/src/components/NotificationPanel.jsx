@@ -16,6 +16,9 @@ const normalizeLegacyVietnamese = (text = '') => {
     .replace(/\sda duoc dang thanh cong\.?$/i, ' đã được đăng thành công.');
 };
 
+const SYSTEM_ORDER_HINT_REGEX = /(đơn hàng|thanh toán|giao hàng|hoàn tất|hủy)/i;
+const SYSTEM_SELLER_HINT_REGEX = /(đề nghị|yêu cầu mua|người mua)/i;
+
 const NotificationPanel = ({
   isOpen,
   onClose,
@@ -120,6 +123,25 @@ const NotificationPanel = ({
     return null;
   };
 
+  const resolveReportTargetFromNotification = async (notification) => {
+    const reportId = extractEntityId(notification?.reportId);
+    if (!reportId) {
+      return null;
+    }
+
+    try {
+      const report = await notificationService.getReportById(reportId);
+      const reportProductId = extractEntityId(report?.productId);
+      if (reportProductId) {
+        return `/product/${reportProductId}`;
+      }
+    } catch (error) {
+      console.error("Error resolving report notification target:", error);
+    }
+
+    return null;
+  };
+
   const extractProductTitleFromMessage = (notification) => {
     const message = String(notification?.message || "").trim();
     if (!message) {
@@ -203,7 +225,7 @@ const NotificationPanel = ({
         });
       }
 
-      // Dieu huong theo loai thong bao
+      // Dieu huong uu tien theo entityId de tranh sai khi title/type bien doi.
       const productId = await resolveProductIdFromNotification(notification);
       if (productId) {
         navigate(`/product/${productId}`);
@@ -211,8 +233,19 @@ const NotificationPanel = ({
         return;
       }
 
-      // Cac thong bao lien quan don hang deu mo trang chi tiet don
       const orderId = await resolveOrderIdFromNotification(notification);
+      if (orderId) {
+        navigate(`/order-detail/${orderId}`);
+        onClose();
+        return;
+      }
+
+      const reportTarget = await resolveReportTargetFromNotification(notification);
+      if (reportTarget) {
+        navigate(reportTarget);
+        onClose();
+        return;
+      }
 
       switch (notification.type) {
         case "order_created":
@@ -221,18 +254,27 @@ const NotificationPanel = ({
         case "order_completed":
         case "payment_success":
         case "dispute_created":
-        case "report_update":
         case "dispute_update":
         case "review_received": {
-          if (orderId) {
-            navigate(`/order-detail/${orderId}`);
-          } else {
-            navigate("/orders");
-          }
+          navigate("/orders");
+          break;
+        }
+        case "report_update": {
+          navigate("/my-products");
           break;
         }
         case "security": {
           navigate("/profile");
+          break;
+        }
+        case "system": {
+          const rawText = `${notification?.title || ""} ${notification?.message || ""}`;
+
+          if (SYSTEM_ORDER_HINT_REGEX.test(rawText)) {
+            navigate("/orders");
+          } else if (SYSTEM_SELLER_HINT_REGEX.test(rawText)) {
+            navigate("/seller-orders");
+          }
           break;
         }
 

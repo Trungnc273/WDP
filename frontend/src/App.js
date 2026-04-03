@@ -10,7 +10,7 @@ import notificationService from './services/notification.service';
 import chatService from './services/chat.service';
 
 function AppShell() {
-  const { isAuthenticated, user, logout, token } = useAuth();
+  const { isAuthenticated, user, logout, token, refreshUser } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -18,6 +18,7 @@ function AppShell() {
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [notificationRefreshTick, setNotificationRefreshTick] = useState(0);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [checkingPostPermission, setCheckingPostPermission] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const socketRef = useRef(null);
   const lastUnreadCountRef = useRef(0);
@@ -258,28 +259,81 @@ function AppShell() {
   };
 
   const handleCreatePostClick = (event) => {
-    const sellingRestricted = isRestrictionActive(user?.isSellingRestricted, user?.sellingRestrictedUntil);
-    const accountSuspended = isRestrictionActive(user?.isSuspended, user?.suspendedUntil);
-
-    if (!sellingRestricted && !accountSuspended) {
-      return;
-    }
-
     event.preventDefault();
 
-    if (sellingRestricted) {
-      alert(buildSellingRestrictionMessage(user));
+    if (checkingPostPermission) {
       return;
     }
 
-    const suspendedUntilText = user?.suspendedUntil
-      ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
-      : '';
-    const reasonText = user?.suspendedReason
-      ? ` Lý do: ${user.suspendedReason}`
-      : ' Lý do: vi phạm chính sách của hệ thống.';
+    const navigateToCreateIfAllowed = async () => {
+      try {
+        setCheckingPostPermission(true);
 
-    alert(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+        let latestUser = user;
+        if (typeof refreshUser === 'function') {
+          const refreshed = await refreshUser();
+          if (refreshed) {
+            latestUser = refreshed;
+          }
+        }
+
+        const sellingRestricted = isRestrictionActive(
+          latestUser?.isSellingRestricted,
+          latestUser?.sellingRestrictedUntil,
+        );
+        const accountSuspended = isRestrictionActive(
+          latestUser?.isSuspended,
+          latestUser?.suspendedUntil,
+        );
+
+        if (!sellingRestricted && !accountSuspended) {
+          navigate('/product/create');
+          return;
+        }
+
+        if (sellingRestricted) {
+          alert(buildSellingRestrictionMessage(latestUser));
+          return;
+        }
+
+        const suspendedUntilText = latestUser?.suspendedUntil
+          ? ` đến ${new Date(latestUser.suspendedUntil).toLocaleString('vi-VN')}`
+          : '';
+        const reasonText = latestUser?.suspendedReason
+          ? ` Lý do: ${latestUser.suspendedReason}`
+          : ' Lý do: vi phạm chính sách của hệ thống.';
+
+        alert(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+      } catch (error) {
+        console.error('Error checking create-product permission:', error);
+
+        const sellingRestricted = isRestrictionActive(user?.isSellingRestricted, user?.sellingRestrictedUntil);
+        const accountSuspended = isRestrictionActive(user?.isSuspended, user?.suspendedUntil);
+
+        if (sellingRestricted || accountSuspended) {
+          if (sellingRestricted) {
+            alert(buildSellingRestrictionMessage(user));
+            return;
+          }
+
+          const suspendedUntilText = user?.suspendedUntil
+            ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
+            : '';
+          const reasonText = user?.suspendedReason
+            ? ` Lý do: ${user.suspendedReason}`
+            : ' Lý do: vi phạm chính sách của hệ thống.';
+
+          alert(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+          return;
+        }
+
+        alert('Không thể xác minh trạng thái tài khoản lúc này. Vui lòng thử lại sau.');
+      } finally {
+        setCheckingPostPermission(false);
+      }
+    };
+
+    navigateToCreateIfAllowed();
   };
 
   return (
