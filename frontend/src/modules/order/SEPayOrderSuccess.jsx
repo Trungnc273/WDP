@@ -40,7 +40,7 @@ const SEPayOrderSuccess = () => {
           setStatus('processing');
           setMessage('Hệ thống đang xử lý giao dịch. Vui lòng chờ trong giây lát (có thể mất 1-2 phút tuỳ ngân hàng).');
           
-          // Poll every 5s until success or failed (demo loop, max 6 times)
+          // Poll every 5s until success or failed (demo loop, max 15 times ~ 75s)
           let attempts = 0;
           const pollInterval = setInterval(async () => {
             attempts++;
@@ -54,7 +54,7 @@ const SEPayOrderSuccess = () => {
                 orderId: pollResult.orderId,
                 transactionId: pollResult.transactionId
               });
-            } else if (pollResult.status === 'failed' || attempts >= 6) {
+            } else if (pollResult.status === 'failed' || attempts >= 15) {
               clearInterval(pollInterval);
               if (pollResult.status !== 'completed') {
                 setStatus('failed');

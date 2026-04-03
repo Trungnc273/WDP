@@ -37,10 +37,8 @@ const OrderPayment = () => {
       setOrder(normalizedOrder);
       setBalance(balanceData.balance);
       
-      // Auto-select wallet if they have enough balance
-      if (balanceData.balance >= normalizedOrder.totalAmount) {
-        setPaymentMethod('wallet');
-      }
+      // Default payment method is sepay
+      setPaymentMethod('sepay');
       
       setError(null);
     } catch (err) {
@@ -263,108 +261,61 @@ const OrderPayment = () => {
 
           <div className="payment-method-selection" style={{ marginTop: '20px' }}>
             <h4>Chọn phương thức thanh toán</h4>
-            <div className="method-options" style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input 
-                  type="radio" 
-                  name="paymentMethod" 
-                  value="sepay" 
-                  checked={paymentMethod === 'sepay'}
-                  onChange={() => setPaymentMethod('sepay')}
+            <div className="payment-method" style={{ marginTop: '10px' }}>
+              <div 
+                className={`method-card active`}
+                onClick={() => setPaymentMethod('sepay')}
+              >
+                <img
+                  src="/images/sepay-logo.png"
+                  alt="Bank Transfer"
+                  className="method-logo"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/images/logo/logo.png';
+                  }}
                 />
-                Chuyển khoản QR (SEPay)
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input 
-                  type="radio" 
-                  name="paymentMethod" 
-                  value="wallet" 
-                  checked={paymentMethod === 'wallet'}
-                  onChange={() => setPaymentMethod('wallet')}
-                />
-                Số dư ví Reflow
-              </label>
+                <div className="method-info">
+                  <h4>Chuyển khoản Ngân hàng</h4>
+                  <p>Xử lý tự động 24/7 qua mã QR</p>
+                </div>
+                <div className="method-check">✓</div>
+              </div>
             </div>
           </div>
 
           <div className="wallet-info" style={{ marginTop: '20px' }}>
-            {paymentMethod === 'wallet' && (
-              <>
-                <h4>Thông tin ví</h4>
-                <div className="balance-info">
-                  <span className="label">Số dư hiện tại:</span>
-                  <span className={`balance ${isInsufficientBalance ? 'insufficient' : 'sufficient'}`}>
-                    {formatPrice(balance)}
-                  </span>
-                </div>
-                
-                {isInsufficientBalance && (
-                  <div className="insufficient-notice">
-                    <i className="fas fa-exclamation-triangle"></i>
-                    Số dư không đủ để thanh toán. Cần nạp thêm {formatPrice(order.totalAmount - balance)}
-                  </div>
-                )}
-              </>
-            )}
-            
-            {paymentMethod === 'sepay' && (
-              <div className="sepay-info" style={{ padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', color: '#0369a1' }}>
-                <i className="fas fa-info-circle" style={{ marginRight: '8px' }}></i>
-                Hệ thống sẽ chuyển bạn đến trang thanh toán an toàn của SePay để quét mã QR ngân hàng. Đơn hàng sẽ tự động cập nhật ngay khi bạn chuyển khoản xong.
-              </div>
-            )}
+            <div className="sepay-info" style={{ padding: '12px', backgroundColor: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: '6px', color: '#0050b3' }}>
+              <i className="fas fa-shield-alt" style={{ marginRight: '8px', color: '#1890ff' }}></i>
+              <strong>Thanh toán An toàn:</strong> Hệ thống sẽ chuyển bạn đến Cổng giao dịch tự động. Đơn hàng sẽ được xác nhận 24/7 ngay sau khi bạn quét mã QR chuyển khoản thành công.
+            </div>
           </div>
 
           <div className="payment-actions" style={{ marginTop: '20px' }}>
-            {paymentMethod === 'wallet' && isInsufficientBalance ? (
-              <>
-                <button 
-                  onClick={() => navigate('/wallet/topup')}
-                  className="btn btn-primary"
-                >
-                  <i className="fas fa-plus"></i>
-                  Nạp tiền vào ví
-                </button>
-                <button 
-                  onClick={() => navigate('/orders')}
-                  className="btn btn-secondary"
-                >
-                  Quay lại
-                </button>
-              </>
-            ) : (
-              <>
-                <button 
-                  onClick={() => navigate('/orders')}
-                  className="btn btn-secondary"
-                  disabled={paymentLoading}
-                >
-                  Hủy
-                </button>
-                <button 
-                  onClick={handlePayment}
-                  className="btn btn-primary"
-                  disabled={paymentLoading}
-                >
-                  {paymentLoading ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i>
-                      Đang xử lý...
-                    </>
-                  ) : paymentMethod === 'sepay' ? (
-                    <>
-                      <i className="fas fa-qrcode"></i>
-                      Quét mã QR thanh toán
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-credit-card"></i>
-                      Thanh toán bằng Ví
-                    </>
-                  )}
-                </button>
-              </>
-            )}
+            <button 
+              onClick={() => navigate('/orders')}
+              className="btn btn-secondary"
+              disabled={paymentLoading}
+            >
+              Hủy
+            </button>
+            <button 
+              onClick={handlePayment}
+              className="btn btn-primary"
+              disabled={paymentLoading}
+            >
+              {paymentLoading ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-qrcode"></i>
+                  Quét mã QR thanh toán
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>

@@ -203,8 +203,8 @@ const TopUp = () => {
                   }}
                 />
                 <div className="method-info">
-                  <h4>SePay</h4>
-                  <p>Chuyển khoản ngân hàng qua mã QR</p>
+                  <h4>Chuyển khoản Ngân hàng</h4>
+                  <p>Xử lý tự động 24/7 qua mã QR (Nhanh chóng & An toàn)</p>
                 </div>
                 <div className="method-check">✓</div>
               </div>
