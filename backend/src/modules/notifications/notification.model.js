@@ -32,6 +32,11 @@ const notificationSchema = new mongoose.Schema({
     ref: 'Order'
   },
 
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  },
+
   disputeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Report'
@@ -79,6 +84,7 @@ const notificationSchema = new mongoose.Schema({
 // Tao index de truy van hieu qua hon
 notificationSchema.index({ recipientId: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ recipientId: 1, type: 1 });
+notificationSchema.index({ recipientId: 1, productId: 1, createdAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

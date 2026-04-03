@@ -14,6 +14,7 @@ function normalizeLegacyNotification(notification) {
     isRead: Boolean(notification.isRead),
     createdAt: notification.createdAt || new Date(),
     orderId: null,
+    productId: null,
     disputeId: notification.relatedDisputeId || null,
     reportId: notification.relatedReportId || null,
     senderId: null,
@@ -62,7 +63,8 @@ async function getUnreadNotifications(userId, limit = 10) {
     })
       .sort({ createdAt: -1 })
       .populate('senderId', 'fullName avatar')
-      .populate('orderId', 'status totalToPay');
+      .populate('orderId', 'status totalToPay')
+      .populate('productId', 'title images');
 
     const user = await User.findById(userId, 'notifications').lean();
     const legacyNotifications = (user?.notifications || [])
@@ -91,7 +93,8 @@ async function getNotifications(userId, pagination = {}) {
     const notifications = await Notification.find({ recipientId: userId })
       .sort({ createdAt: -1 })
       .populate('senderId', 'fullName avatar')
-      .populate('orderId', 'status totalToPay');
+      .populate('orderId', 'status totalToPay')
+      .populate('productId', 'title images');
 
     const user = await User.findById(userId, 'notifications').lean();
     const legacyNotifications = (user?.notifications || []).map(normalizeLegacyNotification);

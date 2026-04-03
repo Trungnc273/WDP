@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import notificationService from "../services/notification.service";
+import productService from "../services/product.service";
+import { useAuth } from "../hooks/useAuth";
 import "./NotificationPanel.css";
 
 const PAGE_SIZE = 20;
@@ -21,6 +23,7 @@ const NotificationPanel = ({
   onUnreadCountChange,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -117,6 +120,72 @@ const NotificationPanel = ({
     return null;
   };
 
+  const extractProductTitleFromMessage = (notification) => {
+    const message = String(notification?.message || "").trim();
+    if (!message) {
+      return null;
+    }
+
+    const doubleQuoteMatch = message.match(/Tin đăng\s+"([^"]+)"\s+đã được đăng thành công\.?/i);
+    if (doubleQuoteMatch?.[1]) {
+      return doubleQuoteMatch[1].trim();
+    }
+
+    const singleQuoteMatch = message.match(/Tin đăng\s+'([^']+)'\s+đã được đăng thành công\.?/i);
+    if (singleQuoteMatch?.[1]) {
+      return singleQuoteMatch[1].trim();
+    }
+
+    return null;
+  };
+
+  const resolveProductIdFromNotification = async (notification) => {
+    const directProductId = extractEntityId(notification?.productId);
+    if (directProductId) {
+      return directProductId;
+    }
+
+    const isCreateProductNotification =
+      normalizeLegacyVietnamese(notification?.title || "").toLowerCase() === "đăng tin thành công";
+
+    if (!isCreateProductNotification || !user?._id) {
+      return null;
+    }
+
+    const productTitle = extractProductTitleFromMessage(notification);
+    if (!productTitle) {
+      return null;
+    }
+
+    try {
+      const result = await productService.getProducts({
+        seller: user._id,
+        search: productTitle,
+        page: 1,
+        limit: 20
+      });
+
+      const products = result?.products || [];
+      const normalizedTitle = productTitle.toLowerCase();
+
+      const exactMatch = products.find(
+        (product) => String(product?.title || "").trim().toLowerCase() === normalizedTitle,
+      );
+
+      if (exactMatch?._id) {
+        return String(exactMatch._id);
+      }
+
+      const firstMatch = products[0];
+      return firstMatch?._id ? String(firstMatch._id) : null;
+    } catch (error) {
+      console.error("Error resolving product notification:", error);
+      return null;
+    }
+
+    return null;
+  };
+
   const handleNotificationClick = async (notification) => {
     try {
       // Danh dau da doc
@@ -135,6 +204,13 @@ const NotificationPanel = ({
       }
 
       // Dieu huong theo loai thong bao
+      const productId = await resolveProductIdFromNotification(notification);
+      if (productId) {
+        navigate(`/product/${productId}`);
+        onClose();
+        return;
+      }
+
       // Cac thong bao lien quan don hang deu mo trang chi tiet don
       const orderId = await resolveOrderIdFromNotification(notification);
 

@@ -35,13 +35,6 @@ async function hasActiveOrdersForUser(userId) {
   });
 }
 
-async function hasActiveOrdersForSeller(userId) {
-  return Order.exists({
-    status: { $nin: ORDER_TERMINAL_STATUSES },
-    sellerId: userId
-  });
-}
-
 /**
  * User Service
  * Handles user profile operations
@@ -406,11 +399,6 @@ async function updateUserAdmin(userId, updateData) {
       throw new Error('Không thể hạn chế quyền bán của admin');
     }
 
-    const hasActiveOrders = await hasActiveOrdersForSeller(userId);
-    if (hasActiveOrders) {
-      throw new Error('Không thể hạn chế quyền bán khi người dùng đang có đơn bán đang xử lý');
-    }
-
     filteredData.isSellingRestricted = true;
     filteredData.sellingRestrictionSource = 'admin';
     filteredData.isSuspended = false;
@@ -513,11 +501,6 @@ async function suspendUser(userId, suspendedUntil, reason) {
     await user.save();
 
     return User.findById(userId).select('-password');
-  }
-
-  const hasActiveOrders = await hasActiveOrdersForSeller(userId);
-  if (hasActiveOrders) {
-    throw new Error('Không thể hạn chế quyền bán khi người dùng đang có đơn bán đang xử lý');
   }
 
   const nextViolationCount = (user.violationCount || 0) + 1;

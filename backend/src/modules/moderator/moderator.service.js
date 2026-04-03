@@ -18,8 +18,6 @@ const {
   applySellingRestrictionToUser
 } = require("../../common/utils/seller-restriction.util");
 
-const ORDER_TERMINAL_STATUSES = ["completed", "cancelled"];
-
 function normalizeOrderStatus(status, confirmedBySeller = false) {
   if (status === "pending") {
     return confirmedBySeller ? "awaiting_payment" : "awaiting_seller_confirmation";
@@ -31,13 +29,6 @@ function normalizeOrderStatus(status, confirmedBySeller = false) {
   }
 
   return status;
-}
-
-async function hasActiveOrdersForUser(userId) {
-  return Order.exists({
-    status: { $nin: ORDER_TERMINAL_STATUSES },
-    $or: [{ buyerId: userId }, { sellerId: userId }]
-  });
 }
 
 // Luồng trạng thái đơn hàng cho moderator: chỉ đi tới trước, không cho quay ngược.

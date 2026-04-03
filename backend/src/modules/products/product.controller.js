@@ -286,6 +286,7 @@ async function createProduct(req, res, next) {
     try {
       await createNotification(userId, {
         type: 'system',
+        productId: product._id,
         title: 'Đăng tin thành công',
         message: `Tin đăng "${product.title}" đã được đăng thành công.`
       });
