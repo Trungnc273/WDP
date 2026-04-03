@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, uploadAvatar } from '../../services/user.service';
 import { useAuth } from '../../hooks/useAuth';
 import { getImageUrl } from '../../utils/imageHelper';
+import LocationSelector from '../../components/LocationSelector';
 import './EditProfile.css';
 
 const EditProfile = () => {
@@ -13,6 +14,15 @@ const EditProfile = () => {
     fullName: '',
     phone: '',
     address: '',
+    specificAddress: '',
+    location: {
+      city: '',
+      district: '',
+      ward: '',
+      provinceCode: null,
+      districtCode: null,
+      wardCode: null
+    },
     avatar: ''
   });
   const [loading, setLoading] = useState(true);
@@ -36,6 +46,15 @@ const EditProfile = () => {
         fullName: userData.fullName || '',
         phone: userData.phone || '',
         address: userData.address || '',
+        specificAddress: userData.specificAddress || '',
+        location: userData.location || {
+          city: '',
+          district: '',
+          ward: '',
+          provinceCode: null,
+          districtCode: null,
+          wardCode: null
+        },
         avatar: userData.avatar || ''
       });
       setAvatarPreview(userData.avatar ? getImageUrl(userData.avatar) : '');
@@ -53,6 +72,13 @@ const EditProfile = () => {
     setProfile(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleLocationChange = (locationData) => {
+    setProfile(prev => ({
+      ...prev,
+      location: locationData
     }));
   };
 
@@ -113,7 +139,9 @@ const EditProfile = () => {
       await updateProfile({
         fullName: profile.fullName.trim(),
         phone: profile.phone.trim(),
-        address: profile.address.trim()
+        address: profile.address ? profile.address.trim() : '',
+        specificAddress: profile.specificAddress ? profile.specificAddress.trim() : '',
+        location: profile.location
       });
 
       setSuccess('Cập nhật thông tin thành công!');
@@ -222,17 +250,28 @@ const EditProfile = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="address">Địa chỉ</label>
+              <label>Địa chỉ khu vực</label>
+              <div className="location-panel">
+                <LocationSelector
+                  value={profile.location}
+                  onChange={handleLocationChange}
+                  errors={{}}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="specificAddress">Địa chỉ cụ thể (Số nhà, tên đường...)</label>
               <textarea
-                id="address"
-                name="address"
-                value={profile.address}
+                id="specificAddress"
+                name="specificAddress"
+                value={profile.specificAddress}
                 onChange={handleInputChange}
-                rows="3"
+                rows="2"
                 maxLength="200"
-                placeholder="Nhập địa chỉ của bạn"
+                placeholder="Ví dụ: Số 10 Ngõ 20, Phố X"
               />
-              <div className="char-count">{profile.address.length}/200</div>
+              <div className="char-count">{(profile.specificAddress || '').length}/200</div>
             </div>
           </div>
 

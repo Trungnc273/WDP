@@ -1173,7 +1173,8 @@ module.exports = {
   confirmDelivery,
   confirmReceipt,
   getAllOrders,     
-  forceCancelOrder  
+  forceCancelOrder,
+  cancelOrderAsBuyer
 };
 /**
  * Pay for an order (simplified version without wallet integration)
@@ -1442,5 +1443,77 @@ async function confirmReceipt(orderId, buyerId) {
     throw error;
   } finally {
     session.endSession();
+  }
+}
+
+/**
+ * Buyer cancels order
+ */
+async function cancelOrderAsBuyer(orderId, buyerId, reason = 'Người mua hủy đơn') {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    throw new Error('Đơn hàng không tồn tại');
+  }
+
+  if (order.buyerId.toString() !== buyerId.toString()) {
+    throw new Error('Bạn không có quyền hủy đơn hàng này');
+  }
+
+  const cancelableStatuses = ['awaiting_seller_confirmation', 'awaiting_payment', 'paid'];
+  if (!cancelableStatuses.includes(order.status)) {
+    throw new Error('Không thể hủy đơn hàng vì người bán có thể đã bắt đầu giao hàng.');
+  }
+
+  if (order.status === 'paid') {
+    const escrowService = require('../payments/escrow.service');
+    await escrowService.refundFunds(order._id, `Người mua hủy đơn: ${reason}`);
+    
+    try {
+      await notificationService.createNotification(order.sellerId, {
+        type: 'system',
+        senderId: buyerId,
+        title: 'Đơn hàng đã bị hủy và hoàn tiền',
+        message: `Người mua đã hủy đơn hàng mã #${order.orderCode || order._id.toString().slice(-8).toUpperCase()}. Tiền đã được hoàn về ví người mua.`
+      });
+    } catch (e) {
+      console.error('Lỗi khi gửi thông báo hủy đơn:', e);
+    }
+    
+    return await Order.findById(orderId);
+  } else {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      order.status = 'cancelled';
+      order.cancelledAt = new Date();
+      order.cancellationReason = `Người mua hủy đơn: ${reason}`;
+      await order.save({ session });
+
+      const product = await Product.findById(order.productId).session(session);
+      if (product && ['pending', 'sold'].includes(product.status)) {
+        product.status = 'active';
+        await product.save({ session });
+      }
+
+      await session.commitTransaction();
+      
+      try {
+        await notificationService.createNotification(order.sellerId, {
+          type: 'system',
+          senderId: buyerId,
+          title: 'Đơn hàng đã bị hủy',
+          message: `Người mua đã hủy đơn hàng mã #${order.orderCode || order._id.toString().slice(-8).toUpperCase()} trước khi thanh toán.`
+        });
+      } catch (e) {
+        console.error('Lỗi khi gửi thông báo hủy đơn:', e);
+      }
+
+      return order;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }

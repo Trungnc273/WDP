@@ -73,7 +73,7 @@ async function getPublicProfile(userId) {
  * Update user profile
  */
 async function updateProfile(userId, updateData) {
-  const allowedFields = ['fullName', 'phone', 'address'];
+  const allowedFields = ['fullName', 'phone', 'address', 'specificAddress', 'location'];
   const filteredData = {};
   
   // Only allow specific fields to be updated
@@ -98,6 +98,18 @@ async function updateProfile(userId, updateData) {
 
   if (filteredData.address !== undefined) {
     filteredData.address = String(filteredData.address).trim();
+  }
+
+  if (filteredData.specificAddress !== undefined) {
+    filteredData.specificAddress = String(filteredData.specificAddress).trim();
+  }
+
+  // Handle automatic address building if location is present
+  if (filteredData.location) {
+    const loc = filteredData.location;
+    const spec = filteredData.specificAddress !== undefined ? filteredData.specificAddress : '';
+    const parts = [spec, loc.ward, loc.district, loc.city].filter(Boolean);
+    filteredData.address = parts.join(', ');
   }
 
   // Validate required fields

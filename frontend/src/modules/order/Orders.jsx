@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getOrdersAsBuyer, getOrdersAsSeller, confirmOrderBySeller } from '../../services/order.service';
+import { getOrdersAsBuyer, getOrdersAsSeller, confirmOrderBySeller, cancelOrder } from '../../services/order.service';
 import chatService from '../../services/chat.service';
 import { getImageUrl } from '../../utils/imageHelper';
 import Dispute from '../report/Dispute';
@@ -161,6 +161,23 @@ const Orders = () => {
     }
   };
 
+  const handleCancelOrder = async (order, e) => {
+    e.stopPropagation();
+    const reason = window.prompt('Nhập lý do hủy đơn hàng của bạn:', '');
+    if (reason === null) return; // User clicked Cancel in prompt
+    
+    try {
+      setLoading(true);
+      await cancelOrder(order._id, reason || 'Người mua hủy đơn');
+      await fetchOrders();
+      alert('Hủy đơn hàng thành công và tiền đã được tự động hoàn lại (nếu có).');
+    } catch (err) {
+      alert(err.message || 'Không thể hủy đơn hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openDisputeModal = (order, mode = 'normal') => {
     setSelectedOrder(order);
     setDisputeMode(mode);
@@ -205,15 +222,34 @@ const Orders = () => {
         case 'awaiting_payment':
         case 'pending':
           return (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="btn btn-primary btn-sm btn-pay"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/orders/${order._id}/pay`);
+                }}
+              >
+                <i className="fas fa-credit-card"></i>
+                Thanh toán
+              </button>
+              <button 
+                className="btn btn-danger btn-sm"
+                onClick={(e) => handleCancelOrder(order, e)}
+              >
+                <i className="fas fa-times"></i>
+                Hủy đơn
+              </button>
+            </div>
+          );
+        case 'paid':
+          return (
             <button 
-              className="btn btn-primary btn-sm btn-pay"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/orders/${order._id}/pay`);
-              }}
+              className="btn btn-danger btn-sm"
+              onClick={(e) => handleCancelOrder(order, e)}
             >
-              <i className="fas fa-credit-card"></i>
-              Thanh toán
+              <i className="fas fa-times"></i>
+              Hủy đơn (Hoàn tiền)
             </button>
           );
         case 'delivered':

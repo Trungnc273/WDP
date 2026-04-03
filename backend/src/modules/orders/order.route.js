@@ -96,4 +96,9 @@ router.get('/moderator/all', requireRole('admin', 'moderator'), orderController.
 // Ép hủy một đơn hàng (Ví dụ: khi phát hiện lừa đảo qua báo cáo)
 // POST /api/orders/moderator/:id/force-cancel
 router.post('/moderator/:id/force-cancel', requireRole('admin', 'moderator'), orderController.forceCancelOrder);
+
+// Buyer cancels order
+// POST /api/orders/:id/cancel
+router.post('/:id/cancel', orderController.cancelOrderAsBuyer);
+
 module.exports = router;

@@ -449,6 +449,23 @@ const OrderDetail = () => {
     }
   };
 
+  const handleCancelOrder = async () => {
+    const reason = window.prompt('Nhập lý do hủy đơn hàng của bạn:', '');
+    if (reason === null) return; 
+    
+    try {
+      setLoading(true);
+      const { cancelOrder } = await import('../../services/order.service');
+      await cancelOrder(order._id, reason || 'Người mua hủy đơn');
+      await fetchOrder();
+      alert('Hủy đơn hàng thành công và tiền đã được tự động hoàn lại (nếu có).');
+    } catch (err) {
+      alert(err.message || 'Không thể hủy đơn hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleShipSuccess = () => {
     setShowShipModal(false);
     fetchOrder(); // Tai lai du lieu don hang
@@ -724,13 +741,36 @@ const OrderDetail = () => {
         case 'awaiting_payment':
         case 'pending':
           buttons.push(
+            <React.Fragment key="action-group">
+              <button
+                key="pay"
+                className="btn btn-primary"
+                onClick={() => navigate(`/orders/${order._id}/pay`)}
+              >
+                <i className="fas fa-credit-card"></i>
+                Thanh toán
+              </button>
+              <button
+                key="cancel"
+                className="btn btn-danger"
+                onClick={handleCancelOrder}
+                style={{ marginLeft: '8px' }}
+              >
+                <i className="fas fa-times"></i>
+                Hủy đơn
+              </button>
+            </React.Fragment>
+          );
+          break;
+        case 'paid':
+          buttons.push(
             <button
-              key="pay"
-              className="btn btn-primary"
-              onClick={() => navigate(`/orders/${order._id}/pay`)}
+              key="cancel"
+              className="btn btn-danger"
+              onClick={handleCancelOrder}
             >
-              <i className="fas fa-credit-card"></i>
-              Thanh toán
+              <i className="fas fa-times"></i>
+              Hủy đơn (Hoàn tiền)
             </button>
           );
           break;
@@ -953,10 +993,10 @@ const OrderDetail = () => {
 
         {/* Order Information */}
         <div className="detail-card">
-          <h2>Thông tin đơn hàng</h2>
-          <div className="order-info-grid">
-            <div className="info-item user-card-item">
-              <span className="user-card-role">Người mua</span>
+          <h2>Thông tin người {isBuyer() ? 'bán' : 'mua'}</h2>
+          
+          {!isBuyer() ? (
+            <div className="single-user-profile">
               <div className="user-card-avatar">
                 <UserAvatar
                   avatar={order.buyer?.avatar}
@@ -966,9 +1006,8 @@ const OrderDetail = () => {
               </div>
               <span className="user-card-name">{order.buyer?.fullName}</span>
             </div>
-
-            <div className="info-item user-card-item">
-              <span className="user-card-role">Người bán</span>
+          ) : (
+            <div className="single-user-profile">
               <div className="user-card-avatar">
                 <UserAvatar
                   avatar={order.seller?.avatar}
@@ -978,7 +1017,10 @@ const OrderDetail = () => {
               </div>
               <span className="user-card-name">{order.seller?.fullName}</span>
             </div>
-            
+          )}
+
+          <h2 style={{ marginTop: '24px' }}>Chi tiết thời gian</h2>
+          <div className="order-info-grid">
             <div className="info-item">
               <span className="label">Ngày tạo:</span>
               <span className="value">{formatDate(order.createdAt)}</span>

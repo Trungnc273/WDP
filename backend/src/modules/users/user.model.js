@@ -26,6 +26,18 @@ const UserSchema = new Schema({
     type: String,
     trim: true
   },
+  specificAddress: {
+    type: String,
+    trim: true
+  },
+  location: {
+    city: String,
+    district: String,
+    ward: String,
+    provinceCode: Number,
+    districtCode: Number,
+    wardCode: Number
+  },
   avatar: {
     type: String, // URL to avatar image
     default: '/images/placeholders/avatar-placeholder.svg'

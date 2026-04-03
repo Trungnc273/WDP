@@ -84,11 +84,50 @@ function startAutoCompleteDeliveredCron() {
 }
 
 /**
+ * Cron 3: Auto-refund (cancel) after 24h of payment if not shipped
+ * Chạy mỗi giờ
+ */
+function startLateShippingRefundCron() {
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+      const expiredOrders = await Order.find({
+        status: 'paid',
+        paidAt: { $lte: twentyFourHoursAgo }
+      });
+
+      if (expiredOrders.length === 0) return;
+
+      console.log(`[Cron] Auto-refund: found ${expiredOrders.length} order(s) not shipped after 24h`);
+
+      for (const order of expiredOrders) {
+        try {
+          await escrowService.refundFunds(
+            order._id,
+            'Hủy tự động: Người bán không giao hàng trong vòng 24h'
+          );
+          console.log(`[Cron] Auto-refunded order ${order._id} (seller late shipping)`);
+        } catch (err) {
+          console.error(`[Cron] Failed to auto-refund order ${order._id}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.error('[Cron] Late shipping refund job error:', err.message);
+    }
+  });
+
+  console.log('✅ Cron: auto-refund late shipping job started (every 1 hour)');
+}
+
+/**
  * Khởi động tất cả cron jobs
  */
 function startAllCronJobs() {
   startPaymentTimeoutCron();
   startAutoCompleteDeliveredCron();
+  startLateShippingRefundCron();
 }
 
 module.exports = { startAllCronJobs };

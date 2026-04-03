@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { confirmShipment } from '../../services/order.service';
+import LocationSelector from '../../components/LocationSelector';
 import './ShipOrder.css';
 
 const ShipOrder = ({ order, onClose, onSuccess }) => {
   const getDisplayOrderCode = () => order?.orderCode || order?._id?.slice(-8)?.toUpperCase() || 'N/A';
-  const defaultRecipientName = String(order?.shippingRecipientName || order?.buyer?.fullName || '').trim();
-  const defaultShippingPhone = String(order?.shippingPhone || order?.buyer?.phone || '').trim();
-  const defaultShippingAddress = String(order?.shippingAddress || order?.buyer?.address || '').trim();
+  // Ưu tiên lấy thông tin mới nhất từ profile buyer, nếu không có mới dùng shipping đã lưu
+  const defaultRecipientName = String(order?.buyer?.fullName || order?.shippingRecipientName || '').trim();
+  const defaultShippingPhone = String(order?.buyer?.phone || order?.shippingPhone || '').trim();
+  const defaultShippingAddress = String(order?.buyer?.address || order?.shippingAddress || '').trim();
 
   const buildTrackingNumber = (provider) => {
     const normalizedProvider = String(provider || 'sys').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'SYS';
@@ -24,6 +26,8 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
     shippingRecipientName: defaultRecipientName,
     shippingPhone: defaultShippingPhone,
     shippingAddress: defaultShippingAddress,
+    shippingLocation: { city: '', district: '', ward: '', provinceCode: null, districtCode: null, wardCode: null },
+    shippingSpecificAddress: '',
     useCustomShippingAddress: false
   });
   const [loading, setLoading] = useState(false);
@@ -55,6 +59,13 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
     }
   };
 
+  const handleLocationChange = (locationData) => {
+    setFormData(prev => ({
+      ...prev,
+      shippingLocation: locationData
+    }));
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -74,8 +85,17 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
       newErrors.shippingPhone = 'Vui lòng nhập số điện thoại nhận hàng';
     }
 
-    if (!formData.shippingAddress.trim()) {
-      newErrors.shippingAddress = 'Vui lòng nhập địa chỉ nhận hàng';
+    if (formData.useCustomShippingAddress) {
+      if (!formData.shippingLocation.city || !formData.shippingLocation.district || !formData.shippingLocation.ward) {
+        newErrors.shippingLocation = 'Vui lòng chọn đầy đủ cấp độ Khu vực';
+      }
+      if (!formData.shippingSpecificAddress.trim()) {
+        newErrors.shippingSpecificAddress = 'Vui lòng nhập Địa chỉ cụ thể';
+      }
+    } else {
+      if (!formData.shippingAddress.trim()) {
+        newErrors.shippingAddress = 'Địa chỉ thiếu. Vui lòng bật Tùy chỉnh để thêm địa chỉ giao hàng.';
+      }
     }
 
     if (!formData.estimatedDelivery) {
@@ -108,6 +128,13 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
     setLoading(true);
     
     try {
+      let finalAddress = formData.shippingAddress;
+      if (formData.useCustomShippingAddress) {
+        const loc = formData.shippingLocation;
+        const parts = [formData.shippingSpecificAddress, loc.ward, loc.district, loc.city].filter(Boolean);
+        finalAddress = parts.join(', ');
+      }
+
       const shipmentData = {
         trackingNumber: formData.trackingNumber.trim(),
         shippingProvider: formData.shippingProvider,
@@ -115,7 +142,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
         notes: formData.notes.trim(),
         shippingRecipientName: formData.shippingRecipientName.trim(),
         shippingPhone: formData.shippingPhone.trim(),
-        shippingAddress: formData.shippingAddress.trim()
+        shippingAddress: finalAddress.trim()
       };
 
       await confirmShipment(order._id, shipmentData);
@@ -368,20 +395,32 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                 </div>
 
                 <div className="form-group shipping-custom-grid__full">
-                  <label htmlFor="shippingAddress">
-                    Địa chỉ giao hàng <span className="required">*</span>
+                  <label>Khu vực giao hàng <span className="required">*</span></label>
+                  <LocationSelector
+                    value={formData.shippingLocation}
+                    onChange={handleLocationChange}
+                    errors={{}}
+                  />
+                  {errors.shippingLocation && (
+                    <span className="error-message">{errors.shippingLocation}</span>
+                  )}
+                </div>
+
+                <div className="form-group shipping-custom-grid__full">
+                  <label htmlFor="shippingSpecificAddress">
+                    Địa chỉ cụ thể (Số nhà, tên đường...) <span className="required">*</span>
                   </label>
                   <textarea
-                    id="shippingAddress"
-                    name="shippingAddress"
-                    value={formData.shippingAddress}
+                    id="shippingSpecificAddress"
+                    name="shippingSpecificAddress"
+                    value={formData.shippingSpecificAddress}
                     onChange={handleInputChange}
-                    placeholder="Nhập địa chỉ giao hàng chi tiết"
-                    rows="3"
-                    className={errors.shippingAddress ? 'error' : ''}
+                    placeholder="Ví dụ: Số 10 Ngõ 20, đường X..."
+                    rows="2"
+                    className={errors.shippingSpecificAddress ? 'error' : ''}
                   />
-                  {errors.shippingAddress && (
-                    <span className="error-message">{errors.shippingAddress}</span>
+                  {errors.shippingSpecificAddress && (
+                    <span className="error-message">{errors.shippingSpecificAddress}</span>
                   )}
                 </div>
               </div>
