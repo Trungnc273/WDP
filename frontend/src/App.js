@@ -229,6 +229,38 @@ function AppShell() {
     navigate('/');
   };
 
+  const isRestrictionActive = (account) => {
+    const isRestricted = account?.isSellingRestricted === true || account?.isSellingRestricted === 'true';
+    if (!isRestricted) return false;
+
+    if (!account.sellingRestrictedUntil) return true;
+
+    const restrictedUntilTime = new Date(account.sellingRestrictedUntil).getTime();
+    return Number.isFinite(restrictedUntilTime) && restrictedUntilTime > Date.now();
+  };
+
+  const buildSellingRestrictionMessage = (account) => {
+    const untilText = account?.sellingRestrictedUntil
+      ? ` đến ${new Date(account.sellingRestrictedUntil).toLocaleString('vi-VN')}`
+      : '';
+    const reasonText = account?.sellingRestrictedReason
+      ? `\nLý do: ${account.sellingRestrictedReason}`
+      : '';
+
+    return `Tài khoản của bạn đang bị hạn chế quyền bán${untilText}. Không thể đăng tin mới lúc này.${reasonText}`;
+  };
+
+  const handleCreatePostClick = async (event) => {
+    if (!isAuthenticated) return;
+
+    if (isRestrictionActive(user)) {
+      event.preventDefault();
+      window.alert(buildSellingRestrictionMessage(user));
+    }
+  };
+
+  const postButtonDisabled = isRestrictionActive(user);
+
   return (
     <div className="App">
       {!isModeratorRoute && !isAdminRoute && (
@@ -264,7 +296,12 @@ function AppShell() {
                     </Link>
                   </div>
                   
-                  <Link to="/product/create" className="navbar__btn-post">
+                  <Link
+                    to="/product/create"
+                    className={`navbar__btn-post ${postButtonDisabled ? 'navbar__btn-post--disabled' : ''}`}
+                    onClick={handleCreatePostClick}
+                    aria-disabled={postButtonDisabled}
+                  >
                     Đăng tin
                   </Link>
 
