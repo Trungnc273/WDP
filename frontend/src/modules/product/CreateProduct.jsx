@@ -75,6 +75,22 @@ const CreateProduct = () => {
     return `Tài khoản đang bị hạn chế quyền bán${restrictedUntilText}.${reasonText}`;
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/categories');
+      const categoriesData = response.data.data || response.data || [];
+      const sanitizedCategories = categoriesData.filter((category) => {
+        const slug = String(category?.slug || '').toLowerCase();
+        const name = String(category?.name || '').toLowerCase();
+        return slug !== 'other' && name !== 'khác' && name !== 'khac';
+      });
+      setCategories(sanitizedCategories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -168,22 +184,6 @@ const CreateProduct = () => {
   if (checkingAccess) {
     return <div className="loading">Đang kiểm tra quyền đăng tin...</div>;
   }
-
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/categories');
-      const categoriesData = response.data.data || response.data || [];
-      const sanitizedCategories = categoriesData.filter((category) => {
-        const slug = String(category?.slug || '').toLowerCase();
-        const name = String(category?.name || '').toLowerCase();
-        return slug !== 'other' && name !== 'khác' && name !== 'khac';
-      });
-      setCategories(sanitizedCategories);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setCategories([]);
-    }
-  };
 
   const handleLocationChange = (locationData) => {
     setFormData(prev => ({
