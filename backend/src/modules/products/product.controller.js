@@ -145,7 +145,23 @@ async function getProductById(req, res, next) {
       const canModerate = requester && ['moderator', 'admin'].includes(requester.role);
 
       if (!isOwner && !canModerate) {
-        return sendError(res, 404, 'Sản phẩm không tồn tại');
+        let unavailableMessage = 'Sản phẩm hiện không khả dụng.';
+
+        if (product.status === 'sold') {
+          unavailableMessage = 'Sản phẩm đã được giao dịch.';
+        } else if (product.status === 'pending') {
+          unavailableMessage = 'Sản phẩm đang trong giao dịch.';
+        } else if (product.status === 'hidden') {
+          unavailableMessage = 'Sản phẩm đã bị ẩn khỏi chợ.';
+        } else if (product.status === 'rejected' || product.moderationStatus === 'rejected') {
+          unavailableMessage = 'Sản phẩm đã bị gỡ do vi phạm chính sách.';
+        } else if (product.status === 'deleted') {
+          unavailableMessage = 'Sản phẩm đã bị xóa.';
+        } else if (product.status === 'expired') {
+          unavailableMessage = 'Sản phẩm đã hết hạn hiển thị.';
+        }
+
+        return sendError(res, 404, unavailableMessage);
       }
     }
     
