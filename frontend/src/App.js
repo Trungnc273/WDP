@@ -229,6 +229,59 @@ function AppShell() {
     navigate('/');
   };
 
+  const isRestrictionActive = (flag, until) => {
+    if (!flag) {
+      return false;
+    }
+
+    if (!until) {
+      return true;
+    }
+
+    const untilTime = new Date(until);
+    if (Number.isNaN(untilTime.getTime())) {
+      return false;
+    }
+
+    return untilTime > new Date();
+  };
+
+  const buildSellingRestrictionMessage = (currentUser) => {
+    const restrictedUntilText = currentUser?.sellingRestrictedUntil
+      ? ` đến ${new Date(currentUser.sellingRestrictedUntil).toLocaleString('vi-VN')}`
+      : '';
+    const reasonText = currentUser?.sellingRestrictedReason
+      ? ` Lý do: ${currentUser.sellingRestrictedReason}`
+      : ' Lý do: vi phạm chính sách của hệ thống.';
+
+    return `Tài khoản đang bị hạn chế quyền bán${restrictedUntilText}.${reasonText}`;
+  };
+
+  const handleCreatePostClick = (event) => {
+    const sellingRestricted = isRestrictionActive(user?.isSellingRestricted, user?.sellingRestrictedUntil);
+    const accountSuspended = isRestrictionActive(user?.isSuspended, user?.suspendedUntil);
+
+    if (!sellingRestricted && !accountSuspended) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (sellingRestricted) {
+      alert(buildSellingRestrictionMessage(user));
+      return;
+    }
+
+    const suspendedUntilText = user?.suspendedUntil
+      ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
+      : '';
+    const reasonText = user?.suspendedReason
+      ? ` Lý do: ${user.suspendedReason}`
+      : ' Lý do: vi phạm chính sách của hệ thống.';
+
+    alert(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+  };
+
   return (
     <div className="App">
       {!isModeratorRoute && !isAdminRoute && (
@@ -264,7 +317,7 @@ function AppShell() {
                     </Link>
                   </div>
                   
-                  <Link to="/product/create" className="navbar__btn-post">
+                  <Link to="/product/create" className="navbar__btn-post" onClick={handleCreatePostClick}>
                     Đăng tin
                   </Link>
 
