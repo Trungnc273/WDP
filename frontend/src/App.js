@@ -327,7 +327,8 @@ function AppShell() {
           return;
         }
 
-        alert('Không thể xác minh trạng thái tài khoản lúc này. Vui lòng thử lại sau.');
+        // Fall back to existing local state when profile refresh fails (network/deploy race).
+        navigate('/product/create');
       } finally {
         setCheckingPostPermission(false);
       }

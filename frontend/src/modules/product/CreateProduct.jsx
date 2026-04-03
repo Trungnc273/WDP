@@ -122,8 +122,35 @@ const CreateProduct = () => {
         await fetchCategories();
       } catch (error) {
         console.error('Error checking create-product access:', error);
-        alert('Không thể xác minh trạng thái tài khoản lúc này. Vui lòng thử lại sau.');
-        navigate('/');
+
+        // Fall back to cached auth state when refresh profile fails.
+        const sellingRestricted = isRestrictionActive(
+          user?.isSellingRestricted,
+          user?.sellingRestrictedUntil,
+        );
+        const accountSuspended = isRestrictionActive(
+          user?.isSuspended,
+          user?.suspendedUntil,
+        );
+
+        if (sellingRestricted || accountSuspended) {
+          if (sellingRestricted) {
+            alert(buildSellingRestrictionMessage(user));
+          } else {
+            const suspendedUntilText = user?.suspendedUntil
+              ? ` đến ${new Date(user.suspendedUntil).toLocaleString('vi-VN')}`
+              : '';
+            const reasonText = user?.suspendedReason
+              ? ` Lý do: ${user.suspendedReason}`
+              : ' Lý do: vi phạm chính sách của hệ thống.';
+            alert(`Tài khoản đã bị khóa${suspendedUntilText}.${reasonText}`);
+          }
+
+          navigate('/');
+          return;
+        }
+
+        await fetchCategories();
       } finally {
         if (isMounted) {
           setCheckingAccess(false);
