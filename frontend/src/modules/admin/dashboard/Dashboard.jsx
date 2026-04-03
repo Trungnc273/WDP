@@ -212,7 +212,7 @@ const AdminDashboard = () => {
       <div className="dashboard-topbar">
         <div className="dashboard-topbar__text">
           <h1>Tổng quan vận hành quản trị</h1>
-          <p>Xin chào {user?.fullName || 'Administrator'}, đây là bức tranh tổng hợp theo thời gian thực.</p>
+          <p>Xin chào {user?.fullName || 'Administrator'} </p>
         </div>
         <button className="dashboard-refresh" onClick={loadDashboardStats}>
           <ReloadOutlined /> Làm mới dữ liệu
@@ -243,7 +243,7 @@ const AdminDashboard = () => {
         <section className="dashboard-section dashboard-priority">
           <div className="dashboard-section__header">
             <h2>Hạng mục ưu tiên</h2>
-            <p>Tập trung các đầu việc có thể ảnh hưởng trực tiếp đến trải nghiệm người dùng.</p>
+            
           </div>
           <div className="priority-list">
             {priorityItems.map((item) => (
@@ -266,7 +266,7 @@ const AdminDashboard = () => {
         <section className="dashboard-section dashboard-operations">
           <div className="dashboard-section__header">
             <h2>Snapshot vận hành</h2>
-            <p>Tổng hợp nhanh cấu trúc người dùng và tiến độ xử lý nghiệp vụ.</p>
+        
           </div>
 
           <div className="operations-grid">
