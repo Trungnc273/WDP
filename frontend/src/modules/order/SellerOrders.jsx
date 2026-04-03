@@ -14,10 +14,6 @@ const SellerOrders = () => {
   const [actionLoading, setActionLoading] = useState({});
 
   const getOrderStatus = (order) => {
-    if (order.status === 'pending' && order.confirmedBySeller) {
-      return 'awaiting_payment';
-    }
-
     return order.status;
   };
 
@@ -52,13 +48,16 @@ const SellerOrders = () => {
   const filterOrders = () => {
     let filtered = orders;
 
-    if (filter === 'pending') {
-      filtered = orders.filter(order => getOrderStatus(order) === 'awaiting_seller_confirmation');
-    } else if (filter === 'confirmed') {
-      filtered = orders.filter(order => getOrderStatus(order) === 'awaiting_payment' && order.confirmedBySeller);
+    if (filter === 'pending_shipment') {
+      // Chờ giao: includes paid orders waiting for shipping.
+      // Also displaying awaiting_payment or awaiting_seller_confirmation if we want the seller to know the order exists but isn't paid yet.
+      // But the requirement says "thay vào đó là chờ giao", so we focus on 'paid'. We can include 'awaiting_payment', 'awaiting_seller_confirmation' as well, but state them as 'Chờ lấy hàng' or 'Chờ thanh toán'.
+      filtered = orders.filter(order => ['awaiting_seller_confirmation', 'awaiting_payment', 'paid'].includes(getOrderStatus(order)));
+    } else if (filter === 'shipping') {
+      filtered = orders.filter(order => getOrderStatus(order) === 'shipped');
     } else if (filter === 'completed') {
       filtered = orders.filter(order =>
-        ['paid', 'shipped', 'completed', 'cancelled', 'disputed'].includes(getOrderStatus(order))
+        ['delivered', 'completed', 'cancelled', 'disputed'].includes(getOrderStatus(order))
       );
     }
 
@@ -82,33 +81,29 @@ const SellerOrders = () => {
     });
   };
 
-  const getStatusBadge = (status, confirmedBySeller) => {
+  const getStatusBadge = (status) => {
     let statusText = '';
     let statusClass = '';
 
-    const normalizedStatus = status === 'pending' && confirmedBySeller
-      ? 'awaiting_payment'
-      : status;
-
-    if (normalizedStatus === 'awaiting_seller_confirmation') {
-      statusText = 'Chờ xác nhận';
-      statusClass = 'status-awaiting-confirmation';
-    } else if (normalizedStatus === 'awaiting_payment' && confirmedBySeller) {
-      statusText = 'Chờ thanh toán';
+    if (status === 'awaiting_seller_confirmation' || status === 'awaiting_payment') {
+      statusText = 'Chưa thanh toán (Chờ mua)';
       statusClass = 'status-awaiting-payment';
-    } else if (normalizedStatus === 'paid') {
-      statusText = 'Đã thanh toán';
+    } else if (status === 'paid') {
+      statusText = 'Đã thanh toán (Chờ giao)';
       statusClass = 'status-paid';
-    } else if (normalizedStatus === 'shipped') {
+    } else if (status === 'shipped') {
       statusText = 'Đang giao hàng';
       statusClass = 'status-shipping';
-    } else if (normalizedStatus === 'completed') {
+    } else if (status === 'delivered') {
+      statusText = 'Đã giao (Chờ nhận)';
+      statusClass = 'status-shipping';
+    } else if (status === 'completed') {
       statusText = 'Hoàn thành';
       statusClass = 'status-completed';
-    } else if (normalizedStatus === 'cancelled') {
+    } else if (status === 'cancelled') {
       statusText = 'Đã hủy';
       statusClass = 'status-cancelled';
-    } else if (normalizedStatus === 'disputed') {
+    } else if (status === 'disputed') {
       statusText = 'Tranh chấp';
       statusClass = 'status-disputed';
     }
@@ -116,22 +111,7 @@ const SellerOrders = () => {
     return { text: statusText, class: statusClass };
   };
 
-  const handleConfirmOrder = async (orderId) => {
-    setActionLoading(prev => ({ ...prev, [orderId]: true }));
-    
-    try {
-      await confirmOrderBySeller(orderId);
-      
-      // Tai lai danh sach
-      await fetchOrders();
-      
-      alert('Đã xác nhận đơn hàng thành công!');
-    } catch (err) {
-      alert(err.message || 'Không thể xác nhận đơn hàng');
-    } finally {
-      setActionLoading(prev => ({ ...prev, [orderId]: false }));
-    }
-  };
+  // confirmOrder is removed since approval is automatic or completely bypassed
 
   const handleViewDetails = (orderId) => {
     navigate(`/order-detail/${orderId}`);
@@ -155,24 +135,24 @@ const SellerOrders = () => {
 
       <div className="seller-orders-filters">
         <button
-          className={`filter-btn ${filter === 'pending' ? 'active' : ''}`}
-          onClick={() => setFilter('pending')}
+          className={`filter-btn ${filter === 'pending_shipment' ? 'active' : ''}`}
+          onClick={() => setFilter('pending_shipment')}
         >
           <i className="fas fa-hourglass-half"></i>
-          Chờ xác nhận
+          Chờ giao
           <span className="filter-count">
-            {orders.filter(o => getOrderStatus(o) === 'awaiting_seller_confirmation').length}
+            {orders.filter(o => ['awaiting_seller_confirmation', 'awaiting_payment', 'paid'].includes(getOrderStatus(o))).length}
           </span>
         </button>
 
         <button
-          className={`filter-btn ${filter === 'confirmed' ? 'active' : ''}`}
-          onClick={() => setFilter('confirmed')}
+          className={`filter-btn ${filter === 'shipping' ? 'active' : ''}`}
+          onClick={() => setFilter('shipping')}
         >
-          <i className="fas fa-check-circle"></i>
-          Đã xác nhận
+          <i className="fas fa-truck"></i>
+          Đang giao
           <span className="filter-count">
-            {orders.filter(o => getOrderStatus(o) === 'awaiting_payment' && o.confirmedBySeller).length}
+            {orders.filter(o => getOrderStatus(o) === 'shipped').length}
           </span>
         </button>
 
@@ -183,7 +163,7 @@ const SellerOrders = () => {
           <i className="fas fa-box"></i>
           Hoàn thành
           <span className="filter-count">
-            {orders.filter(o => ['paid', 'shipped', 'completed', 'cancelled', 'disputed'].includes(getOrderStatus(o))).length}
+            {orders.filter(o => ['delivered', 'completed', 'cancelled', 'disputed'].includes(getOrderStatus(o))).length}
           </span>
         </button>
       </div>
@@ -201,9 +181,9 @@ const SellerOrders = () => {
           <i className="fas fa-inbox"></i>
           <h3>Không có đơn hàng</h3>
           <p>
-            {filter === 'pending' && 'Bạn không có đơn hàng nào chờ xác nhận'}
-            {filter === 'confirmed' && 'Bạn không có đơn hàng nào đã xác nhận chờ thanh toán'}
-            {filter === 'completed' && 'Bạn không có đơn hàng nào hoàn thành'}
+            {filter === 'pending_shipment' && 'Bạn không có đơn hàng nào chờ giao'}
+            {filter === 'shipping' && 'Bạn không có đơn hàng nào đang giao'}
+            {filter === 'completed' && 'Bạn không có đơn hàng nào ở trạng thái hoàn thành'}
           </p>
         </div>
       ) : (
@@ -259,26 +239,6 @@ const SellerOrders = () => {
                   <div className={`order-status-badge ${statusBadge.class}`}>
                     {statusBadge.text}
                   </div>
-                  {normalizedStatus === 'awaiting_seller_confirmation' && (
-                    <button
-                      className="btn-confirm"
-                      onClick={() => handleConfirmOrder(order._id)}
-                      disabled={actionLoading[order._id]}
-                      title="Xác nhận đơn hàng"
-                    >
-                      {actionLoading[order._id] ? (
-                        <>
-                          <i className="fas fa-spinner fa-spin"></i>
-                          Đang xử lý...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-check"></i>
-                          Xác nhận
-                        </>
-                      )}
-                    </button>
-                  )}
                   <button
                     className="btn-view-details"
                     onClick={() => handleViewDetails(order._id)}

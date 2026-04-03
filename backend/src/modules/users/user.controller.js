@@ -54,12 +54,14 @@ async function getProfile(req, res) {
 async function updateProfile(req, res) {
   try {
     const userId = req.user.userId;
-    const { fullName, phone, address } = req.body;
+    const { fullName, phone, address, specificAddress, location } = req.body;
     
     const user = await userService.updateProfile(userId, {
       fullName,
       phone,
-      address
+      address,
+      specificAddress,
+      location
     });
     
     sendSuccess(res, 200, user, 'Cập nhật thông tin thành công');

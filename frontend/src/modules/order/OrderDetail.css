@@ -257,6 +257,29 @@
 }
 
 /* User card in order info */
+.single-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f8faff;
+  border: 1px solid #dde8ff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.single-user-profile .user-card-avatar {
+  margin: 0;
+  width: 56px;
+  height: 56px;
+}
+
+.single-user-profile .user-card-name {
+  font-size: 18px;
+  margin: 0;
+  color: #1a1a2e;
+}
+
 .user-card-item {
   align-items: center;
   text-align: center;

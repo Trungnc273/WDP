@@ -173,6 +173,18 @@ export const confirmDelivery = async (orderId) => {
   }
 };
 
+/**
+ * Buyer cancels order
+ */
+export const cancelOrder = async (orderId, reason = '') => {
+  try {
+    const response = await api.post(`/orders/${orderId}/cancel`, { reason });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 const orderService = {
   createPurchaseRequest,
   createSellerOfferFromChat,
@@ -187,7 +199,8 @@ const orderService = {
   getOrdersAsBuyer,
   getOrdersAsSeller,
   getOrderById,
-  confirmOrderBySeller
+  confirmOrderBySeller,
+  cancelOrder
 };
 
 export default orderService;

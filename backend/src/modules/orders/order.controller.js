@@ -414,6 +414,25 @@ async function confirmOrderBySeller(req, res) {
   }
 }
 
+/**
+ * Buyer cancels order
+ * POST /api/orders/:id/cancel
+ */
+async function cancelOrderAsBuyer(req, res) {
+  try {
+    const orderId = req.params.id;
+    const buyerId = req.user.userId;
+    const { reason } = req.body;
+
+    const order = await orderService.cancelOrderAsBuyer(orderId, buyerId, reason);
+    
+    return sendSuccess(res, 200, order, 'Đã hủy đơn hàng thành công');
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    return sendError(res, 400, error.message);
+  }
+}
+
 module.exports = {
   createPurchaseRequest,
   createSellerOfferFromChat,
@@ -431,5 +450,6 @@ module.exports = {
   getOrderById,
   getAllOrdersForMod, 
   confirmOrderBySeller,
-  forceCancelOrder    
+  forceCancelOrder,
+  cancelOrderAsBuyer
 };
