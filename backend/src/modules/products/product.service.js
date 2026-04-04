@@ -80,6 +80,18 @@ async function getProducts(filters = {}, pagination = {}) {
     // Build query with filters (Req 10 - combine multiple filters)
     const query = buildProductQuery(filters);
     
+    // Safety check: Filter out any products from deleted or suspended sellers globally
+    const validSellerIds = await User.find({ isSuspended: { $ne: true } }).distinct('_id');
+    if (query.seller) {
+      // If a specific seller was requested, just make sure they're in the valid list
+      // Note: MongoDB natively handles checking if a single scalar is inside an array via '$in', but since query.seller might be a string/ObjectId, we intersect it.
+      if (!validSellerIds.some(id => id.toString() === query.seller.toString())) {
+        return { products: [], total: 0, page: 1, totalPages: 0, limit: parseInt(pagination.limit) || 20 };
+      }
+    } else {
+      query.seller = { $in: validSellerIds };
+    }
+    
     // Calculate pagination (Req 5)
     const page = parseInt(pagination.page) || 1;
     const limit = Math.min(parseInt(pagination.limit) || 20, 100); // Max 100 per page (Req 5.6)
@@ -133,6 +145,14 @@ async function getProductById(productId) {
     
     if (!product) {
       throw new Error('Sản phẩm không tồn tại');
+    }
+    
+    if (!product.seller) {
+      throw new Error('Người bán đã bị xóa hoặc không tải được thông tin');
+    }
+    
+    if (product.seller.isSuspended) {
+      throw new Error('Tài khoản người bán hiện đang bị khóa');
     }
     
     return product;
