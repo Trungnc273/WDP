@@ -106,7 +106,8 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
     }
 
     const buyerPhone = String(buyer.phone || '').trim();
-    const buyerAddress = String(buyer.address || '').trim();
+    const buyerAddress = String(buyer.address || '').trim()
+      || [buyer.specificAddress, buyer.location?.ward, buyer.location?.district, buyer.location?.city].filter(Boolean).join(', ');
     if (!buyerPhone || !buyerAddress) {
       throw new Error('Vui lòng cập nhật số điện thoại và địa chỉ trước khi mua hàng');
     }
@@ -131,7 +132,7 @@ async function createPurchaseRequest(buyerId, listingId, message, agreedPrice) {
         paymentStatus: 'unpaid',
         confirmedBySeller: true,
         confirmedBySellerAt: new Date(),
-        paymentDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      paymentDeadline: new Date(Date.now() + 3 * 60 * 1000), // 3 minutes
         shippingRecipientName: String(buyer.fullName || '').trim(),
         shippingPhone: buyerPhone,
         shippingAddress: buyerAddress
@@ -368,7 +369,8 @@ async function acceptPurchaseRequest(requestId, sellerId) {
     }
 
     const buyerPhone = String(buyer.phone || '').trim();
-    const buyerAddress = String(buyer.address || '').trim();
+    const buyerAddress = String(buyer.address || '').trim()
+      || [buyer.specificAddress, buyer.location?.ward, buyer.location?.district, buyer.location?.city].filter(Boolean).join(', ');
     if (!buyerPhone || !buyerAddress) {
       throw new Error('Người mua phải cập nhật số điện thoại và địa chỉ trước khi tạo đơn hàng');
     }
@@ -391,7 +393,9 @@ async function acceptPurchaseRequest(requestId, sellerId) {
       confirmedBySeller: skipSellerConfirmation,
       confirmedBySellerAt: skipSellerConfirmation ? new Date() : null,
       paymentStatus: 'unpaid',
-      paymentDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      paymentDeadline: skipSellerConfirmation
+        ? new Date(Date.now() + 3 * 60 * 1000) // 3 minutes — only start timer if buyer-initiated (skips seller confirm)
+        : null, // Will be set when seller confirms
       shippingRecipientName: String(buyer.fullName || '').trim(),
       shippingPhone: buyerPhone,
       shippingAddress: buyerAddress
@@ -1130,6 +1134,7 @@ async function confirmOrderBySeller(orderId, sellerId) {
   order.status = 'awaiting_payment';
   order.confirmedBySeller = true;
   order.confirmedBySellerAt = new Date();
+  order.paymentDeadline = new Date(Date.now() + 3 * 60 * 1000); // Start 3-min timer NOW when seller confirms
   await order.save();
 
   try {

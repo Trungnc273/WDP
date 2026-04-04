@@ -1,14 +1,42 @@
 import React, { useState } from 'react';
 import { confirmShipment } from '../../services/order.service';
 import LocationSelector from '../../components/LocationSelector';
+import { useAuth } from '../../hooks/useAuth';
 import './ShipOrder.css';
 
 const ShipOrder = ({ order, onClose, onSuccess }) => {
+  const { user } = useAuth();
   const getDisplayOrderCode = () => order?.orderCode || order?._id?.slice(-8)?.toUpperCase() || 'N/A';
-  // Ưu tiên lấy thông tin mới nhất từ profile buyer, nếu không có mới dùng shipping đã lưu
-  const defaultRecipientName = String(order?.buyer?.fullName || order?.shippingRecipientName || '').trim();
-  const defaultShippingPhone = String(order?.buyer?.phone || order?.shippingPhone || '').trim();
-  const defaultShippingAddress = String(order?.buyer?.address || order?.shippingAddress || '').trim();
+  
+  // Ưu tiên lấy địa chỉ từ bài đăng (listing), fallback sang profile người bán
+  const listing = order?.listing || order?.productId || {};
+  const listingLoc = listing?.location || {};
+  
+  const defaultRecipientName = String(user?.fullName || order?.seller?.fullName || '').trim();
+  const defaultShippingPhone = String(user?.phone || order?.seller?.phone || '').trim();
+  
+  // Xây dựng địa chỉ mặc định từ địa chỉ đăng bán (listing)
+  const listingLocParts = [listing?.specificAddress, listingLoc.ward, listingLoc.district, listingLoc.city].filter(Boolean);
+  let defaultShippingAddress = listingLocParts.length > 0
+    ? listingLocParts.join(', ')
+    : String(user?.address || '').trim();
+  
+  // Nếu listing không có địa chỉ, dùng profile của người bán
+  if (!defaultShippingAddress) {
+    const userLoc = user?.location || {};
+    const userParts = [user?.specificAddress, userLoc.ward, userLoc.district, userLoc.city].filter(Boolean);
+    defaultShippingAddress = userParts.length > 0 ? userParts.join(', ') : '';
+  }
+
+  // Pre-fill location codes từ listing để mở đúng dropdown khi tùy chỉnh
+  const defaultShippingLocation = {
+    city: listingLoc.city || '',
+    district: listingLoc.district || '',
+    ward: listingLoc.ward || '',
+    provinceCode: listingLoc.provinceCode || null,
+    districtCode: listingLoc.districtCode || null,
+    wardCode: listingLoc.wardCode || null
+  };
 
   const buildTrackingNumber = (provider) => {
     const normalizedProvider = String(provider || 'sys').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'SYS';
@@ -26,12 +54,13 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
     shippingRecipientName: defaultRecipientName,
     shippingPhone: defaultShippingPhone,
     shippingAddress: defaultShippingAddress,
-    shippingLocation: { city: '', district: '', ward: '', provinceCode: null, districtCode: null, wardCode: null },
-    shippingSpecificAddress: '',
+    shippingLocation: defaultShippingLocation,
+    shippingSpecificAddress: listing?.specificAddress || '',
     useCustomShippingAddress: false
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
 
   const shippingProviders = [
     { value: 'ghn', label: 'Giao Hàng Nhanh (GHN)' },
@@ -231,16 +260,12 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                 <span className="value">{order.buyer?.fullName}</span>
               </div>
               <div className="detail-item">
-                <span className="label">Người nhận hàng:</span>
-                <span className="value">{formData.shippingRecipientName || 'Chưa cập nhật'}</span>
-              </div>
-              <div className="detail-item">
-                <span className="label">Số điện thoại:</span>
-                <span className="value">{formData.shippingPhone || 'Chưa cập nhật'}</span>
+                <span className="label">SĐT người mua:</span>
+                <span className="value">{order.buyer?.phone || 'Chưa cập nhật'}</span>
               </div>
               <div className="detail-item detail-item--full">
-                <span className="label">Địa chỉ nhận hàng:</span>
-                <span className="value">{formData.shippingAddress || 'Chưa cập nhật địa chỉ nhận hàng'}</span>
+                <span className="label">Địa chỉ giao đến:</span>
+                <span className="value">{order.shippingAddress || order.buyer?.address || 'Chưa cập nhật'}</span>
               </div>
               <div className="detail-item">
                 <span className="label">Ngày tạo đơn:</span>
@@ -316,8 +341,8 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
           <div className="shipping-address-panel">
             <div className="shipping-address-panel__header">
               <div>
-                <h4>Thông tin giao hàng</h4>
-                <p>Mặc định hệ thống lấy từ hồ sơ người mua, bạn có thể chuyển sang tùy chỉnh nếu cần.</p>
+                <h4>Thông tin điểm lấy hàng (Pickup)</h4>
+                <p>Mặc định lấy từ địa chỉ bài đăng. Bạn có thể tùy chỉnh nếu giao từ nơi khác.</p>
               </div>
               <label className="shipping-toggle">
                 <input
@@ -335,14 +360,14 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                     }));
                   }}
                 />
-                <span>Tùy chỉnh địa chỉ giao hàng</span>
+                <span>Tùy chỉnh điểm lấy hàng</span>
               </label>
             </div>
 
             {!formData.useCustomShippingAddress && (
               <div className="shipping-default-preview">
                 <div className="detail-item">
-                  <span className="label">Người nhận mặc định</span>
+                  <span className="label">Người gửi hàng</span>
                   <span className="value">{formData.shippingRecipientName || 'Chưa cập nhật'}</span>
                 </div>
                 <div className="detail-item">
@@ -350,7 +375,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                   <span className="value">{formData.shippingPhone || 'Chưa cập nhật'}</span>
                 </div>
                 <div className="detail-item detail-item--full">
-                  <span className="label">Địa chỉ giao hàng</span>
+                  <span className="label">Địa chỉ lấy hàng</span>
                   <span className="value">{formData.shippingAddress || 'Chưa cập nhật'}</span>
                 </div>
               </div>
@@ -360,7 +385,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
               <div className="shipping-custom-grid">
                 <div className="form-group">
                   <label htmlFor="shippingRecipientName">
-                    Người nhận hàng <span className="required">*</span>
+                    Họ tên người gửi <span className="required">*</span>
                   </label>
                   <input
                     type="text"
@@ -368,7 +393,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                     name="shippingRecipientName"
                     value={formData.shippingRecipientName}
                     onChange={handleInputChange}
-                    placeholder="Nhập tên người nhận"
+                    placeholder="Nhập tên người gửi"
                     className={errors.shippingRecipientName ? 'error' : ''}
                   />
                   {errors.shippingRecipientName && (
@@ -378,7 +403,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
 
                 <div className="form-group">
                   <label htmlFor="shippingPhone">
-                    Số điện thoại nhận hàng <span className="required">*</span>
+                    Số điện thoại gửi hàng <span className="required">*</span>
                   </label>
                   <input
                     type="text"
@@ -386,7 +411,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                     name="shippingPhone"
                     value={formData.shippingPhone}
                     onChange={handleInputChange}
-                    placeholder="Nhập số điện thoại nhận hàng"
+                    placeholder="Nhập số điện thoại gửi hàng"
                     className={errors.shippingPhone ? 'error' : ''}
                   />
                   {errors.shippingPhone && (
@@ -395,7 +420,7 @@ const ShipOrder = ({ order, onClose, onSuccess }) => {
                 </div>
 
                 <div className="form-group shipping-custom-grid__full">
-                  <label>Khu vực giao hàng <span className="required">*</span></label>
+                  <label>Khu vực lấy hàng <span className="required">*</span></label>
                   <LocationSelector
                     value={formData.shippingLocation}
                     onChange={handleLocationChange}

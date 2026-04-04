@@ -133,9 +133,6 @@ const PurchaseRequest = ({ product, onClose, onSuccess, isQuickBuy = false }) =>
             <span className="price-label">Tổng tiền thanh toán:</span>
             <span className="price-value">{formatPrice(product?.price)} VND</span>
           </div>
-          <p style={{ fontSize: '12px', color: '#888', margin: '6px 0 0 0' }}>
-            * Phí dịch vụ 5% đã được tính vào phần người bán nhận
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="purchase-request-form">

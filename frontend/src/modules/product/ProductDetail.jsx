@@ -8,6 +8,7 @@ import { getImageUrl, getUserAvatarUrl, handleImageError } from '../../utils/ima
 import PurchaseRequest from '../order/PurchaseRequest';
 import ReportProduct from '../report/ReportProduct';
 import ReportUser from '../report/ReportUser';
+import { message as antMessage } from 'antd';
 import './ProductDetail.css';
 
 const ProductDetail = () => {
@@ -45,7 +46,8 @@ const ProductDetail = () => {
   const hasPurchaseProfile = () => {
     const profile = profileData || user || {};
     const phone = String(profile?.phone || '').trim();
-    const address = String(profile?.address || '').trim();
+    const address = String(profile?.address || '').trim() ||
+      [profile?.specificAddress, profile?.location?.ward, profile?.location?.district, profile?.location?.city].filter(Boolean).join(', ');
     return Boolean(phone && address);
   };
   useEffect(() => {
@@ -66,8 +68,8 @@ const ProductDetail = () => {
       return true;
     }
 
-    alert('Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng');
-    navigate('/profile');
+    antMessage.warning('Bạn chưa cập nhật địa chỉ. Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng', 2);
+    setTimeout(() => navigate('/profile/edit'), 1500);
     return false;
   };
 
@@ -92,14 +94,15 @@ const ProductDetail = () => {
         getProfile().then(res => {
           const profile = res.data;
           const phone = String(profile?.phone || '').trim();
-          const address = String(profile?.address || '').trim();
+          const address = String(profile?.address || '').trim() ||
+            [profile?.specificAddress, profile?.location?.ward, profile?.location?.district, profile?.location?.city].filter(Boolean).join(', ');
           if (phone && address) {
             setProfileData(profile);
             setIsQuickBuy(true);
             setShowPurchaseRequest(true);
           } else {
-            alert('Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng');
-            navigate('/profile');
+            antMessage.warning('Bạn chưa cập nhật địa chỉ. Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng', 2);
+            setTimeout(() => navigate('/profile/edit'), 1500);
           }
         }).catch(() => {
           alert('Không thể kiểm tra thông tin hồ sơ. Vui lòng thử lại.');
@@ -177,14 +180,15 @@ const ProductDetail = () => {
       const res = await getProfile();
       const profile = res.data;
       const phone = String(profile?.phone || '').trim();
-      const address = String(profile?.address || '').trim();
+      const address = String(profile?.address || '').trim() ||
+        [profile?.specificAddress, profile?.location?.ward, profile?.location?.district, profile?.location?.city].filter(Boolean).join(', ');
       if (phone && address) {
         setProfileData(profile);
         setIsQuickBuy(quickBuy);
         setShowPurchaseRequest(true);
       } else {
-        alert('Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng');
-        navigate('/profile');
+        antMessage.warning('Bạn chưa cập nhật địa chỉ. Vui lòng cập nhật số điện thoại và địa chỉ trong hồ sơ trước khi mua hàng', 2);
+        setTimeout(() => navigate('/profile/edit'), 1500);
       }
     } catch {
       alert('Không thể kiểm tra thông tin hồ sơ. Vui lòng thử lại.');

@@ -8,7 +8,7 @@ const escrowService = require('../modules/payments/escrow.service');
  */
 
 /**
- * Cron 1: Auto-cancel đơn chưa thanh toán sau 10 phút
+ * Cron 1: Auto-cancel đơn chưa thanh toán sau 3 phút
  * Chạy mỗi phút
  */
 function startPaymentTimeoutCron() {
@@ -27,7 +27,7 @@ function startPaymentTimeoutCron() {
         try {
           order.status = 'cancelled';
           order.cancelledAt = new Date();
-          order.cancellationReason = 'Hết thời gian thanh toán (10 phút)';
+          order.cancellationReason = 'Hết thời gian thanh toán (3 phút)';
           await order.save();
 
           // Unlock sản phẩm
@@ -122,12 +122,49 @@ function startLateShippingRefundCron() {
 }
 
 /**
+ * Cron 4: Auto-xóa bài đăng đã active quá 30 ngày mà chưa có người mua
+ * Chạy mỗi ngày lúc 3 giờ sáng
+ */
+function startExpiredListingCleanupCron() {
+  cron.schedule('0 3 * * *', async () => {
+    try {
+      const Product = require('../modules/products/product.model');
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const expiredListings = await Product.find({
+        status: 'active',
+        createdAt: { $lte: thirtyDaysAgo }
+      });
+
+      if (expiredListings.length === 0) return;
+
+      console.log(`[Cron] Expired listings: found ${expiredListings.length} listing(s) older than 30 days`);
+
+      for (const product of expiredListings) {
+        try {
+          await Product.findByIdAndDelete(product._id);
+          console.log(`[Cron] Deleted expired listing ${product._id} ("${product.title}")`);
+        } catch (err) {
+          console.error(`[Cron] Failed to delete listing ${product._id}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.error('[Cron] Expired listing cleanup job error:', err.message);
+    }
+  });
+
+  console.log('✅ Cron: expired listing cleanup started (daily at 3am, 30-day threshold)');
+}
+
+/**
  * Khởi động tất cả cron jobs
  */
 function startAllCronJobs() {
   startPaymentTimeoutCron();
   startAutoCompleteDeliveredCron();
   startLateShippingRefundCron();
+  startExpiredListingCleanupCron();
 }
 
 module.exports = { startAllCronJobs };

@@ -22,12 +22,15 @@ const deliveryRoutes = require('./modules/delivery/delivery.route');
 const favoriteRoutes = require('./modules/users/favorite.route');
 const moderatorRoutes = require("./modules/moderator/moderator.route");
 const notificationRoutes = require('./modules/notifications/notification.route');
+const sepayRoutes = require('./modules/payments/sepay.route');
+
 // Register routes
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/wallets', walletRoutes);
+router.use('/payments/sepay', sepayRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/orders', orderRoutes);
 router.use('/chat', chatRoutes);

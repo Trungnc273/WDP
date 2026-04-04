@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import productService from '../../services/product.service';
 import api from '../../services/api';
+import { getProfile } from '../../services/user.service';
 import LocationSelector from '../../components/LocationSelector';
 import './CreateProduct.css';
 
@@ -43,6 +44,9 @@ const CreateProduct = () => {
     }
   });
 
+  const [useProfileLocation, setUseProfileLocation] = useState(true);
+  const [profileLocation, setProfileLocation] = useState(null);
+
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
 
@@ -69,6 +73,16 @@ const CreateProduct = () => {
     }
 
     fetchCategories();
+
+    // Pre-fill location from seller's profile
+    getProfile().then(res => {
+      const profile = res?.data || {};
+      const loc = profile?.location || {};
+      if (loc.city) {
+        setProfileLocation(loc);
+        setFormData(prev => ({ ...prev, location: loc }));
+      }
+    }).catch(() => {});
   }, [user, navigate]);
 
   const handleLocationChange = (locationData) => {
@@ -518,14 +532,38 @@ const CreateProduct = () => {
               </div>
 
               <div className="location-panel">
-                <LocationSelector
-                  value={formData.location}
-                  onChange={handleLocationChange}
-                  errors={{
-                    city: errors['location.city'],
-                    district: errors['location.district']
-                  }}
-                />
+                {profileLocation && (
+                  <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
+                    <span style={{ flex: 1, fontSize: '14px', color: '#0369a1' }}>
+                      📍 Mặc định từ hồ sơ: <strong>{[profileLocation.ward, profileLocation.district, profileLocation.city].filter(Boolean).join(', ')}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !useProfileLocation;
+                        setUseProfileLocation(next);
+                        if (next && profileLocation) {
+                          setFormData(prev => ({ ...prev, location: profileLocation }));
+                        } else {
+                          setFormData(prev => ({ ...prev, location: { city: '', district: '', ward: '', provinceCode: null, districtCode: null, wardCode: null } }));
+                        }
+                      }}
+                      style={{ fontSize: '13px', padding: '5px 12px', background: useProfileLocation ? '#e0f2fe' : '#fff', border: '1px solid #7dd3fc', borderRadius: '6px', cursor: 'pointer', color: '#0369a1', whiteSpace: 'nowrap' }}
+                    >
+                      {useProfileLocation ? 'Tùy chỉnh' : 'Dùng hồ sơ'}
+                    </button>
+                  </div>
+                )}
+                {(!profileLocation || !useProfileLocation) && (
+                  <LocationSelector
+                    value={formData.location}
+                    onChange={handleLocationChange}
+                    errors={{
+                      city: errors['location.city'],
+                      district: errors['location.district']
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

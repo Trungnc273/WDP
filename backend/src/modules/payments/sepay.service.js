@@ -62,7 +62,7 @@ async function createSePayOrderPayment(userId, orderId, amount, orderInfo) {
     currency: 'VND',
     order_description: orderInfo || 'Thanh toan don hang',
     customer_id: userId.toString(),
-    success_url: frontendUrl + '/orders/sepay-success?transactionId=' + inv,
+    success_url: frontendUrl + '/orders',
     error_url: frontendUrl + '/orders/sepay-result?success=false&message=Loi',
     cancel_url: frontendUrl + '/orders/sepay-result?success=false&message=Huy',
   });
